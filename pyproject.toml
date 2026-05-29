@@ -1,0 +1,71 @@
+[project]
+name = "django-grid-table"
+version = "0.1.0"
+description = "Reusable AG Grid integration for Django with HTMX-safe lifecycle and persisted grid preferences"
+readme = "README.md"
+authors = [
+    { name = "Oleksii Pylypchuk", email = "alpi@keemail.me" }
+]
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: Django",
+    "Framework :: Django :: 5",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+dependencies = [
+    "django>=4.2,<6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/alpiua/django-grid-table"
+Repository = "https://github.com/alpiua/django-grid-table"
+Issues = "https://github.com/alpiua/django-grid-table/issues"
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2.0",
+    "pytest>=8.0.0",
+    "pytest-django>=4.8.0",
+    "ruff>=0.8.0",
+    "twine>=5.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=77.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-data]
+django_grid_table = [
+    "py.typed",
+    "templates/**/*.html",
+    "locale/**/*.po",
+    "locale/**/*.mo",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "tests.settings"
+pythonpath = ["src", "."]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

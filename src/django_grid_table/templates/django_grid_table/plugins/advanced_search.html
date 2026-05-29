@@ -1,0 +1,40 @@
+<script>
+window.createContextGridAdvancedSearch = function(inputSelector = '#ag-quick-filter') {
+    return function(quickFilterParts, rowQuickFilterAggregateText) {
+        const inputElement = document.querySelector(inputSelector);
+        const searchExpr = inputElement ? inputElement.value : '';
+        if (!searchExpr) return true;
+        
+        const dataStr = String(rowQuickFilterAggregateText ?? '').toLowerCase();
+        
+        // 1. Split by ';' for OR logic across groups
+        const orGroups = searchExpr.toLowerCase().split(';').map(s => s.trim()).filter(Boolean);
+        if (orGroups.length === 0) return true;
+        
+        return orGroups.some(group => {
+            // 2. Split by ',' for AND logic within a group
+            const andTokens = group.split(',').map(s => s.trim()).filter(Boolean);
+            
+            return andTokens.every(token => {
+                const isNegative = token.startsWith('-');
+                const raw = isNegative ? token.slice(1).trim() : token;
+
+                if (!raw) return true;
+
+                let matches = dataStr.includes(raw);
+                
+                // Fallback for UUIDs or strings with hyphens:
+                // AG-Grid natively often replaces hyphens and punctuation with spaces 
+                // in rowQuickFilterAggregateText, breaking exact UUID matches.
+                if (!matches && raw.includes('-')) {
+                    const dataClean = dataStr.replace(/ /g, '');
+                    const rawClean = raw.replace(/-/g, '');
+                    matches = dataClean.includes(rawClean);
+                }
+
+                return isNegative ? !matches : matches;
+            });
+        });
+    };
+};
+</script>
