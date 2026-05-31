@@ -1,11 +1,12 @@
-SECRET_KEY = "django-grid-table-tests"
+SECRET_KEY = "django-grid-view-tests"
 USE_TZ = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+AUTH_USER_MODEL = "auth.User"
 
 INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
-    "django_grid_table",
+    "django_grid_view",
 ]
 
 DATABASES = {

@@ -1,0 +1,23 @@
+{% load static django_grid_view %}
+<div
+  class="cm-kpi-grid-wrap"
+  data-cm-kpi-config="{{ kpis_json|force_escape }}"
+  data-cm-kpi-columns="{{ columns }}"
+  data-cm-kpi-root
+></div>
+{% if load_assets %}
+<link rel="stylesheet" href="{% static 'django_grid_view/table.css' %}">
+{% grid_view_bundle %}
+{% endif %}
+<script>
+  (function () {
+    function bootKpi(scope) {
+      if (window.GridView) window.GridView.initAllKpi(scope || document);
+    }
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", function () { bootKpi(document); });
+    } else {
+      bootKpi(document);
+    }
+  })();
+</script>

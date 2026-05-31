@@ -1,0 +1,12 @@
+/* Inline code (e.g. Django {% tags %}) must not break across lines */
+.md-typeset :not(pre) > code {
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+
+/* Table cells with template tags */
+.md-typeset td code,
+.md-typeset th code {
+  white-space: nowrap;
+}

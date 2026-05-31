@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contextunity.dev/schema/grid-view-spec.v1.json",
+  "title": "GridViewSpec",
+  "description": "Declarative view specification for django-grid-view. Rows are supplied separately by Python; this schema describes layout, columns, KPIs, and charts only.",
+  "type": "object",
+  "required": ["grid_id", "columns"],
+  "additionalProperties": false,
+  "properties": {
+    "grid_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "description": "Unique DOM id prefix for this view."
+    },
+    "title": {
+      "type": "string",
+      "description": "Optional heading shown above the view."
+    },
+    "columns": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/ColumnSpec" }
+    },
+    "kpis": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/KpiSpec" },
+      "maxItems": 8
+    },
+    "charts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ChartSpec" },
+      "maxItems": 3
+    },
+    "layout": { "$ref": "#/$defs/ViewLayout" },
+    "wrapper": {
+      "type": "string",
+      "enum": ["full", "inner", "shell"],
+      "default": "full"
+    },
+    "search_mode": {
+      "type": "string",
+      "enum": ["global", "per_column", "disabled"],
+      "default": "global"
+    },
+    "striped": { "type": "boolean", "default": false },
+    "export_xlsx": { "type": "boolean", "default": false },
+    "export_pdf_url": { "type": "string", "format": "uri-reference" }
+  },
+  "$defs": {
+    "ColumnSpec": {
+      "type": "object",
+      "required": ["key", "label"],
+      "additionalProperties": false,
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "format": {
+          "type": "string",
+          "enum": ["text", "number", "currency", "percent"],
+          "default": "text"
+        },
+        "align": {
+          "type": "string",
+          "enum": ["left", "center", "right"],
+          "default": "left"
+        },
+        "sortable": { "type": "boolean", "default": true },
+        "searchable": { "type": "boolean", "default": true },
+        "link_template": {
+          "type": "string",
+          "description": "URL pattern with {placeholders} from row keys."
+        },
+        "width": { "type": "string" }
+      }
+    },
+    "KpiSpec": {
+      "type": "object",
+      "required": ["label"],
+      "additionalProperties": false,
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "format": {
+          "type": "string",
+          "enum": ["text", "number", "currency", "percent"],
+          "default": "number"
+        },
+        "aggregate": {
+          "type": "string",
+          "enum": ["count", "sum", "avg", "min", "max"],
+          "default": "count"
+        },
+        "column_key": {
+          "type": "string",
+          "description": "Required when aggregate is not count."
+        },
+        "tone": {
+          "type": "string",
+          "enum": ["default", "green", "red", "amber"],
+          "default": "default"
+        },
+        "icon": { "type": "string" }
+      }
+    },
+    "SeriesSpec": {
+      "type": "object",
+      "required": ["key"],
+      "additionalProperties": false,
+      "properties": {
+        "key": { "type": "string" },
+        "label": { "type": "string" },
+        "color": { "type": "string" }
+      }
+    },
+    "ChartSpec": {
+      "type": "object",
+      "required": ["id", "chart_type"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "chart_type": {
+          "type": "string",
+          "enum": ["bar", "line", "pie", "donut"]
+        },
+        "title": { "type": "string" },
+        "x_key": { "type": "string" },
+        "series": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SeriesSpec" }
+        },
+        "label_key": { "type": "string" },
+        "value_key": { "type": "string" },
+        "group_by": { "type": "string" },
+        "aggregate": {
+          "type": "string",
+          "enum": ["count", "sum", "avg", "min", "max"],
+          "default": "sum"
+        },
+        "height": { "type": "integer", "minimum": 120, "maximum": 800, "default": 300 },
+        "data_source": {
+          "type": "string",
+          "enum": ["static", "grid_filtered"],
+          "default": "static"
+        }
+      }
+    },
+    "ViewLayout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "blocks": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["title", "kpis", "chart", "table", "toolbar", "ag_grid"]
+          },
+          "default": ["title", "kpis", "chart", "table"]
+        },
+        "kpi_columns": { "type": "integer", "minimum": 1, "maximum": 6, "default": 4 }
+      }
+    }
+  }
+}

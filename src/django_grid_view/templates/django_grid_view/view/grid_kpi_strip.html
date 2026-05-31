@@ -1,0 +1,13 @@
+{% load static django_grid_view %}
+<div
+  class="cm-kpi-grid-wrap cm-grid-kpi-strip"
+  data-cm-grid-kpi
+  data-cm-grid-kpi-specs="{{ specs_json|force_escape }}"
+  data-cm-kpi-columns="{{ columns }}"
+>
+  <div data-cm-kpi-root></div>
+</div>
+{% if load_assets %}
+<link rel="stylesheet" href="{% static 'django_grid_view/table.css' %}">
+{% grid_view_bundle %}
+{% endif %}

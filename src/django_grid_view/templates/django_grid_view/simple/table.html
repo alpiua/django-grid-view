@@ -1,0 +1,97 @@
+{% load i18n static django_grid_view %}
+{% if load_assets %}
+<link rel="stylesheet" href="{% static 'django_grid_view/table.css' %}">
+{% grid_view_bundle %}
+{% endif %}
+{% if config.wrapper == "full" %}
+<div class="cm-simple-wrapper cm-layout-{{ config.layout }}" id="cm-table-{{ config.grid_id }}" data-grid-id="{{ config.grid_id }}" data-search-mode="{{ config.search_mode }}">
+{% elif config.wrapper == "shell" %}
+<div class="cm-table-shell cm-layout-{{ config.layout }}" id="cm-table-{{ config.grid_id }}" data-grid-id="{{ config.grid_id }}" data-search-mode="{{ config.search_mode }}">
+{% endif %}
+
+  {% if config.show_toolbar %}
+  {% if config.wrapper == "full" or config.toolbar_left or config.toolbar_center or config.search_mode != "disabled" or config.export_csv or config.export_xlsx or config.export_pdf %}
+  <div class="cm-toolbar{% if config.wrapper == 'inner' %} cm-toolbar-meta{% elif config.toolbar_left or config.toolbar_center %} cm-toolbar-extended{% endif %}">
+    {% if config.toolbar_left %}
+    <div class="cm-toolbar-slot cm-toolbar-left">{{ config.toolbar_left }}</div>
+    {% endif %}
+    {% if config.search_mode != "disabled" %}
+    <input type="text" data-cm-search class="cm-search-input" placeholder="{% if config.search_placeholder %}{{ config.search_placeholder }}{% else %}{% translate 'tables.search' %}{% endif %}">
+    {% endif %}
+    {% if config.toolbar_center %}
+    <div class="cm-toolbar-slot cm-toolbar-center">{{ config.toolbar_center }}</div>
+    {% endif %}
+    {% if config.show_counter %}
+    <span class="cm-counter"><span data-cm-count>{{ count }}</span> {% translate 'tables.records' %}</span>
+    {% endif %}
+
+    <div class="cm-export-group">
+      {% if config.export_csv %}
+      {% include "django_grid_view/partials/export_csv_button.html" %}
+      {% endif %}
+      {% if config.export_xlsx %}
+      {% include "django_grid_view/partials/export_xlsx_button.html" %}
+      {% endif %}
+      {% if config.export_pdf %}
+      {% include "django_grid_view/partials/export_pdf_link.html" with href=config.export_pdf_url %}
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  <table class="cm-table{% if config.striped %} cm-striped{% endif %}" data-cm-table{% if config.wrapper == "inner" %} id="cm-table-{{ config.grid_id }}"{% endif %}>
+    <thead>
+      {% for hrow in header_rows %}
+      <tr>
+        {% for h in hrow %}
+        <th
+          data-cm-align="{{ h.align }}"
+          {% if h.key %}data-cm-sort="{{ h.key }}"{% endif %}
+          {% if h.col_index != None %}data-cm-col="{{ h.col_index }}"{% endif %}
+          {% if h.colspan > 1 %}colspan="{{ h.colspan }}"{% endif %}
+          {% if h.rowspan > 1 %}rowspan="{{ h.rowspan }}"{% endif %}
+          {% if h.width %}style="width:{{ h.width }}"{% endif %}>
+          {{ h.label }}{% if h.sortable %} <span class="cm-sort-arrow">&#8679;</span>{% endif %}
+        </th>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr class="cm-row"
+        {% if row.url %}data-cm-row-url="{{ row.url }}"{% endif %}
+        {% if row.onclick %}onclick="{{ row.onclick }}"{% endif %}>
+        {% for cell in row.cells %}
+        <td
+          data-cm-col="{{ cell.col_index }}"
+          data-cm-align="{{ cell.align }}"
+          class="{{ cell.css_class }}"
+          data-cm-sort-val="{{ cell.sort_val }}"
+          data-cm-export-raw="{{ cell.export_raw }}"
+          {% for k, v in cell.attrs.items %}{{ k }}="{{ v }}" {% endfor %}>
+          {{ cell.html }}
+        </td>
+        {% endfor %}
+      </tr>
+      {% empty %}
+      <tr><td colspan="{{ config.columns|length }}" class="cm-empty">{{ config.empty_message }}</td></tr>
+      {% endfor %}
+    </tbody>
+    {% if footer_cells %}
+    <tfoot>
+      <tr>
+        {% for cell in footer_cells %}
+        <td data-cm-align="{{ cell.align }}" {% if cell.colspan > 1 %}colspan="{{ cell.colspan }}"{% endif %}>{{ cell.html }}</td>
+        {% endfor %}
+      </tr>
+    </tfoot>
+    {% endif %}
+  </table>
+{% if config.wrapper == "full" or config.wrapper == "shell" %}
+</div>
+<script>window.CmSimpleTable && window.CmSimpleTable.initAll(document.getElementById("cm-table-{{ config.grid_id }}")?.closest(".cm-page-table-layout, .cm-simple-wrapper"));</script>
+{% else %}
+<script>window.CmSimpleTable && window.CmSimpleTable.initAll(document.getElementById("cm-table-{{ config.grid_id }}")?.closest(".cm-page-table-layout, .cm-simple-wrapper"));</script>
+{% endif %}

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 120" role="img" aria-label="Grid View layer model">
+  <defs>
+    <style>
+      .box { fill: #eef2ff; stroke: #4f46e5; stroke-width: 2; rx: 6; }
+      .label { font: 14px system-ui, sans-serif; fill: #1e1b4b; }
+      .arrow { stroke: #4f46e5; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#4f46e5"/>
+    </marker>
+  </defs>
+  <rect class="box" x="20" y="30" width="150" height="60"/>
+  <text class="label" x="95" y="55" text-anchor="middle">rows</text>
+  <text class="label" x="95" y="75" text-anchor="middle">(Python)</text>
+  <rect class="box" x="240" y="30" width="150" height="60"/>
+  <text class="label" x="315" y="55" text-anchor="middle">GridViewSpec</text>
+  <text class="label" x="315" y="75" text-anchor="middle">(declarative)</text>
+  <rect class="box" x="460" y="30" width="160" height="60"/>
+  <text class="label" x="540" y="55" text-anchor="middle">GridArtifact</text>
+  <text class="label" x="540" y="75" text-anchor="middle">(render)</text>
+  <line class="arrow" x1="175" y1="60" x2="235" y2="60"/>
+  <line class="arrow" x1="395" y1="60" x2="455" y2="60"/>
+</svg>

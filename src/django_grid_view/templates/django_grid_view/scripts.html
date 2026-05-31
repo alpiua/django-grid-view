@@ -1,0 +1,788 @@
+{% load i18n %}
+<script>
+// Conditional CDN loading: skip if already loaded (e.g. from base template or previous swap)
+(function() {
+    function loadScript(src, checkFn) {
+        if (checkFn()) return;
+        var s = document.createElement('script');
+        s.src = src;
+        s.async = false;
+        document.head.appendChild(s);
+    }
+    loadScript('https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/dist/ag-grid-community.min.js',
+               function() { return typeof agGrid !== 'undefined'; });
+    loadScript('https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js',
+               function() { return typeof Sortable !== 'undefined'; });
+})();
+</script>
+
+<script>
+if (typeof window.ContextGridManager === 'undefined') {
+    window.ContextGridManager = class ContextGridManager {
+    constructor(gridId, containerId, optionsVar, initialPresets, initialSearches, groupsOrder) {
+        this.gridId = gridId;
+        this.containerId = containerId;
+        this.gridOptions = optionsVar || {};
+        
+        if (!this.gridOptions.overlayLoadingTemplate) {
+            this.gridOptions.overlayLoadingTemplate = '<div class="flex flex-col items-center justify-center p-4"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mb-2"></div><span class="text-sm text-gray-500 dark:text-gray-400">Завантаження...</span></div>';
+        }
+        if (!this.gridOptions.overlayNoRowsTemplate) {
+            this.gridOptions.overlayNoRowsTemplate = '<div class="flex flex-col items-center justify-center p-6 text-gray-500 dark:text-gray-400"><svg class="w-10 h-10 mb-3 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg><span class="text-base font-medium">Немає записів</span></div>';
+        }
+        
+        // Add AG Grid tooltips globally
+        if (!this.gridOptions.defaultColDef) {
+            this.gridOptions.defaultColDef = {};
+        }
+        
+        // Use custom AG Grid tooltips for instant display (zero delay)
+        this.gridOptions.enableBrowserTooltips = false;
+        this.gridOptions.tooltipShowDelay = 0;
+        
+        // Auto-inject tooltipField into all column definitions if not present
+        if (this.gridOptions.columnDefs) {
+            this.gridOptions.columnDefs.forEach(col => {
+                if (col.field && !col.tooltipField && !col.tooltipValueGetter) {
+                    col.tooltipField = col.field;
+                }
+            });
+        }
+        this.savedColPresets = initialPresets || {};
+        this.savedQuickSearches = initialSearches || [];
+        this.groupsOrder = groupsOrder || [];
+        this.gridApi = null;
+        this.colOrderSortable = null;
+        this._searchText = '';
+        
+        window[this.gridId + 'Manager'] = this;
+        
+        // Modal esc close
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const panel = document.getElementById(`col-selector-panel-${this.gridId}`);
+                if (panel && !panel.classList.contains('hidden')) panel.classList.add('hidden');
+            }
+        });
+        
+        // Modal click outside close
+        document.addEventListener('click', (e) => {
+            const wrapper = document.getElementById(`col-selector-panel-${this.gridId}`);
+            if (wrapper && !wrapper.classList.contains('hidden') && e.target === wrapper) {
+                wrapper.classList.add('hidden');
+            }
+            
+            // Search dropdown close
+            const searchesContainer = document.getElementById(`saved-searches-toggle-container-${this.gridId}`);
+            const dropdown = document.getElementById(`saved-searches-dropdown-${this.gridId}`);
+            if (searchesContainer && dropdown && !searchesContainer.contains(e.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+    }
+
+    /**
+     * Snapshot custom column metadata (menuGroup, contextGroup) from colDefs
+     * BEFORE AG Grid strips unknown properties during createGrid().
+     * Stored as: this._columnMeta = { 'field_name': { menuGroup: '...' }, ... }
+     */
+    _extractColumnMeta() {
+        this._columnMeta = {};
+        const defs = this.gridOptions && this.gridOptions.columnDefs;
+        if (!defs) return;
+        const walk = (list) => {
+            list.forEach(c => {
+                if (c.children) { walk(c.children); return; }
+                const id = c.field || c.colId;
+                if (!id) return;
+                const grp = c.menuGroup || c.contextGroup
+                    || (c.cellRendererParams && c.cellRendererParams.menuGroup);
+                if (grp) {
+                    this._columnMeta[id] = { menuGroup: grp };
+                }
+            });
+        };
+        walk(defs);
+    }
+
+    initGrid() {
+        const gridDiv = document.getElementById(this.containerId);
+        if (gridDiv) {
+            const applyTheme = () => {
+                const dark = document.documentElement.classList.contains('dark');
+                if (dark) {
+                    gridDiv.classList.add('ag-theme-quartz-dark');
+                    gridDiv.classList.remove('ag-theme-quartz');
+                } else {
+                    gridDiv.classList.add('ag-theme-quartz');
+                    gridDiv.classList.remove('ag-theme-quartz-dark');
+                }
+            };
+            applyTheme();
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.attributeName === 'class') applyTheme();
+                });
+            });
+            observer.observe(document.documentElement, { attributes: true });
+
+            // Snapshot custom metadata BEFORE AG Grid mutates colDefs
+            this._extractColumnMeta();
+
+            this.gridApi = agGrid.createGrid(gridDiv, this.gridOptions);
+            this.loadState();
+            
+            // Fade in to prevent unstyled flash
+            setTimeout(() => {
+                if (gridDiv) gridDiv.style.opacity = '1';
+            }, 50);
+            
+            // Use proper gridApi event listeners instead of mutating gridOptions after initialization
+            this.gridApi.addEventListener('sortChanged', (params) => {
+                this.saveGridState();
+            });
+            
+            this.gridApi.addEventListener('columnMoved', (params) => {
+                this.saveGridState();
+            });
+            
+            this.gridApi.addEventListener('columnResized', (params) => {
+                if (params.finished) this.saveGridState();
+            });
+
+            this.gridApi.addEventListener('filterChanged', (params) => {
+                this.saveGridState();
+            });
+
+            this.gridApi.addEventListener('modelUpdated', (params) => {
+                const countEl = document.getElementById(`grid-row-count-${this.gridId}`);
+                if (countEl && this.gridApi) {
+                    countEl.textContent = `{% trans "Records:"|escapejs %} ${this.gridApi.getDisplayedRowCount()}`;
+                }
+            });
+            
+            this.renderSavedSearches();
+            this.renderSavedPresets();
+        }
+    }
+
+    loadState() {
+        const lsKey = `agGridState_${this.gridId}`;
+        const stateStr = localStorage.getItem(lsKey);
+        if (stateStr) {
+            try {
+                const state = JSON.parse(stateStr);
+                if (state.colState) {
+                    this.gridApi.applyColumnState({ state: state.colState, applyOrder: true });
+                }
+                if (state.filterState) {
+                    this.gridApi.setFilterModel(state.filterState);
+                }
+                // Only apply quickFilter from localStorage if the URL doesn't explicitly lack it.
+                // If they clicked a link without ?q=, we should NOT restore an old search query.
+                const urlQ = new URLSearchParams(window.location.search).get('q');
+                if (urlQ) {
+                    const qsInput = document.getElementById(`ag-quick-filter-${this.gridId}`);
+                    if (qsInput) qsInput.value = urlQ;
+                    this._searchText = urlQ;
+                } else {
+                    // No q in URL = fresh view. Ignore localstorage quickfilter.
+                }
+            } catch (e) {
+                console.error("Error loading grid state:", e);
+            }
+        }
+    }
+
+    saveGridState() {
+        if (!this.gridApi) return;
+        const qfEl = document.getElementById(`ag-quick-filter-${this.gridId}`);
+        const state = {
+            colState: this.gridApi.getColumnState(),
+            filterState: this.gridApi.getFilterModel(),
+            quickFilter: qfEl ? qfEl.value : ''
+        };
+        localStorage.setItem(`agGridState_${this.gridId}`, JSON.stringify(state));
+    }
+    
+    toggleColSelector() {
+        const panel = document.getElementById(`col-selector-panel-${this.gridId}`);
+        if (panel) {
+            const isHidden = panel.classList.toggle('hidden');
+            if (!isHidden) {
+                this.buildColCheckboxes();
+            }
+        }
+    }
+    
+    resetColumnsToDefault() {
+        if (!this.gridApi) return;
+        this.gridApi.resetColumnState();
+        this.buildColCheckboxes();
+        this.saveGridState();
+    }
+    
+    // ----------- Checkboxes & Drag/Drop Modal
+    
+    buildColCheckboxes() {
+        if (!this.gridApi) return;
+        const container = document.getElementById(`col-checkboxes-${this.gridId}`);
+        if (!container) return;
+        container.innerHTML = '';
+        
+        const cols = this.gridApi.getColumns();
+        if (!cols) return;
+
+        const groups = {};
+        if (this.groupsOrder) {
+            this.groupsOrder.forEach(g => { groups[g] = []; });
+        }
+        
+        const meta = this._columnMeta || {};
+
+        cols.forEach((col) => {
+            const colDef = col.getColDef();
+            const label = colDef.headerName || col.getColId();
+            const colId = colDef.field || col.getColId();
+            const saved = meta[colId];
+            let groupName = saved ? saved.menuGroup : null;
+            
+            if (!groupName) {
+                groupName = '{% trans "Main"|escapejs %}';
+                if (this.groupsOrder) {
+                    for (let g of this.groupsOrder) {
+                        if (label.indexOf(g) > -1 || g.indexOf(label) > -1) {
+                            groupName = g; break;
+                        }
+                    }
+                }
+            }
+
+            if (!groups[groupName]) groups[groupName] = [];
+            groups[groupName].push({col, label});
+        });
+
+        // Ensure alphabetical order within each group
+        Object.keys(groups).forEach(g => {
+            groups[g].sort((a,b) => a.label.localeCompare(b.label));
+        });
+
+        const defaultOrder = ['{% trans "Main"|escapejs %}'];
+        const order = (this.groupsOrder && this.groupsOrder.length > 0) ? this.groupsOrder : defaultOrder;
+        const groupNames = Object.keys(groups).sort((a, b) => {
+            const idxA = order.indexOf(a);
+            const idxB = order.indexOf(b);
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+            return a.localeCompare(b);
+        });
+
+        groupNames.forEach((groupName) => {
+            const groupCols = groups[groupName];
+            if (groupCols.length === 0) return;
+            
+            const groupColDiv = document.createElement('div');
+            groupColDiv.className = 'flex flex-col mb-6 last:mb-0';
+            
+            const groupHeader = document.createElement('div');
+            groupHeader.className = 'flex items-center justify-between mb-2.5 w-full';
+            
+            const titleSpan = document.createElement('div');
+            titleSpan.className = 'text-[11px] uppercase tracking-widest text-indigo-600 dark:text-[#818cf8] font-bold';
+            titleSpan.textContent = groupName;
+            
+            const rightControls = document.createElement('div');
+            rightControls.className = 'flex items-center gap-1.5 text-[10px] text-gray-400 dark:text-[--cm-muted]';
+            
+            const lbl = document.createElement('span');
+            lbl.textContent = '{% trans "Select:"|escapejs %}';
+            rightControls.appendChild(lbl);
+            
+            const btnAll = document.createElement('button');
+            btnAll.className = 'text-indigo-600 hover:text-indigo-800 dark:text-[#818cf8] dark:hover:text-indigo-400 transition-colors cursor-pointer select-none outline-none';
+            btnAll.textContent = '{% trans "All"|escapejs %}';
+            btnAll.onclick = (e) => {
+                e.preventDefault();
+                groupCols.forEach(item => this.gridApi.setColumnVisible(item.col, true));
+                this.buildColCheckboxes(); this.saveGridState();
+            };
+            
+            const btnNone = document.createElement('button');
+            btnNone.className = 'text-gray-500 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors cursor-pointer select-none outline-none';
+            btnNone.textContent = '{% trans "None"|escapejs %}';
+            btnNone.onclick = (e) => {
+                e.preventDefault();
+                groupCols.forEach(item => this.gridApi.setColumnVisible(item.col, false));
+                this.buildColCheckboxes(); this.saveGridState();
+            };
+            
+            const btnDefault = document.createElement('button');
+            btnDefault.className = 'text-gray-500 hover:text-indigo-600 dark:text-gray-500 dark:hover:text-indigo-400 transition-colors cursor-pointer select-none outline-none';
+            btnDefault.textContent = '{% trans "Standard"|escapejs %}';
+            btnDefault.onclick = (e) => {
+                e.preventDefault();
+                groupCols.forEach(item => {
+                    const isHidden = item.col.getColDef().hide === true;
+                    this.gridApi.setColumnVisible(item.col, !isHidden);
+                });
+                this.buildColCheckboxes(); this.saveGridState();
+            };
+            
+            rightControls.appendChild(btnAll);
+            rightControls.appendChild(btnNone);
+            rightControls.appendChild(btnDefault);
+            
+            groupHeader.appendChild(titleSpan);
+            groupHeader.appendChild(rightControls);
+            groupColDiv.appendChild(groupHeader);
+            
+            const itemsCont = document.createElement('div');
+            itemsCont.className = 'flex flex-wrap gap-2 items-start';
+            
+            groupCols.forEach(item => {
+                const col = item.col;
+                const visible = col.isVisible();
+                
+                const chip = document.createElement('div');
+                let baseStyle = 'flex items-center gap-1.5 pl-2.5 pr-1 py-[3px] rounded-full text-[12px] border cursor-pointer select-none transition-all duration-200 max-w-full';
+                if (visible) {
+                    baseStyle += ' bg-indigo-50 border-indigo-300 text-indigo-700 dark:bg-indigo-500/15 dark:border-indigo-500/30 dark:text-indigo-300';
+                } else {
+                    baseStyle += ' bg-white border-gray-200 text-gray-500 hover:border-indigo-300 hover:text-indigo-600 dark:bg-[--cm-bg] dark:border-[--cm-border] dark:text-[--cm-muted] dark:hover:border-indigo-500/40 dark:hover:text-[--cm-text]';
+                }
+                chip.className = baseStyle;
+                
+                // Wrap click logic entirely in the left side
+                const textWrap = document.createElement('div');
+                textWrap.className = 'leading-tight pr-1.5 py-[1px] whitespace-normal break-words';
+                textWrap.textContent = item.label;
+                textWrap.onclick = (e) => {
+                    e.stopPropagation();
+                    this.gridApi.setColumnVisible(col, !visible);
+                    this.buildColCheckboxes(); this.saveGridState();
+                };
+                
+                // Pins
+                const pins = document.createElement('div');
+                const pinnedState = col.getPinned();
+                pins.className = 'flex items-center gap-1 shrink-0 transition-opacity ' + (visible ? 'opacity-100' : 'opacity-40 hover:opacity-100');
+
+                const applyPin = (dir) => {
+                    this.gridApi.applyColumnState({ state: [{ colId: col.getColId(), pinned: pinnedState === dir ? null : dir }] });
+                    this.buildColCheckboxes(); this.saveGridState();
+                };
+
+                const createBtn = (dir, text) => {
+                    const btn = document.createElement('button');
+                    btn.textContent = text;
+                    let cls = 'w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold transition-all border outline-none ';
+                    if (pinnedState === dir) {
+                        cls += visible ? 'bg-indigo-600 text-white border-transparent dark:bg-indigo-500/40 dark:text-indigo-100' : 'bg-gray-200 text-gray-600 border-transparent dark:bg-[--cm-border] dark:text-[--cm-text]';
+                    } else {
+                        cls += visible ? 'bg-indigo-100 text-indigo-400 border-transparent hover:bg-indigo-200 hover:text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400/50 dark:hover:bg-indigo-500/30 dark:hover:text-indigo-200' : 'bg-transparent border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 dark:border-[--cm-border] dark:text-[--cm-muted] dark:hover:border-[--cm-text] dark:hover:text-[--cm-text]';
+                    }
+                    btn.className = cls;
+                    btn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); applyPin(dir); };
+                    return btn;
+                };
+
+                pins.appendChild(createBtn('left', 'L'));
+                pins.appendChild(createBtn('right', 'R'));
+                
+                chip.appendChild(textWrap);
+                chip.appendChild(pins);
+                itemsCont.appendChild(chip);
+            });
+            
+            groupColDiv.appendChild(itemsCont);
+            container.appendChild(groupColDiv);
+        });
+        
+        this.buildColOrderList();
+    }
+    
+    buildColOrderList() {
+        if (!this.gridApi) return;
+        const listContainer = document.getElementById(`col-order-list-${this.gridId}`);
+        if (!listContainer) return;
+        
+        listContainer.innerHTML = '';
+        const displayedCols = this.gridApi.getAllDisplayedColumns();
+        if (!displayedCols) return;
+
+        displayedCols.forEach(col => {
+            const label = col.getColDef().headerName || col.getColId();
+            const pill = document.createElement('div');
+            pill.className = 'cursor-move select-none px-2 py-1 rounded-md text-[10px] uppercase font-bold tracking-wider transition-colors border ';
+            pill.dataset.colid = col.getColId();
+            
+            if (col.getPinned()) {
+                pill.className += 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400';
+            } else {
+                pill.className += 'bg-[--cm-surface] border-[--cm-border] text-[--cm-muted] hover:border-indigo-400 hover:text-[--cm-text]';
+            }
+            
+            pill.textContent = label;
+            listContainer.appendChild(pill);
+        });
+        
+        if (this.colOrderSortable) this.colOrderSortable.destroy();
+        
+        if (typeof Sortable !== 'undefined') {
+            this.colOrderSortable = new Sortable(listContainer, {
+                animation: 150,
+                ghostClass: 'opacity-50',
+                onEnd: () => {
+                    const orderedPills = listContainer.children;
+                    const newState = [];
+                    for(let i=0; i<orderedPills.length; i++){
+                        newState.push({ colId: orderedPills[i].dataset.colid });
+                    }
+                    this.gridApi.applyColumnState({ state: newState, applyOrder: true });
+                    this.saveGridState();
+                }
+            });
+        }
+    }
+    
+    // ----------- Preset Logic
+    
+    renderSavedPresets() {
+        const container = document.getElementById(`presets-container-${this.gridId}`);
+        if (!container) return;
+        container.innerHTML = '';
+        Object.keys(this.savedColPresets).forEach(name => {
+            const chip = document.createElement('div');
+            chip.className = 'preset-chip flex items-center justify-between px-3 py-2 rounded border border-[--cm-border] bg-[--cm-bg] text-[12px] text-[--cm-text] cursor-pointer hover:border-indigo-400 transition-all shadow-sm group';
+            
+            chip.onclick = () => {
+                const input = document.getElementById(`preset-name-${this.gridId}`);
+                if (input) input.value = name;
+                document.querySelectorAll('.preset-chip').forEach(c => {
+                    c.classList.remove('border-indigo-500', 'bg-indigo-500/10');
+                    c.classList.add('border-[--cm-border]', 'bg-[--cm-bg]');
+                });
+                chip.classList.remove('border-[--cm-border]', 'bg-[--cm-bg]');
+                chip.classList.add('border-indigo-500', 'bg-indigo-500/10');
+            };
+            
+            const text = document.createElement('span');
+            text.className = 'flex-1 truncate pr-2 font-medium';
+            text.textContent = name;
+            
+            const actions = document.createElement('div');
+            actions.className = 'flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity';
+            
+            const applyBtn = document.createElement('button');
+            applyBtn.className = 'text-[10px] bg-indigo-500 hover:bg-indigo-400 text-white px-1.5 py-0.5 rounded shadow-sm focus:outline-none transition-colors';
+            applyBtn.textContent = 'Застосувати';
+            applyBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (this.gridApi && this.savedColPresets[name]) {
+                    this.gridApi.applyColumnState({ state: this.savedColPresets[name], applyOrder: true });
+                    this.buildColCheckboxes();
+                    this.saveGridState();
+                }
+            };
+            
+            const delBtn = document.createElement('button');
+            delBtn.className = 'text-[--cm-muted] hover:text-red-500 focus:outline-none transition-colors text-lg leading-none transform -translate-y-[1px]';
+            delBtn.innerHTML = '&times;';
+            delBtn.onclick = (e) => {
+                e.stopPropagation();
+                delete this.savedColPresets[name];
+                this.saveColPresetsToServer();
+                this.renderSavedPresets();
+                const input = document.getElementById(`preset-name-${this.gridId}`);
+                if (input && input.value === name) input.value = '';
+            };
+            
+            actions.appendChild(applyBtn); actions.appendChild(delBtn);
+            chip.appendChild(text); chip.appendChild(actions);
+            container.appendChild(chip);
+        });
+    }
+
+    saveCurrentPreset() {
+        if (!this.gridApi) return;
+        const nameInput = document.getElementById(`preset-name-${this.gridId}`);
+        const name = nameInput.value.trim();
+        if (!name) return;
+        
+        this.savedColPresets[name] = this.gridApi.getColumnState();
+        nameInput.value = '';
+        this.renderSavedPresets();
+        this.saveColPresetsToServer();
+    }
+
+    saveColPresetsToServer() {
+        localStorage.setItem(`agGridPresets_${this.gridId}`, JSON.stringify(this.savedColPresets));
+        fetch('/api/django-grid-view/save/', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.getCookie('csrftoken') || ''
+            },
+            body: JSON.stringify({ grid_id: this.gridId, colPresets: this.savedColPresets })
+        }).catch(err => console.error("Error saving presets", err));
+    }
+    
+    // ----------- Search Logic
+
+    onQuickFilterChanged() {
+        if (!this.gridApi) return;
+        const val = document.getElementById(`ag-quick-filter-${this.gridId}`).value;
+        this._searchText = val;
+        this.saveGridState();
+        if (this.gridApi.getModel && this.gridApi.getModel().getType() === 'infinite') {
+            this.gridApi.purgeInfiniteCache();
+        }
+    }
+
+    clearSearch() {
+        const el = document.getElementById(`ag-quick-filter-${this.gridId}`);
+        const wasEmpty = !el || el.value.trim() === '';
+        if(el) el.value = '';
+        this.onQuickFilterChanged();
+        
+        // Remove q= from URL so a page reload doesn't restore the search
+        const url = new URL(window.location);
+        if (url.searchParams.has('q')) {
+            url.searchParams.delete('q');
+            window.history.replaceState({}, '', url);
+        }
+        
+        if (wasEmpty && this.gridApi) {
+            this.gridApi.setFilterModel(null);
+            this.saveGridState();
+        }
+    }
+
+    // ----------- Grid API Facade
+    // Templates MUST use these methods instead of accessing .gridApi directly.
+    // This prevents method-name mismatches (e.g. saveState vs saveGridState).
+
+    setRowData(data) {
+        if (this.gridApi) this.gridApi.setGridOption('rowData', data);
+    }
+
+    showLoading() {
+        if (this.gridApi) this.gridApi.showLoadingOverlay();
+    }
+
+    hideOverlay() {
+        if (this.gridApi) this.gridApi.hideOverlay();
+    }
+
+    setQuickFilter(text) {
+        if (!this.gridApi) return;
+        const input = document.getElementById(`ag-quick-filter-${this.gridId}`);
+        if (input) input.value = text;
+        this._searchText = text;
+        this.saveGridState();
+        if (this.gridApi.getModel && this.gridApi.getModel().getType() === 'infinite') {
+            this.gridApi.purgeInfiniteCache();
+        }
+    }
+
+    clearAllFilters() {
+        if (!this.gridApi) return;
+        this.gridApi.setFilterModel(null);
+        const input = document.getElementById(`ag-quick-filter-${this.gridId}`);
+        if (input) input.value = '';
+        this._searchText = '';
+
+        const url = new URL(window.location);
+        if (url.searchParams.has('q')) {
+            url.searchParams.delete('q');
+            window.history.replaceState({}, '', url);
+        }
+        this.saveGridState();
+        if (this.gridApi.getModel && this.gridApi.getModel().getType() === 'infinite') {
+            this.gridApi.purgeInfiniteCache();
+        }
+    }
+
+    applyUrlSearchFilter() {
+        const queryQ = new URLSearchParams(window.location.search).get('q');
+        if (queryQ && this._searchText !== queryQ) {
+            this.setQuickFilter(queryQ);
+        }
+    }
+
+    toggleSavedSearches() {
+        const dd = document.getElementById(`saved-searches-dropdown-${this.gridId}`);
+        if (dd) dd.classList.toggle('hidden');
+    }
+
+    renderSavedSearches() {
+        const container = document.getElementById(`saved-searches-container-${this.gridId}`);
+        const toggleContainer = document.getElementById(`saved-searches-toggle-container-${this.gridId}`);
+        const dropdown = document.getElementById(`saved-searches-dropdown-${this.gridId}`);
+        if (!container) return;
+        container.innerHTML = '';
+        if (this.savedQuickSearches.length === 0) {
+            if (toggleContainer) toggleContainer.classList.add('hidden');
+            if (dropdown) dropdown.classList.add('hidden');
+            return;
+        }
+        if (toggleContainer) toggleContainer.classList.remove('hidden');
+        
+        this.savedQuickSearches.forEach(search => {
+            if (!search) return;
+            const item = document.createElement('div');
+            item.className = 'flex items-center justify-between px-3 py-1.5 hover:bg-[--cm-hover] cursor-pointer group text-sm text-[--cm-text]';
+            item.onmousedown = (e) => {
+                document.getElementById(`ag-quick-filter-${this.gridId}`).value = search;
+                if (this.gridApi) {
+                    this.gridApi.setFilterModel(null);
+                }
+                this.onQuickFilterChanged();
+                if (dropdown) dropdown.classList.add('hidden');
+            };
+            
+            const text = document.createElement('span');
+            text.className = 'flex-1 truncate pr-4';
+            text.textContent = search;
+            
+            const delBtn = document.createElement('button');
+            delBtn.className = 'text-[--cm-muted] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none px-1';
+            delBtn.innerHTML = '&times;';
+            delBtn.onmousedown = (e) => {
+                e.stopPropagation();
+                this.savedQuickSearches = this.savedQuickSearches.filter(s => s !== search);
+                this.saveSearchesToServer();
+                this.renderSavedSearches();
+            };
+            
+            item.appendChild(text); item.appendChild(delBtn);
+            container.appendChild(item);
+        });
+    }
+
+    saveCurrentSearch() {
+        const val = document.getElementById(`ag-quick-filter-${this.gridId}`).value.trim();
+        if (!val || this.savedQuickSearches.includes(val)) return;
+        this.savedQuickSearches.push(val);
+        this.renderSavedSearches();
+        this.saveSearchesToServer();
+    }
+
+    saveSearchesToServer() {
+        localStorage.setItem(`agGridSearches_${this.gridId}`, JSON.stringify(this.savedQuickSearches));
+        fetch('/api/django-grid-view/save/', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.getCookie('csrftoken') || ''
+            },
+            body: JSON.stringify({ grid_id: this.gridId, searches: this.savedQuickSearches })
+        }).catch(err => console.error("Error saving searches", err));
+    }
+    
+    getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+}
+
+}
+
+(function() {
+    let gridId = '{{ grid_id|escapejs }}' || 'defaultGrid';
+
+    let presetsStr = '{{ ag_grid_presets|escapejs }}';
+    let presets;
+    try { presets = presetsStr && presetsStr !== 'null' ? JSON.parse(presetsStr) : null; } catch(e) { presets = null; }
+    if (!presets) {
+        try {
+            const ls = localStorage.getItem(`agGridPresets_${gridId}`);
+            if (ls) presets = JSON.parse(ls);
+        } catch(e) {}
+    }
+    presets = presets || {};
+    
+    let searchesStr = '{{ ag_grid_searches|escapejs }}';
+    let searches;
+    try { searches = searchesStr && searchesStr !== 'null' ? JSON.parse(searchesStr) : null; } catch(e) { searches = null; }
+    if (!searches) {
+        try {
+            const ls = localStorage.getItem(`agGridSearches_${gridId}`);
+            if (ls) searches = JSON.parse(ls);
+        } catch(e) {}
+    }
+    searches = searches || [];
+    
+    let groupsOrderRaw = "{{ groups_order|escapejs }}";
+    let groupsOrder = groupsOrderRaw ? groupsOrderRaw.split(',').map(s => s.trim()) : [];
+    
+    function startUp() {
+        let gridId = '{{ grid_id|escapejs }}' || 'defaultGrid';
+        let containerId = '{{ container_id|escapejs }}' || 'defaultContainer';
+        
+        let optsStr = '{{ options_var|escapejs }}';
+        let optionsObj = optsStr ? eval(optsStr) : {};
+        
+        let manager = window[gridId + 'Manager'];
+        const gridDiv = document.getElementById(containerId);
+
+        if (!manager) {
+            manager = new ContextGridManager(gridId, containerId, optionsObj, presets, searches, groupsOrder);
+            window[gridId + 'Manager'] = manager;
+        } else {
+            // AG Grid strictly prohibits reusing gridOptions objects.
+            // On HTMX swap, we MUST update the manager with the newly evaluated gridOptions object from the new DOM payload.
+            manager.gridOptions = optionsObj;
+            
+            // Refresh saved searches and presets from fresh Django context
+            manager.savedColPresets = presets || {};
+            manager.savedQuickSearches = searches || [];
+            
+            // Cleanly destroy the old grid instance BEFORE re-initializing
+            if (manager.gridApi) {
+                try {
+                    if (typeof manager.gridApi.destroy === 'function') {
+                        manager.gridApi.destroy();
+                    }
+                } catch (e) {
+                    console.warn(`[ContextGrid] Clean destruction of old grid failed. Proceeding with DOM swap. Error:`, e);
+                }
+                manager.gridApi = null;
+            }
+        }
+        
+        // Grid API is definitely null now on HTMX re-entry, we mount to the new DOM element
+        if (!manager.gridApi) {
+            if (typeof agGrid !== 'undefined') {
+                manager.initGrid();
+            } else {
+                let p = setInterval(() => {
+                    if (typeof agGrid !== 'undefined') {
+                        clearInterval(p);
+                        manager.initGrid();
+                    }
+                }, 50);
+                setTimeout(() => clearInterval(p), 15000);
+            }
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startUp);
+    } else {
+        startUp();
+    }
+    window.cmGridStartUp = startUp;
+})();
+</script>

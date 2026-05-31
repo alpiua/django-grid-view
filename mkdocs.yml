@@ -1,0 +1,89 @@
+site_name: Django Grid View
+site_description: Declarative grid views for Django — Simple Table, AG-Grid, KPI, ECharts, GridViewSpec
+site_url: https://alpiua.github.io/django-grid-view/
+repo_url: https://github.com/alpiua/django-grid-view
+repo_name: alpiua/django-grid-view
+edit_uri: edit/main/docs/
+
+strict: true
+
+exclude_docs: |
+  llm/django-grid-view-llm-context.md
+
+hooks:
+  - hooks/copy_llm_bundle.py
+
+theme:
+  name: material
+  language: en
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - User guide:
+      - Simple Table: simple-table.md
+      - AG-Grid integration: ag-grid.md
+      - Charts and KPIs: charts-and-kpis.md
+      - Grid View artifacts: grid-view-artifacts.md
+      - Saved preferences: preferences.md
+  - Architecture: architecture.md
+  - Reference:
+      - Python types: reference/python-types.md
+      - Template tags: reference/template-tags.md
+      - JavaScript API: reference/javascript.md
+      - GridViewSpec: reference/grid-view-spec.md
+  - Advanced:
+      - Chat visualizer: guides/chat-visualizer.md
+      - Dashboard builders: guides/dashboard-builders.md
+  - Changelog: changelog.md
+  - LLM context:
+      - Download bundle: llm/context.md
+      - Agent skill: llm/skill.md
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/alpiua/django-grid-view
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/django-grid-view/

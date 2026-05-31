@@ -1,0 +1,1079 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   django-grid-view — Simple Table CSS
+   Fully theme-aware via CSS custom properties (--cm-*).
+   Consumers (nszu, commerce) set these variables in their base template.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Page spacing (single source of truth) ─────────────────────────────── */
+:root {
+    --cm-page-gap: 8px;
+    --cm-page-padding-y: 8px;
+    --cm-toolbar-padding-y: 8px;
+    --cm-block-gap: 8px;
+}
+
+.cm-dashboard-page {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: var(--cm-page-gap);
+    padding-top: var(--cm-page-padding-y);
+    padding-bottom: var(--cm-page-padding-y);
+}
+.cm-dashboard-page--viewport {
+    height: calc(100vh - 64px);
+}
+.cm-dashboard-page--fill {
+    flex: 1;
+    min-height: 0;
+}
+
+/* Medical records — full-viewport AG Grid (single frame, no double border) */
+.cm-medical-records-page {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: calc(100vh - 64px);
+    gap: var(--cm-page-gap);
+    padding-top: var(--cm-page-padding-y);
+    padding-bottom: var(--cm-page-padding-y);
+    box-sizing: border-box;
+}
+.cm-medical-records-grid-shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--cm-surface);
+    border: 1px solid var(--cm-border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.cm-medical-records-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+.cm-medical-records-grid.ag-theme-quartz-dark,
+.cm-medical-records-grid.ag-theme-quartz {
+    --ag-border-color: var(--cm-border);
+    --ag-background-color: var(--cm-surface);
+}
+
+.cm-dashboard-page__header {
+    flex-shrink: 0;
+}
+
+/* Page layout: controls outside, bordered table shell below */
+.cm-page-table-layout {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cm-page-gap);
+    flex: 1;
+    min-height: 0;
+}
+.cm-page-table-layout .cm-table-shell {
+    border-top: none;
+}
+.cm-toolbar-outside {
+    background: transparent;
+    border: none;
+    border-bottom: none !important;
+    padding: var(--cm-toolbar-padding-y) 0;
+}
+
+/* ── Wrapper ──────────────────────────────────────────────────────────── */
+.cm-simple-wrapper,
+.cm-table-shell {
+    background: var(--cm-surface);
+    border: 1px solid var(--cm-border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* Department type: two grouped tab bars (index + doctors) */
+.cm-dept-type-groups {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+.cm-tab-group-heading {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 8px 5px 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: none;
+}
+.cm-tab-group-heading--stat .cm-tab-group-label {
+    color: #818cf8;
+}
+.cm-tab-group-heading--amb .cm-tab-group-label {
+    color: #34d399;
+}
+.cm-tab-group-icon {
+    opacity: 0.95;
+}
+.cm-tab-group-label {
+    color: var(--cm-muted);
+}
+
+/* Multiselect dropdown (medical-records filters) */
+.cm-multiselect {
+    position: relative;
+    display: inline-block;
+}
+.cm-multiselect-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 120px;
+    max-width: 200px;
+    padding: 5px 28px 5px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--cm-text);
+    background: var(--cm-surface);
+    border: 1px solid var(--cm-border);
+    border-radius: 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+}
+.cm-multiselect-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 120;
+    min-width: 220px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 8px;
+    background: var(--cm-surface);
+    border: 1px solid var(--cm-border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.cm-multiselect-panel.is-open {
+    display: block;
+}
+.cm-multiselect-group + .cm-multiselect-group {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--cm-border);
+}
+.cm-multiselect-group-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--cm-muted);
+}
+.cm-multiselect-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 6px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    color: var(--cm-text);
+    cursor: pointer;
+}
+.cm-multiselect-option:hover {
+    background: var(--cm-hover);
+}
+.cm-multiselect-option input {
+    accent-color: var(--cm-primary);
+}
+
+/* ── Toolbar ──────────────────────────────────────────────────────────── */
+.cm-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--cm-border);
+    background: var(--cm-bg);
+}
+
+.cm-search-input {
+    flex: 1;
+    max-width: 280px;
+    background: var(--cm-surface);
+    border: 1px solid var(--cm-border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    color: var(--cm-text);
+    font-size: 0.82rem;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.cm-search-input:focus {
+    border-color: var(--cm-primary);
+}
+.cm-search-input::placeholder {
+    color: var(--cm-muted);
+}
+
+.cm-counter {
+    font-size: 0.72rem;
+    color: var(--cm-muted);
+    margin-left: auto;
+}
+
+/* Nav row: tabs (left) + period (center) + export (right) — unified single row */
+.cm-toolbar-unified {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+}
+.cm-toolbar-unified .cm-toolbar-left {
+    justify-self: start;
+    min-width: 0;
+}
+.cm-toolbar-unified .cm-toolbar-center {
+    justify-self: center;
+}
+.cm-toolbar-unified .cm-toolbar-right {
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+.cm-toolbar-right-slot {
+    display: inline-flex;
+    align-items: center;
+}
+.cm-index-tab-toolbar.hidden {
+    display: none !important;
+}
+.tab-pane.hidden {
+    display: none !important;
+}
+
+/* Legacy nav row (doctors etc.) */
+.cm-toolbar-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--cm-bg);
+}
+.cm-toolbar-nav .cm-toolbar-left {
+    flex: 0 0 auto;
+}
+.cm-toolbar-nav .cm-toolbar-center {
+    flex: 1 1 auto;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* Segmented tab group */
+.cm-tab-group {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 3px;
+    background: var(--cm-surface);
+    border: 1px solid var(--cm-border);
+    border-radius: 10px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.cm-tab-group .cm-tab-btn {
+    border: none;
+    background: transparent;
+    color: var(--cm-muted);
+    padding: 5px 12px;
+    border-radius: 7px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.3;
+    box-shadow: none;
+}
+.cm-tab-group .cm-tab-btn:hover:not(.is-active) {
+    background: var(--cm-hover);
+    color: var(--cm-text);
+}
+.cm-tab-group .cm-tab-btn.is-active {
+    background: var(--cm-primary);
+    color: #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+.cm-tab-group a.cm-tab-btn {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Period selector — compact, same height as export buttons (28px) */
+.cm-period-wrap {
+    display: inline-flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 3px;
+    background: var(--cm-surface);
+    border: 1px solid var(--cm-border);
+    border-radius: 10px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.cm-toolbar-unified .cm-period-wrap .cm-period-select {
+    height: 22px;
+    padding: 0 24px 0 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    cursor: pointer;
+    outline: none;
+    color: var(--cm-text);
+}
+.cm-toolbar-unified .cm-period-wrap .cm-period-select:focus {
+    background-color: var(--cm-hover);
+}
+
+.cm-search-input-compact {
+    flex: none;
+    width: 220px;
+    max-width: 220px;
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    border-radius: 10px;
+}
+
+/* Meta row: record count (center) + export (right) */
+.cm-toolbar-meta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    min-height: 36px;
+}
+.cm-toolbar-meta .cm-counter {
+    margin: 0;
+}
+.cm-toolbar-meta .cm-export-group {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 0;
+}
+
+/* Extended: search left + filters center (doctors) */
+.cm-toolbar-extended {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.cm-toolbar-extended .cm-toolbar-left {
+    flex: 0 0 auto;
+}
+.cm-toolbar-extended .cm-search-input {
+    flex: 0 1 280px;
+    max-width: 280px;
+}
+.cm-toolbar-extended .cm-toolbar-center {
+    flex: 1 1 auto;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.cm-toolbar-extended .cm-counter {
+    margin-left: auto;
+}
+.cm-toolbar-extended .cm-export-group {
+    margin-left: 0;
+}
+
+/* Nav controls inside toolbar slots */
+.cm-period-select {
+    background: var(--cm-surface);
+    border: 1px solid var(--cm-border);
+    color: var(--cm-text);
+    border-radius: 8px;
+    padding: 6px 28px 6px 12px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+}
+.cm-toolbar-left select:focus,
+.cm-period-select:focus {
+    border-color: var(--cm-primary);
+}
+
+.cm-tab-btn {
+    white-space: nowrap;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--cm-border);
+    background: var(--cm-surface);
+    color: var(--cm-text);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.cm-tab-btn:hover {
+    background: var(--cm-hover);
+}
+.cm-tab-btn.is-active {
+    background: var(--cm-primary);
+    border-color: transparent;
+    color: #fff;
+}
+
+.cm-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--cm-border);
+    background: var(--cm-surface);
+    color: var(--cm-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.cm-filter-btn:hover {
+    color: var(--cm-text);
+    border-color: var(--cm-primary);
+}
+.cm-filter-btn.is-active {
+    background: var(--cm-primary);
+    border-color: transparent;
+    color: #fff;
+}
+.cm-counter [data-cm-count] {
+    font-weight: 700;
+    color: var(--cm-text);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Export button ────────────────────────────────────────────────────────── */
+[data-cm-export] {
+    background: var(--cm-primary);
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    padding: 5px 12px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+[data-cm-export]:hover {
+    opacity: 0.85;
+}
+
+/* ── Table core ───────────────────────────────────────────────────────────── */
+.cm-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.6875rem;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+.cm-table thead {
+    background: var(--cm-table-head-bg, var(--cm-bg));
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.cm-table thead tr {
+    border-bottom: none;
+}
+
+.cm-table thead th {
+    color: var(--cm-muted);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--cm-border);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    vertical-align: middle;
+    transition: color 0.15s;
+}
+
+.cm-table thead th[data-cm-align="left"],
+.cm-layout-text-left .cm-table thead th {
+    text-align: left;
+}
+
+.cm-table thead th[data-cm-align="center"],
+.cm-layout-default .cm-table thead th[data-cm-align="center"] {
+    text-align: center;
+}
+
+.cm-table thead th[data-cm-align="right"] {
+    text-align: right;
+}
+
+.cm-table thead th:hover {
+    color: var(--cm-text);
+}
+
+/* ── Sort arrow ───────────────────────────────────────────────────────────── */
+.cm-sort-arrow {
+    opacity: 0;
+    margin-left: 4px;
+    font-size: 0.65rem;
+    transition: opacity 0.15s;
+}
+.cm-table thead th:hover .cm-sort-arrow {
+    opacity: 0.5;
+}
+
+/* ── Body rows ──────────────────────────────────────────────────────────── */
+.cm-table tbody tr.cm-row {
+    border-bottom: 1px solid var(--cm-border);
+    transition: background 0.1s;
+}
+.cm-table tbody tr.cm-row:last-child {
+    border-bottom: none;
+}
+.cm-table tbody tr.cm-row:hover {
+    background: var(--cm-hover);
+}
+
+/* Striped rows */
+.cm-table.cm-striped tbody tr.cm-row:nth-child(even) {
+    background: var(--cm-stripe-bg, rgba(255, 255, 255, 0.03));
+}
+.cm-table.cm-striped tbody tr.cm-row:nth-child(even):hover {
+    background: var(--cm-hover);
+}
+
+/* Clickable rows */
+.cm-table tbody tr.cm-row[data-cm-row-url] {
+    cursor: pointer;
+}
+
+/* ── Body cells ────────────────────────────────────────────────────────────── */
+.cm-table tbody td {
+    padding: 8px 12px;
+    color: var(--cm-text);
+    font-size: 0.6875rem;
+    vertical-align: top;
+}
+
+.cm-table tbody td[data-cm-align="left"],
+.cm-layout-text-left .cm-table tbody td {
+    text-align: left;
+}
+
+.cm-table tbody td[data-cm-align="center"] {
+    text-align: center;
+}
+
+.cm-table tbody td[data-cm-align="right"] {
+    text-align: right;
+}
+
+.cm-table tbody td[data-cm-align="middle"] {
+    vertical-align: middle;
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────────── */
+.cm-table tfoot tr:first-child td {
+    border-top: 2px solid var(--cm-border);
+}
+.cm-table tfoot td {
+    background: var(--cm-table-head-bg, var(--cm-bg));
+    padding: 8px 12px;
+    font-weight: 700;
+    font-size: 0.6875rem;
+    color: var(--cm-text);
+}
+
+.cm-table tfoot td[data-cm-align="left"] {
+    text-align: left;
+}
+.cm-table tfoot td[data-cm-align="center"] {
+    text-align: center;
+}
+.cm-table tfoot td[data-cm-align="right"] {
+    text-align: right;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────────────── */
+.cm-empty {
+    text-align: center;
+    color: var(--cm-muted);
+    padding: 32px 12px;
+    font-size: 0.82rem;
+}
+
+/* ── Cell content helpers ─────────────────────────────────────────────────── */
+.cm-cell {
+}
+
+.cm-muted {
+    color: var(--cm-muted);
+}
+
+.cm-link {
+    color: var(--cm-primary);
+    text-decoration: none;
+    font-weight: 500;
+    transition: text-decoration 0.15s;
+}
+.cm-link:hover {
+    text-decoration: underline;
+}
+
+.cm-record-detail-btn {
+    padding: 2px 8px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--cm-primary);
+    background: color-mix(in srgb, var(--cm-primary) 15%, transparent);
+    border: 1px solid color-mix(in srgb, var(--cm-primary) 35%, transparent);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.cm-record-detail-btn:hover {
+    background: var(--cm-primary);
+    color: #fff;
+}
+
+.doctor-modal-records-wrap {
+    max-height: 350px;
+    overflow: auto;
+}
+.doctor-modal-records-wrap .cm-table {
+    font-size: 0.72rem;
+}
+
+/* Monospace cells (e.g. IDs, codes) */
+.cm-mono {
+    font-family:
+        ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, monospace;
+    font-size: 0.6875rem;
+}
+
+/* Italic muted fallback */
+.cm-muted-italic {
+    color: #64748b;
+    font-style: italic;
+}
+
+/* ── Badge / status pill ─────────────────────────────────────────────────── */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 6px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+.badge-empty {
+    color: var(--cm-muted);
+}
+
+.badge-green {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+}
+.badge-red {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+}
+.badge-amber {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+.badge-slate {
+    background: rgba(100, 116, 139, 0.15);
+    color: #94a3b8;
+}
+.badge-purple {
+    background: rgba(168, 85, 247, 0.15);
+    color: #c084fc;
+}
+
+/* ── Chip (department type tag) ──────────────────────────────────────────── */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    margin-right: 3px;
+    white-space: nowrap;
+}
+.chip-stat {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+}
+.chip-amb {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+}
+
+/* ── Numeric / money helpers ─────────────────────────────────────────────── */
+.tabular-nums {
+    font-variant-numeric: tabular-nums;
+}
+
+.text-green {
+    color: #22c55e;
+}
+.text-red-400 {
+    color: #f87171;
+}
+.text-amber {
+    color: #fbbf24;
+}
+.text-slate {
+    color: #94a3b8;
+}
+.text-purple {
+    color: #c084fc;
+}
+
+/* ── Export button group ────────────────────────────────────────────────────── */
+.cm-export-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+.cm-export-group[hidden] {
+    display: none !important;
+}
+
+.cm-export-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    box-sizing: border-box;
+    height: 28px;
+    min-height: 28px;
+    padding: 0 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--cm-muted);
+    background: var(--cm-surface);
+    border: 1px solid var(--cm-border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    text-decoration: none;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+    white-space: nowrap;
+}
+html:not(.dark) .cm-export-btn {
+    background: var(--cm-surface);
+    border-color: var(--cm-border);
+}
+.cm-export-btn:hover {
+    background: var(--cm-hover);
+    color: var(--cm-text);
+    border-color: var(--cm-primary);
+}
+html:not(.dark) .cm-export-btn:hover {
+    background: var(--cm-hover);
+    color: var(--cm-text);
+}
+.cm-export-btn-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+.cm-export-btn-label {
+    font-weight: 500;
+}
+.cm-export-btn--xlsx .cm-export-btn-icon {
+    color: #22c55e;
+}
+.cm-export-btn--pdf .cm-export-btn-icon {
+    color: #ef4444;
+}
+.cm-export-btn--csv .cm-export-btn-icon {
+    color: #60a5fa;
+}
+
+/* Icon-only toolbar row (medical records refresh/settings = 36px) */
+.cm-toolbar-icon-row .cm-export-btn {
+    height: 36px;
+    min-height: 36px;
+}
+
+/* Inline stat chips (index toolbar: Записів / Тариф) — match export btn height */
+.cm-toolbar-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.cm-toolbar-actions .cm-export-group {
+    margin-left: 0;
+}
+.cm-toolbar-stat-group {
+    display: inline-flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 3px;
+    background: var(--cm-surface);
+    border: 1px solid var(--cm-border);
+    border-radius: 10px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+}
+.cm-toolbar-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 22px;
+    padding: 0 8px;
+    white-space: nowrap;
+}
+.cm-toolbar-stat-label {
+    color: var(--cm-muted);
+    font-weight: 600;
+}
+.cm-toolbar-stat-value {
+    font-weight: 700;
+    color: var(--cm-text);
+}
+.cm-toolbar-stat-value.is-positive {
+    color: #4ade80;
+}
+.cm-toolbar-stat-divider {
+    width: 1px;
+    height: 14px;
+    background: var(--cm-border);
+    flex-shrink: 0;
+}
+
+/* Optional wrapper when chart is outside grid-view */
+.cm-tab-pane-chart {
+    margin-top: var(--cm-block-gap);
+}
+.cm-grid-view > .cm-chart-wrap {
+    margin-top: var(--cm-block-gap);
+}
+
+/* ── Action button (modal triggers etc.) ─────────────────────────────────── */
+.cm-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: none;
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--cm-primary);
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.cm-action-btn:hover {
+    background: rgba(99, 102, 241, 0.2);
+}
+
+/* ── Period pills (alarms / doctor grouping) ─────────────────────────────── */
+.cm-period-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+.cm-period-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+.cm-period-pill-count {
+    border-radius: 999px;
+    padding: 0 6px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.cm-period-pill-amber {
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    background: rgba(245, 158, 11, 0.05);
+    color: var(--cm-text);
+}
+.cm-period-pill-amber:hover {
+    background: rgb(245, 158, 11);
+    color: #fff;
+}
+.cm-period-pill-amber .cm-period-pill-count {
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+}
+.cm-period-pill-red {
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    background: rgba(239, 68, 68, 0.05);
+    color: var(--cm-text);
+}
+.cm-period-pill-red:hover {
+    background: rgb(239, 68, 68);
+    color: #fff;
+}
+.cm-period-pill-red .cm-period-pill-count {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+.cm-period-pill-emerald {
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    background: rgba(16, 185, 129, 0.05);
+    color: var(--cm-text);
+}
+.cm-period-pill-emerald:hover {
+    background: rgb(16, 185, 129);
+    color: #fff;
+}
+.cm-period-pill-emerald .cm-period-pill-count {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+}
+.cm-period-pill-violet {
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    background: rgba(139, 92, 246, 0.05);
+    color: var(--cm-text);
+}
+.cm-period-pill-violet:hover {
+    background: rgb(139, 92, 246);
+    color: #fff;
+}
+.cm-period-pill-violet .cm-period-pill-count {
+    background: rgba(139, 92, 246, 0.1);
+    color: #7c3aed;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .cm-toolbar {
+        flex-wrap: wrap;
+    }
+    .cm-search-input {
+        max-width: 100%;
+    }
+}
+
+/* ── KPI strip ────────────────────────────────────────────────────────────── */
+.cm-kpi-grid {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.cm-kpi-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cm-kpi-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cm-kpi-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.cm-kpi-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.cm-kpi-cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+
+.cm-kpi-card {
+    background: var(--cm-surface);
+    border: 1px solid var(--cm-border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+.cm-kpi-icon {
+    flex-shrink: 0;
+    font-size: 1.3rem;
+    line-height: 1;
+}
+.cm-kpi-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.cm-kpi-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--cm-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.cm-kpi-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--cm-text);
+    font-variant-numeric: tabular-nums;
+}
+.cm-kpi-tone-green .cm-kpi-value { color: #10b981; }
+.cm-kpi-tone-red .cm-kpi-value { color: #ef4444; }
+.cm-kpi-tone-amber .cm-kpi-value { color: #f59e0b; }
+
+/* ── Charts ───────────────────────────────────────────────────────────────── */
+.cm-chart-wrap {
+    width: 100%;
+    margin-bottom: var(--cm-page-gap);
+}
+.cm-chart-root {
+    min-height: 120px;
+}
+.cm-grid-view-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0 0 12px;
+    color: var(--cm-text);
+}

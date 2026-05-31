@@ -1,130 +1,93 @@
-# Django Grid Table
+# Django Grid View
 
-Reusable Django app for AG Grid integrations with HTMX-safe lifecycle handling,
-saved searches, column presets, server-side grid preferences, and optional UI
-plugins.
+[![PyPI](https://img.shields.io/pypi/v/django-grid-view.svg)](https://pypi.org/project/django-grid-view/)
+[![CI](https://github.com/alpiua/django-grid-view/actions/workflows/ci.yml/badge.svg)](https://github.com/alpiua/django-grid-view/actions/workflows/ci.yml)
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://alpiua.github.io/django-grid-view/)
 
-Install:
+Declarative grid views for Django: **Simple Table**, **AG-Grid** helpers (HTMX-safe), **KPI** cards, **ECharts** charts, and an LLM-friendly **GridViewSpec** contract.
 
-```bash
-pip install django-grid-table
-```
+**Full documentation:** [https://alpiua.github.io/django-grid-view/](https://alpiua.github.io/django-grid-view/)
 
-Local editable install:
+## Install
 
 ```bash
-pip install -e ~/Projects/django-grid-table
+pip install django-grid-view
 ```
 
-With `uv`, keep the normal PyPI dependency and override it locally:
-
-```toml
-[project]
-dependencies = [
-    "django-grid-table>=0.1.0",
-]
-
-[tool.uv.sources]
-django-grid-table = { path = "../django-grid-table", editable = true }
-```
-
-## Django Setup
+## Quick start
 
 ```python
-INSTALLED_APPS = [
-    # ...
-    "django_grid_table",
-]
+# settings.py
+INSTALLED_APPS = ["django_grid_view"]
+
+# urls.py
+urlpatterns = [path("", include("django_grid_view.urls"))]
 ```
 
 ```python
-from django.urls import include, path
+from django_grid_view.tables import Column, SimpleTableConfig
 
-urlpatterns = [
-    path("", include("django_grid_table.urls")),
-]
+config = SimpleTableConfig(
+    grid_id="demo",
+    columns=[Column(key="name", label="Name")],
+    data=[{"name": "Ada"}, {"name": "Bob"}],
+)
 ```
 
-```bash
-python manage.py migrate django_grid_table
+```django
+{% load django_grid_view %}
+{% render_simple_table config %}
 ```
 
-## Template Usage
+Run `python manage.py migrate django_grid_view` if you use saved AG-Grid preferences.
 
-Load AG Grid and Sortable once in the base template, outside HTMX-swapped
-content:
+## Features
 
-```html
-<script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/dist/ag-grid-community.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-```
-
-Use the bundled tag:
-
-```html
-{% load django_grid_table %}
-
-<div id="products-grid" class="ag-theme-quartz-dark"></div>
-
-<script>
-  window.ProductsGrid = {
-    columnDefs: ProductColumns,
-    rowModelType: "infinite",
-    cacheBlockSize: 200,
-    context: { gridId: "products" },
-  };
-</script>
-
-{% django_grid_table_scripts grid_id="products" options_var="ProductsGrid" container_id="products-grid" %}
-```
-
-Or include partials directly:
-
-```html
-{% include "django_grid_table/search_bar.html" with grid_id="products" %}
-{% include "django_grid_table/modal.html" with grid_id="products" %}
-{% include "django_grid_table/scripts.html" with grid_id="products" container_id="products-grid" options_var="ProductsGrid" %}
-```
-
-Optional plugins:
-
-```html
-{% include "django_grid_table/plugins/smart_filter.html" %}
-{% include "django_grid_table/plugins/advanced_search.html" %}
-{% include "django_grid_table/plugins/custom_tooltip.html" %}
-```
-
-## Runtime Rules
-
-Do not load AG Grid CDN scripts inside HTMX-swapped fragments.
-
-For AG Grid infinite row model, do not use `quickFilterText` or `autoHeight`.
-Use `manager._searchText` and backend filtering instead.
-
-Always populate `columnDefs` before `django_grid_table/scripts.html` initializes
-the grid.
+| Feature | Docs |
+|---------|------|
+| Simple Table (sort, search, export) | [Simple Table](https://alpiua.github.io/django-grid-view/simple-table/) |
+| AG-Grid + HTMX | [AG-Grid integration](https://alpiua.github.io/django-grid-view/ag-grid/) |
+| KPI + charts + unified artifact | [Grid View artifacts](https://alpiua.github.io/django-grid-view/grid-view-artifacts/) |
+| Python types (pyright/mypy) | [Python types](https://alpiua.github.io/django-grid-view/reference/python-types/) |
+| Release notes | [Changelog](https://alpiua.github.io/django-grid-view/changelog/) |
 
 ## Development
 
+Requires [uv](https://docs.astral.sh/uv/). The lockfile (`uv.lock`) pins all dev tools; CI uses `uv sync --frozen --group dev`.
+
 ```bash
-uv sync --extra dev
-uv run ruff check .
+uv sync --group dev
 uv run pytest
-uv build
-uv run --with twine twine check dist/*
+uv run ruff check .
+uv run ruff format --check .
+uv run basedpyright --warnings src/django_grid_view tests
 ```
+
+Docs site (MkDocs):
+
+```bash
+./scripts/docs_serve.sh
+```
+
+Or manually (always use `uv run mkdocs`, not a global install):
+
+```bash
+uv sync --group dev
+uv run python scripts/build_llm_context.py
+uv run mkdocs build --strict
+uv run mkdocs serve
+```
+
+Without uv: `pip install -e ".[dev]"` then the same `pytest` / `ruff` / `basedpyright` commands.
+
+**LLM agents:** full doc bundle → [`docs/llm/django-grid-view-llm-context.md`](docs/llm/django-grid-view-llm-context.md) ([skill](https://alpiua.github.io/django-grid-view/llm/skill/)).
 
 ## Release
 
-Publishing uses GitHub Actions trusted publishing. Configure the PyPI project
-`django-grid-table` to trust the repository environment named `pypi`, then push
-a version tag:
+Tag `v*` on `main` — CI publishes to PyPI via trusted publishing (`environment: pypi`).
 
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
+Documentation: push to `main` runs [`.github/workflows/docs.yml`](.github/workflows/docs.yml) (`mkdocs build --strict` → GitHub Pages). Enable **Settings → Pages → GitHub Actions** once per repository.
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).

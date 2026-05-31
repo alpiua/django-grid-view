@@ -1,0 +1,65 @@
+{% load static django_grid_view %}
+<div class="cm-grid-view" data-grid-id="{{ artifact.spec.grid_id }}">
+  {% if artifact.spec.title %}
+  <h2 class="cm-grid-view-title">{{ artifact.spec.title }}</h2>
+  {% endif %}
+
+  {% for block in layout_blocks %}
+    {% if block == "kpis" and artifact.kpis %}
+    <div data-cm-kpi-config="{{ kpis_json|force_escape }}" data-cm-kpi-columns="{{ artifact.spec.layout.kpi_columns }}" data-cm-kpi-root></div>
+    {% elif block == "chart" %}
+      {% for chart in chart_payload %}
+      <div
+        class="cm-chart-wrap"
+        data-cm-chart-id="{{ chart.id }}"
+        data-cm-chart-config="{{ chart.config_json|force_escape }}"
+        data-cm-chart-rows="{{ chart.rows_json|force_escape }}"
+        {% if chart.interactive %}data-cm-chart-interactive="1"{% endif %}
+        style="height: {{ chart.height }}px;"
+      >
+        <div data-cm-chart-root class="cm-chart-root" style="width:100%;height:100%;"></div>
+      </div>
+      {% endfor %}
+    {% elif block == "table" and artifact.table %}
+    {% render_simple_table artifact.table %}
+    {% endif %}
+  {% endfor %}
+</div>
+{% if load_assets %}
+<link rel="stylesheet" href="{% static 'django_grid_view/table.css' %}">
+{% grid_view_bundle %}
+{% endif %}
+<script>
+  (function () {
+    var rootSelector = '[data-grid-id="{{ artifact.spec.grid_id }}"]';
+    function bootGrid(root) {
+      if (!root) return;
+      function tryInit() {
+        if (window.GridView && (typeof window.echarts !== "undefined" || !root.querySelector("[data-cm-chart-config]"))) {
+          window.GridView.init({ root: root });
+          return;
+        }
+        setTimeout(tryInit, 50);
+      }
+      tryInit();
+    }
+    function boot(scope) {
+      var scopeEl = scope && scope.querySelector ? scope : document;
+      bootGrid(scopeEl.querySelector(rootSelector));
+    }
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", function () { boot(document); });
+    } else {
+      boot(document);
+    }
+    document.body.addEventListener("htmx:afterSwap", function (evt) {
+      var target = evt.detail && evt.detail.target;
+      if (!target) return;
+      if (target.matches && target.matches(rootSelector)) {
+        bootGrid(target);
+        return;
+      }
+      boot(target);
+    });
+  })();
+</script>

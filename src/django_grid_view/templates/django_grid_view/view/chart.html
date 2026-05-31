@@ -1,0 +1,40 @@
+{% load static django_grid_view %}
+<div
+  class="cm-chart-wrap"
+  data-cm-chart-config="{{ chart_config_json|force_escape }}"
+  data-cm-chart-rows="{{ chart_rows_json|force_escape }}"
+  data-cm-chart-id="{{ chart_id }}"
+  {% if interactive %}data-cm-chart-interactive="1"{% endif %}
+  style="height: {{ height }}px;"
+>
+  <div data-cm-chart-root class="cm-chart-root" style="width:100%;height:100%;"></div>
+</div>
+{% if load_assets %}
+<link rel="stylesheet" href="{% static 'django_grid_view/table.css' %}">
+{% grid_view_bundle %}
+{% endif %}
+{% if not interactive %}
+<script>
+  (function () {
+    function bootCharts(scope) {
+      var target = scope || document;
+      function tryInit() {
+        if (window.GridView && typeof window.echarts !== "undefined") {
+          window.GridView.initAllCharts(target);
+          return;
+        }
+        setTimeout(function () { tryInit(); }, 50);
+      }
+      tryInit();
+    }
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", function () { bootCharts(document); });
+    } else {
+      bootCharts(document);
+    }
+    document.body.addEventListener("htmx:afterSwap", function (evt) {
+      bootCharts(evt.detail && evt.detail.target ? evt.detail.target : document);
+    });
+  })();
+</script>
+{% endif %}

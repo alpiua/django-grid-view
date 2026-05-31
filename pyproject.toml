@@ -1,7 +1,7 @@
 [project]
-name = "django-grid-table"
-version = "0.1.0"
-description = "Reusable AG Grid integration for Django with HTMX-safe lifecycle and persisted grid preferences"
+name = "django-grid-view"
+version = "1.0.0"
+description = "Declarative grid views for Django: Simple Table, AG-Grid helpers, KPI cards, ECharts, and an LLM-friendly GridViewSpec contract"
 readme = "README.md"
 authors = [
     { name = "Oleksii Pylypchuk", email = "alpi@keemail.me" }
@@ -10,7 +10,7 @@ requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Environment :: Web Environment",
     "Framework :: Django",
     "Framework :: Django :: 5",
@@ -28,36 +28,73 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/alpiua/django-grid-table"
-Repository = "https://github.com/alpiua/django-grid-table"
-Issues = "https://github.com/alpiua/django-grid-table/issues"
+Homepage = "https://github.com/alpiua/django-grid-view"
+Repository = "https://github.com/alpiua/django-grid-view"
+Documentation = "https://alpiua.github.io/django-grid-view/"
+Issues = "https://github.com/alpiua/django-grid-view/issues"
+Changelog = "https://github.com/alpiua/django-grid-view/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
+static-charts = ["matplotlib>=3.8"]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+]
+# Mirror of [dependency-groups] dev — for pip install django-grid-view[dev]
 dev = [
+    "basedpyright>=1.28.0",
     "build>=1.2.0",
+    "django-stubs>=5.1.0",
+    "matplotlib>=3.8",
+    "matplotlib-stubs>=0.3.11",
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+    "pre-commit>=4.0.0",
     "pytest>=8.0.0",
     "pytest-django>=4.8.0",
     "ruff>=0.8.0",
     "twine>=5.0.0",
+    "typing_extensions>=4.12.0",
 ]
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[dependency-groups]
+dev = [
+    "basedpyright>=1.28.0",
+    "build>=1.2.0",
+    "django-stubs>=5.1.0",
+    "matplotlib>=3.8",
+    "matplotlib-stubs>=0.3.11",
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+    "pre-commit>=4.0.0",
+    "pytest>=8.0.0",
+    "pytest-django>=4.8.0",
+    "ruff>=0.8.0",
+    "twine>=5.0.0",
+    "typing_extensions>=4.12.0",
+]
+
+[tool.uv]
+default-groups = ["dev"]
 
 [build-system]
 requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [tool.setuptools.package-data]
-django_grid_table = [
+django_grid_view = [
     "py.typed",
     "templates/**/*.html",
     "locale/**/*.po",
     "locale/**/*.mo",
+    "static/**/*",
 ]
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "tests.settings"
+addopts = "--ds=tests.settings"
 pythonpath = ["src", "."]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
@@ -66,6 +103,20 @@ python_files = ["test_*.py"]
 target-version = "py310"
 line-length = 100
 exclude = ["*/migrations/*"]
+
+[tool.django-stubs]
+django_settings_module = "tests.settings"
+
+[tool.basedpyright]
+include = ["src/django_grid_view", "tests"]
+exclude = ["**/migrations/**", "**/__pycache__/**", "hooks/**"]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+reportMissingTypeStubs = false
+# matplotlib-stubs: loose **kwargs; spec_parser: runtime JSON ingress via isinstance.
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnknownArgumentType = "none"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]

@@ -1,0 +1,30 @@
+# English translations for django-grid-view.
+msgid ""
+msgstr ""
+"Project-Id-Version: django-grid-view 0.4.0\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "tables.search"
+msgstr "Search…"
+
+msgid "tables.records"
+msgstr "records"
+
+msgid "tables.export"
+msgstr "Export CSV"
+
+msgid "tables.empty"
+msgstr "No records"
+
+msgid "chart.empty"
+msgstr "No data for chart"
+
+msgid "chart.loading"
+msgstr "Loading chart…"
+
+msgid "kpi.loading"
+msgstr "Loading…"
