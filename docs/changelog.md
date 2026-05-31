@@ -28,6 +28,21 @@ Prefer a subsection here (`### Migration`) for small notes; a dedicated page onl
 
 ---
 
+## 1.0.1
+
+**2026-05-31** — Docs, agent skill, and repository hygiene.
+
+### Added
+
+- `.githooks/commit-msg` removes Cursor `Co-authored-by` trailers on commit
+- Richer docs CSS (section headings, nav labels)
+
+### Changed
+
+- README and [Agent skill](llm/skill.md) aimed at production use
+- [LLM bundle](llm/django-grid-view-llm-context.md) linked directly from [context page](llm/context.md)
+- MkDocs navigation and TOC improvements
+
 ## 1.0.0
 
 **2025** — Grid View 1.0 release.

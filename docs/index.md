@@ -40,7 +40,7 @@ KPI strip, ECharts, and table from one spec.
 - [Getting started](getting-started.md) — install, Django setup, first table
 - [Grid View artifacts](grid-view-artifacts.md) — `GridViewSpec` → `GridArtifact`
 - [Changelog](changelog.md) — release notes
-- [LLM context bundle](llm/context.md) — single file for agents
+- [LLM context bundle](llm/django-grid-view-llm-context.md) — single file for agents ([about the bundle](llm/context.md))
 - [GridViewSpec reference](reference/grid-view-spec.md) — JSON Schema contract
 - [Python types](reference/python-types.md) — imports for host apps (pyright/mypy)
 

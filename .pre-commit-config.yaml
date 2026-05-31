@@ -8,6 +8,13 @@ repos:
 
   - repo: local
     hooks:
+      - id: strip-cursor-coauthor
+        name: strip Cursor co-author from commit message
+        entry: scripts/git-hooks/commit-msg
+        language: script
+        stages: [commit-msg]
+        pass_filenames: true
+
       - id: basedpyright
         name: basedpyright (strict, warnings fail)
         entry: uv run basedpyright --warnings src/django_grid_view tests

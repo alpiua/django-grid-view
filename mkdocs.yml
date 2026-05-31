@@ -34,11 +34,16 @@ theme:
   features:
     - navigation.sections
     - navigation.expand
+    - navigation.indexes
     - navigation.top
+    - toc.follow
     - search.suggest
     - search.highlight
     - content.code.copy
     - content.action.edit
+  font:
+    text: Roboto
+    code: Roboto Mono
 
 plugins:
   - search
@@ -54,6 +59,9 @@ markdown_extensions:
   - tables
   - toc:
       permalink: true
+      toc_depth: 3
+  - attr_list
+  - md_in_html
 
 nav:
   - Home: index.md

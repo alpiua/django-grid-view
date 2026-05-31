@@ -4,11 +4,13 @@ Single markdown file with **all user-facing documentation** for this package —
 
 ## Download
 
-| Source | URL |
-|--------|-----|
-| **Published site** (after deploy) | [django-grid-view-llm-context.md](https://alpiua.github.io/django-grid-view/llm/django-grid-view-llm-context.md) |
-| **GitHub raw** (`main`) | [raw file](https://raw.githubusercontent.com/alpiua/django-grid-view/main/docs/llm/django-grid-view-llm-context.md) |
-| **Repository path** | `docs/llm/django-grid-view-llm-context.md` |
+| Source | Link |
+|--------|------|
+| **Bundle file (docs site)** | [**django-grid-view-llm-context.md**](django-grid-view-llm-context.md) |
+| **Bundle file (GitHub Pages)** | [django-grid-view-llm-context.md](https://alpiua.github.io/django-grid-view/llm/django-grid-view-llm-context.md) |
+| **Path in repository** | `docs/llm/django-grid-view-llm-context.md` |
+
+Use the **bundle file** links above — they point at the generated markdown, not the GitHub HTML file browser.
 
 Local preview (regenerates bundle + serves docs):
 

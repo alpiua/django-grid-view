@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Remove Cursor co-author trailers from commit messages (IDE-added).
+set -euo pipefail
+MSG_FILE="${1:?commit message file required}"
+tmp="$(mktemp)"
+grep -viE '^co-authored-by:.*cursor' "$MSG_FILE" >"$tmp" || true
+mv "$tmp" "$MSG_FILE"

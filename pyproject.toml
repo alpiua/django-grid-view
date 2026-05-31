@@ -1,6 +1,6 @@
 [project]
 name = "django-grid-view"
-version = "1.0.0"
+version = "1.0.1"
 description = "Declarative grid views for Django: Simple Table, AG-Grid helpers, KPI cards, ECharts, and an LLM-friendly GridViewSpec contract"
 readme = "README.md"
 authors = [

@@ -1,3 +1,80 @@
+/* django-grid-view docs — typography and section hierarchy */
+
+:root {
+  --dgv-accent: #4f46e5;
+  --dgv-accent-soft: rgba(79, 70, 229, 0.12);
+  --dgv-section-rule: rgba(79, 70, 229, 0.35);
+}
+
+/* Page title */
+.md-typeset h1 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 3px solid var(--dgv-accent);
+}
+
+/* Major sections (##) */
+.md-typeset h2 {
+  font-weight: 650;
+  font-size: 1.55rem;
+  letter-spacing: -0.015em;
+  margin-top: 2.25rem;
+  margin-bottom: 0.85rem;
+  padding: 0.35rem 0 0.35rem 0.75rem;
+  border-left: 4px solid var(--dgv-accent);
+  background: var(--dgv-accent-soft);
+  border-radius: 0 4px 4px 0;
+}
+
+/* Subsections (###) */
+.md-typeset h3 {
+  font-weight: 600;
+  font-size: 1.2rem;
+  margin-top: 1.75rem;
+  margin-bottom: 0.65rem;
+  color: var(--dgv-accent);
+}
+
+.md-typeset h4 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin-top: 1.35rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Sidebar: nav sections and groups */
+.md-nav__item--section > .md-nav__link {
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dgv-accent);
+  opacity: 1;
+}
+
+.md-nav__title {
+  font-weight: 700;
+}
+
+/* Top-level nav chapter (User guide, Reference, …) */
+.md-nav--primary > .md-nav__list > .md-nav__item > .md-nav__link {
+  font-weight: 600;
+}
+
+/* Tables in reference pages */
+.md-typeset table:not([class]) th {
+  background: var(--dgv-accent-soft);
+  font-weight: 600;
+}
+
+/* Admonitions */
+.md-typeset .admonition {
+  border-radius: 6px;
+}
+
 /* Inline code (e.g. Django {% tags %}) must not break across lines */
 .md-typeset :not(pre) > code {
   white-space: nowrap;
@@ -5,8 +82,13 @@
   overflow-wrap: normal;
 }
 
-/* Table cells with template tags */
 .md-typeset td code,
 .md-typeset th code {
   white-space: nowrap;
+}
+
+/* Hero on home — slightly wider readable measure */
+.md-typeset > p:first-of-type {
+  font-size: 1.05rem;
+  line-height: 1.65;
 }

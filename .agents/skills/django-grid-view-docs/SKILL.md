@@ -1,55 +1,88 @@
 ---
 name: django-grid-view-docs
-description: Use when integrating or modifying django-grid-view (Simple Table, AG-Grid helpers, GridViewSpec, KPI/charts, template tags, grid-view.js). Load the LLM context bundle before non-trivial changes.
+description: django-grid-view Django package — declarative tables, AG-Grid helpers, GridViewSpec/KPI/ECharts. Use for integration or render-contract changes; load the optional ~42KB LLM bundle only when deep doc detail is needed.
 ---
 
 # django-grid-view — agent skill
 
-## Load documentation first
+Brief for coding agents working with **django-grid-view** (PyPI `django-grid-view`, module `django_grid_view`).
 
-Before implementing features in a consumer Django app or editing this package, read the **LLM context bundle**:
+**Docs site:** https://alpiua.github.io/django-grid-view/
 
-- **In repo:** `docs/llm/django-grid-view-llm-context.md`
-- **Download page:** https://alpiua.github.io/django-grid-view/llm/context/
-- **Raw URL:** https://raw.githubusercontent.com/alpiua/django-grid-view/main/docs/llm/django-grid-view-llm-context.md
+---
 
-Regenerate after doc edits: `uv run python scripts/build_llm_context.py`
+## What this is
 
-Human docs site: https://alpiua.github.io/django-grid-view/
+Typed Django app for **declarative data views**: Simple Table (server HTML), AG-Grid helpers (HTMX-safe; you own `gridApi`), and unified **Grid View** (KPI + ECharts + table via `GridViewSpec`). **Rows** come from SQL/ORM in Python; specs describe **structure only** — never KPI/chart numbers from an LLM.
+
+---
+
+## When to use which mode
+
+| Need | Use | Docs |
+|------|-----|------|
+| List + sort/search/export, no SPA | `SimpleTableConfig`, `{% render_simple_table %}` | https://alpiua.github.io/django-grid-view/simple-table/ |
+| Large/infinite grid, saved searches | AG-Grid helpers + `GridPreference` | https://alpiua.github.io/django-grid-view/ag-grid/ |
+| KPI + charts + table, one spec | `build_artifact_from_view`, `{% render_grid_view %}` | https://alpiua.github.io/django-grid-view/grid-view-artifacts/ |
+| Chat analytics → `grid_view` UI | Python builds spec + rows | https://alpiua.github.io/django-grid-view/guides/chat-visualizer/ |
+| Host app typing | `django_grid_view.types` | https://alpiua.github.io/django-grid-view/reference/python-types/ |
+| Wire / planner JSON | `GridViewSpecWire`, schema file | https://alpiua.github.io/django-grid-view/reference/grid-view-spec/ |
+
+Skip this skill for changes outside grid rendering contracts.
+
+---
+
+## Connect (minimal)
+
+```bash
+pip install django-grid-view
+```
+
+```python
+INSTALLED_APPS = ["django_grid_view"]
+# urls.py: path("", include("django_grid_view.urls"))
+```
+
+```bash
+python manage.py migrate django_grid_view
+```
+
+```django
+{% load django_grid_view %}
+{% grid_view_bundle %}
+```
+
+https://alpiua.github.io/django-grid-view/getting-started/
+
+---
 
 ## Invariants
 
-1. **Rows in Python** — SQL/ORM supplies `rows`; never embed row data or KPI numbers in `GridViewSpec` or LLM JSON.
-2. **Resolve in Python** — `build_artifact_from_view(view, rows)` or `GridRenderer.build(spec, rows)` before sending to the browser.
-3. **AG-Grid boundary** — Package provides scripts, preferences API, and `GridView.createAgGridAdapter`; the app owns the grid instance.
-4. **HTMX** — AG Grid CDN + `grid_view_bundle` in base template, not inside HTMX-swapped partials.
-5. **Naming** — PyPI `django-grid-view`, module `django_grid_view`, tags `{% load django_grid_view %}`.
+1. KPI/chart values only from Python `rows`, not from layout JSON.
+2. Resolve with `build_artifact_from_view(view, rows)` or `GridRenderer.build(spec, rows)` before the client.
+3. Package does not create `gridApi` — consumer uses `GridView.createAgGridAdapter`.
+4. AG Grid CDN + `grid_view_bundle` outside HTMX-swapped fragments.
+5. Module `django_grid_view` (not `django_grid_table`).
 
-## Python types (host apps)
+---
 
-Import from `django_grid_view.types` (package ships `py.typed`):
+## Python entry points
 
 ```python
-from django_grid_view.types import GridViewSpec, GridViewSpecWire, JsonObject, RowDict, GridArtifactJson
-from django_grid_view.render import build_artifact_from_view, parse_grid_view_spec, GridRenderer
+from django_grid_view.types import GridViewSpec, GridViewSpecWire, JsonObject, RowDict
+from django_grid_view.render import GridRenderer, build_artifact_from_view, parse_grid_view_spec
+from django_grid_view.tables import Column, SimpleTableConfig
 ```
 
-See docs: `reference/python-types.md` (in bundle after regenerate).
+Tags / JS: https://alpiua.github.io/django-grid-view/reference/template-tags/ · https://alpiua.github.io/django-grid-view/reference/javascript/
 
-## Quick API map
+---
 
-| Task | Entry |
-|------|--------|
-| Server table | `SimpleTableConfig` + `{% render_simple_table %}` |
-| Unified dashboard/chat block | `build_artifact_from_view` + `{% render_grid_view %}` |
-| AG-Grid page | `{% django_grid_view_scripts %}` + `GridPreference` / save API |
-| Chat from SQL | Planner `sql`/`format` → Python builds spec → `grid_view` component → `GridView.init` |
-| LLM layout JSON (optional) | `{ "view": GridViewSpec }` + still pass SQL `rows` separately |
+## Full LLM bundle (optional, ~42 KB / ~1,390 lines)
 
-## Schema
+- Repo: `docs/llm/django-grid-view-llm-context.md`
+- Published: https://alpiua.github.io/django-grid-view/llm/django-grid-view-llm-context.md
 
-`schema/grid-view-spec.v1.json` — authoritative wire shape for `GridViewSpec`.
+Entire user docs concatenated. **Load only when** section links above are insufficient (new integration, render/i18n/preferences debugging). **At your discretion** — do not default-load into every session.
 
-## When not to use this skill
-
-Typo fixes, unrelated app code, or changes that do not touch grid rendering contracts.
+Regenerate: `uv run python scripts/build_llm_context.py`

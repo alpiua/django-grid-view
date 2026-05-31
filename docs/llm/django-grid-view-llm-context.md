@@ -53,7 +53,7 @@ KPI strip, ECharts, and table from one spec.
 - Getting started (see section: getting-started.md) — install, Django setup, first table
 - Grid View artifacts (see section: grid-view-artifacts.md) — `GridViewSpec` → `GridArtifact`
 - Changelog (see section: changelog.md) — release notes
-- LLM context bundle (see section: llm/context.md) — single file for agents
+- LLM context bundle (see section: llm/django-grid-view-llm-context.md) — single file for agents (about the bundle (see section: llm/context.md))
 - GridViewSpec reference (see section: reference/grid-view-spec.md) — JSON Schema contract
 - Python types (see section: reference/python-types.md) — imports for host apps (pyright/mypy)
 
@@ -1365,6 +1365,21 @@ Add the **newest version at the top** (below this “How to document” block, o
 Prefer a subsection here (`### Migration`) for small notes; a dedicated page only if it would exceed ~100 lines.
 
 ---
+
+## 1.0.1
+
+**2026-05-31** — Docs, agent skill, and repository hygiene.
+
+### Added
+
+- `.githooks/commit-msg` removes Cursor `Co-authored-by` trailers on commit
+- Richer docs CSS (section headings, nav labels)
+
+### Changed
+
+- README and Agent skill (see section: llm/skill.md) aimed at production use
+- LLM bundle (see section: llm/django-grid-view-llm-context.md) linked directly from context page (see section: llm/context.md)
+- MkDocs navigation and TOC improvements
 
 ## 1.0.0
 

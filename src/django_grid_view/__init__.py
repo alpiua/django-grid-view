@@ -39,4 +39,4 @@ __all__ = [
     "parse_grid_view_spec",
     "parse_grid_view_spec_json",
 ]
-__version__ = "1.0.0"
+__version__ = "1.0.1"
