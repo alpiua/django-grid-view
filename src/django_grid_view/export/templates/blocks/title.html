@@ -1,0 +1,9 @@
+{% if title or meta_lines %}
+<header style="margin-bottom: 14px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
+  {% if title %}<h1>{{ title }}</h1>{% endif %}
+  {% if subtitle %}<p class="subtitle">{{ subtitle }}</p>{% endif %}
+  {% for line in meta_lines %}
+  <p class="subtitle export-meta-line">{{ line }}</p>
+  {% endfor %}
+</header>
+{% endif %}

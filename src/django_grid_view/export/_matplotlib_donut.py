@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-
-from matplotlib.axes import Axes
-from matplotlib.pyplot import subplots
-from matplotlib.text import Text
+from typing import TYPE_CHECKING
 
 from django_grid_view.export._helpers import as_float
+from django_grid_view.export._matplotlib_backend import configure_matplotlib_agg
 from django_grid_view.export.static_charts import ChartExportOptions, fig_to_base64
 from django_grid_view.types.charts import ChartSpec
 from django_grid_view.types.json import RowDict
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from matplotlib.text import Text
 
 GREEN = "#22c55e"
 AMBER = "#f59e0b"
@@ -43,6 +45,9 @@ def render_donut_png(
     rows: Sequence[RowDict],
     options: ChartExportOptions,
 ) -> str:
+    configure_matplotlib_agg()
+    from matplotlib.pyplot import subplots
+
     label_key = spec.label_key or "name"
     value_key = spec.value_key or "value"
 

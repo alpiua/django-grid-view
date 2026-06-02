@@ -1,0 +1,11 @@
+{% for card in cards %}
+<section class="{% if card.spec.layout == 'list' %}card-list{% else %}card-grid{% endif %}">
+  {% if card.spec.title %}<h3 style="font-size: 10pt; margin-bottom: 8px;">{{ card.spec.title }}</h3>{% endif %}
+  {% for cell in card.cells %}
+  <div class="card-cell">
+    <div style="font-weight: 600;">{{ cell.label }}</div>
+    <div>{{ cell.value }}</div>
+  </div>
+  {% endfor %}
+</section>
+{% endfor %}

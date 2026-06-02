@@ -1,6 +1,6 @@
 [project]
 name = "django-grid-view"
-version = "1.0.1"
+version = "1.1.0"
 description = "Declarative grid views for Django: Simple Table, AG-Grid helpers, KPI cards, ECharts, and an LLM-friendly GridViewSpec contract"
 readme = "README.md"
 authors = [
@@ -36,6 +36,9 @@ Changelog = "https://github.com/alpiua/django-grid-view/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 static-charts = ["matplotlib>=3.8"]
+pdf = ["weasyprint>=62", "jinja2>=3.1"]
+xlsx = ["xlsxwriter>=3.2.0"]
+xlsx-all = ["xlsxwriter>=3.2.0", "openpyxl>=3.1"]
 docs = [
     "mkdocs>=1.6",
     "mkdocs-material>=9.5",
@@ -45,16 +48,20 @@ dev = [
     "basedpyright>=1.28.0",
     "build>=1.2.0",
     "django-stubs>=5.1.0",
+    "jinja2>=3.1",
     "matplotlib>=3.8",
     "matplotlib-stubs>=0.3.11",
     "mkdocs>=1.6",
     "mkdocs-material>=9.5",
+    "openpyxl>=3.1",
     "pre-commit>=4.0.0",
     "pytest>=8.0.0",
     "pytest-django>=4.8.0",
     "ruff>=0.8.0",
     "twine>=5.0.0",
     "typing_extensions>=4.12.0",
+    "weasyprint>=62",
+    "xlsxwriter>=3.2.0",
 ]
 
 [dependency-groups]
@@ -62,16 +69,20 @@ dev = [
     "basedpyright>=1.28.0",
     "build>=1.2.0",
     "django-stubs>=5.1.0",
+    "jinja2>=3.1",
     "matplotlib>=3.8",
     "matplotlib-stubs>=0.3.11",
     "mkdocs>=1.6",
     "mkdocs-material>=9.5",
+    "openpyxl>=3.1",
     "pre-commit>=4.0.0",
     "pytest>=8.0.0",
     "pytest-django>=4.8.0",
     "ruff>=0.8.0",
     "twine>=5.0.0",
     "typing_extensions>=4.12.0",
+    "weasyprint>=62",
+    "xlsxwriter>=3.2.0",
 ]
 
 [tool.uv]

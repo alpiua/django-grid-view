@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="{{ language_code|default('en') }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <style>
+    @page { size: A4 portrait; margin: 10mm 8mm; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "DejaVu Sans", Arial, sans-serif;
+      font-size: 10pt;
+      color: #1e293b;
+      line-height: 1.35;
+    }
+    h1 { font-size: 16pt; font-weight: 700; margin-bottom: 4px; }
+    .subtitle { color: #64748b; font-size: 9pt; margin-bottom: 14px; }
+    .kpi-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 12px 0;
+    }
+    .kpi {
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px 12px;
+      min-width: 100px;
+    }
+    .kpi strong { display: block; font-size: 8pt; color: #64748b; text-transform: uppercase; }
+    .kpi .val { font-size: 12pt; font-weight: 700; }
+    .kpi.tone-green .val { color: #059669; }
+    .kpi.tone-red .val { color: #dc2626; }
+    .kpi.tone-amber .val { color: #d97706; }
+    .chart-img { max-width: 100%; margin: 10px 0; display: block; }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9pt;
+      margin: 10px 0 16px;
+    }
+    table.data-table th {
+      background: #f1f5f9;
+      font-weight: 600;
+      padding: 6px 8px;
+      border: 1px solid #cbd5e1;
+      text-align: center;
+      font-size: 7pt;
+      text-transform: uppercase;
+    }
+    table.data-table td {
+      padding: 5px 8px;
+      border: 1px solid #e2e8f0;
+      text-align: right;
+    }
+    table.data-table td:first-child,
+    table.data-table th:first-child { text-align: left; }
+    table.data-table tfoot td {
+      font-weight: 700;
+      background: #f1f5f9;
+      border-top: 2px solid #cbd5e1;
+    }
+    table.data-table tbody tr:nth-child(even):not(.row-section) td { background: #f8fafc; }
+    table.data-table tbody tr.row-section td {
+      font-weight: 700;
+      background: #e2e8f0;
+      color: #0f172a;
+      border-top: 2px solid #94a3b8;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin: 10px 0;
+    }
+    .card-cell {
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px;
+    }
+    .card-list .card-cell { margin-bottom: 6px; }
+    .tab-pane { margin-top: 10px; }
+    .card-group { margin-bottom: 12px; }
+    .card-group h3 { font-size: 9pt; margin-bottom: 6px; }
+    .card-group ul { margin-left: 16px; font-size: 9pt; }
+    .empty { color: #94a3b8; font-style: italic; padding: 8px 0; }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  {% block body %}{% endblock %}
+</body>
+</html>
