@@ -1,47 +1,107 @@
 # Saved preferences
 
-django-grid-view stores per-user AG-Grid column presets and saved searches in the `GridPreference` model.
+Named column presets and saved quick-search bookmarks for AG-Grid pages. Session state
+(columns, filters, search, domain `pageState`) lives in `localStorage` — see
+[AG-Grid integration — Persistence](ag-grid.md#persistence).
 
-## Model
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant M as ContextGridManager
+  participant LS as localStorage
+  participant API as POST api_grid_preferences
+  participant DB as GridPreference
 
-| Field | Type | Purpose |
-|-------|------|---------|
-| `user` | FK to `AUTH_USER_MODEL` | Owner |
-| `grid_id` | `CharField(100)` | Matches `context.gridId` in grid options |
-| `col_presets` | JSON object | Named column layouts |
-| `searches` | JSON list | Saved search strings |
+  U->>M: resize column / filter / search
+  M->>LS: agGridState_{grid_id}
+  U->>M: save named preset
+  M->>LS: agGridPresets_{grid_id}
+  M->>API: colPresets + grid_id
+  API->>DB: upsert col_presets
+  U->>M: bookmark search
+  M->>API: searches + grid_id
+  API->>DB: upsert searches
+```
 
-Unique together: `(user, grid_id)`.
+## GridPreference model
 
-## Setup
+| Field | Type | Constraint |
+|-------|------|------------|
+| `user` | FK → `AUTH_USER_MODEL` | Owner |
+| `grid_id` | `CharField(100)` | Matches `scripts.html` `grid_id` and `context.gridId` |
+| `col_presets` | JSON object | `{ "Preset name": [ colState, … ] }` |
+| `searches` | JSON list of strings | Quick-search bookmarks |
 
-Include app URLs and run migrations (see [Getting started](getting-started.md)):
+Unique: `(user, grid_id)`.
+
+## Host setup
 
 ```bash
 python manage.py migrate django_grid_view
 ```
 
-## Save API
+```python
+from django_grid_view.views import save_grid_settings
 
-**Endpoint:** `POST /api/django-grid-view/save/`
+urlpatterns = [
+    path("api/grid/preferences/", save_grid_settings, name="api_grid_preferences"),
+]
+```
 
-**Auth:** `login_required` — anonymous users cannot save.
+URL name **`api_grid_preferences`** is required — `scripts.html` resolves it with `{% url "api_grid_preferences" %}`.
 
-**Body (JSON):**
+View context for initial load:
+
+```python
+return render(request, "page.html", {
+    "ag_grid_presets": json.dumps(presets),   # "{}" or preset dict
+    "ag_grid_searches": json.dumps(searches), # "[]" or string list
+})
+```
+
+## Save API contract
+
+| | |
+|---|---|
+| Method | `POST` |
+| URL | Host-defined; name must be `api_grid_preferences` |
+| Auth | `login_required` |
+| Content-Type | `application/json` |
+
+### Request body
 
 ```json
 {
   "grid_id": "products",
-  "colPresets": { "default": { "columnState": [] } },
-  "searches": ["status:active", "category:books"]
+  "colPresets": {
+    "Finance view": [{ "colId": "name", "hide": false, "width": 220 }]
+  },
+  "searches": ["north region", "priority"]
 }
 ```
 
-**Response:** `{"status": "ok"}` or `{"status": "error", "message": "..."}` with HTTP 400.
+| Field | Required | Semantics |
+|-------|----------|-----------|
+| `grid_id` | yes | Target grid |
+| `colPresets` | no | Full replacement of named presets when present |
+| `searches` | no | Full replacement of search list when present |
 
-The bundled `django_grid_view_scripts` tag calls this endpoint when users change column layout or save searches (grid `context.gridId` must match `grid_id`).
+`colPresets` values are AG Grid `getColumnState()` arrays.
 
-## Security notes
+### Responses
 
-- Only authenticated users can write preferences; reads are scoped to `request.user` in the grid manager.
-- Validate `grid_id` in your views if you expose grids with sensitive data — the package does not enforce row-level security on saved JSON.
+| Status | Body |
+|--------|------|
+| `200` | `{"status": "ok"}` |
+| `400` | `{"status": "error", "message": "Invalid JSON"}` |
+| `400` | `{"status": "error", "message": "Missing grid_id parameter"}` |
+
+Anonymous users: session state in `localStorage` only; save API returns login redirect.
+
+## Security
+
+| Concern | Behavior |
+|---------|----------|
+| Write scope | Authenticated user; row keyed by `(user, grid_id)` |
+| Read scope | View loads prefs for `request.user` only |
+| Row-level data | Package stores layout JSON only; host validates sensitive grids |

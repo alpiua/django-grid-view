@@ -1,11 +1,15 @@
 {% load i18n %}
 <script>
-window.ContextGridSmartFilter = class {
+(function () {
+    var gv = window.GridView = window.GridView || window.CmGridView || {};
+    gv.AgGrid = gv.AgGrid || {};
+    gv.AgGrid.SmartFilter = class {
     init(params) {
         this.params = params;
         this.field = params.colDef.field;
         this.selectedValues = new Set();
         this.allValues = [];
+        this.emptyLabel = "{% translate 'filter.empty'|escapejs %}";
         
         this.gui = document.createElement('div');
         this.gui.className = 'bg-[#f8f9fa] dark:bg-[#353e4a] text-[--cm-text] flex flex-col shadow-xl rounded-md border border-[--cm-border] dark:border-gray-500 p-2';
@@ -18,17 +22,17 @@ window.ContextGridSmartFilter = class {
                     <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-[--cm-muted]">
                         <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
                     </div>
-                    <input type="text" placeholder="{% translate 'Фільтр...' %}" class="w-full bg-white dark:bg-[--cm-surface] text-[--cm-text] border border-[--cm-border] dark:border-gray-500 rounded-md pl-9 pr-3 py-1.5 text-sm focus:outline-none focus:border-[--cm-muted] focus:ring-0 transition-all">
+                    <input type="text" placeholder="{% translate 'filter.placeholder' %}" class="w-full bg-white dark:bg-[--cm-surface] text-[--cm-text] border border-[--cm-border] dark:border-gray-500 rounded-md pl-9 pr-3 py-1.5 text-sm focus:outline-none focus:border-[--cm-muted] focus:ring-0 transition-all">
                 </div>
             </div>
             <div class="flex items-center justify-between mb-3 px-1 border-b border-[--cm-border] dark:border-gray-500 pb-3">
                 <div class="flex items-center gap-1.5 cursor-pointer">
                     <input type="checkbox" id="selectAll-${this.field}" class="w-4 h-4 rounded border-[--cm-border] accent-gray-500 text-gray-500 focus:ring-gray-500 bg-[--cm-bg] cursor-pointer" checked>
-                    <label for="selectAll-${this.field}" class="text-sm font-semibold cursor-pointer select-none text-[--cm-text]">{% translate "(Select All)" %}</label>
+                    <label for="selectAll-${this.field}" class="text-sm font-semibold cursor-pointer select-none text-[--cm-text]">{% translate "filter.select_all" %}</label>
                 </div>
                 <div class="flex items-center gap-1.5 cursor-pointer">
                     <input type="checkbox" id="selectNonEmpty-${this.field}" class="w-4 h-4 rounded border-[--cm-border] accent-gray-500 text-gray-500 focus:ring-gray-500 bg-[--cm-bg] cursor-pointer">
-                    <label for="selectNonEmpty-${this.field}" class="text-sm font-semibold cursor-pointer select-none text-[--cm-text]">{% translate "Non empty" %}</label>
+                    <label for="selectNonEmpty-${this.field}" class="text-sm font-semibold cursor-pointer select-none text-[--cm-text]">{% translate "filter.non_empty" %}</label>
                 </div>
             </div>
             <div class="filter-list flex-1 overflow-y-auto px-1 space-y-2 mt-1"></div>
@@ -79,7 +83,7 @@ window.ContextGridSmartFilter = class {
             if (isChecked) {
                 this.allValues.forEach(v => {
                     const tv = v.trim();
-                    if (tv !== '-' && tv !== '(Empty)' && tv !== 'Не вказано' && tv !== '') {
+                    if (tv !== '-' && tv !== this.emptyLabel && tv !== '') {
                         this.selectedValues.add(v);
                     }
                 });
@@ -99,8 +103,9 @@ window.ContextGridSmartFilter = class {
         
         // Read search text from the manager (quickFilterText is not used with infinite model)
         const gridId = this.params.api.getGridOption('context')?.gridId;
-        const manager = gridId ? window[gridId + 'Manager'] : null;
-        const qf = manager ? manager._searchText : '';
+        const qf = gridId && window.GridView && window.GridView.AgGrid
+            ? window.GridView.AgGrid.getQuickSearchText(gridId)
+            : '';
         const qfLower = qf ? String(qf).toLowerCase().trim() : "";
         
         // Don't capture isActive here, check it after the await!
@@ -112,7 +117,7 @@ window.ContextGridSmartFilter = class {
         // Fetch from dictionary URL if in infinite row model
         if (rowModelType === 'infinite' && dictUrl && this.allValues.length === 0) {
             try {
-                this.listContainer.innerHTML = '<div class="text-[10px] text-[--cm-muted] text-center italic py-4 flex flex-col items-center"><svg class="animate-spin h-5 w-5 text-indigo-500 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Завантаження словника...</div>';
+                this.listContainer.innerHTML = '<div class="text-[10px] text-[--cm-muted] text-center italic py-4 flex flex-col items-center"><svg class="animate-spin h-5 w-5 text-indigo-500 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>{% translate "filter.loading_values" %}</div>';
                 
                 const qs = window.location.search;
                 const sep = dictUrl.includes('?') ? '&' : '?';
@@ -225,7 +230,7 @@ window.ContextGridSmartFilter = class {
         });
         
         if (filteredValues.length === 0) {
-            this.listContainer.innerHTML = '<div class="text-[10px] text-[--cm-muted] text-center italic py-2">{% translate "No matches found" %}</div>';
+            this.listContainer.innerHTML = '<div class="text-[10px] text-[--cm-muted] text-center italic py-2">{% translate "filter.no_matches" %}</div>';
             return;
         }
         
@@ -245,7 +250,7 @@ window.ContextGridSmartFilter = class {
 
             const safeIdSuffix = btoa(encodeURIComponent(val)).replace(/[^a-zA-Z0-9]/g, '');
             const id = `filter-${this.field}-${safeIdSuffix || 'empty'}`;
-            const displayVal = val === "" ? '<span class="italic text-[--cm-muted]">{% translate "(Empty)" %}</span>' : val;
+            const displayVal = val === "" ? '<span class="italic text-[--cm-muted]">' + this.emptyLabel + '</span>' : val;
             
             const item = document.createElement('div');
             item.className = 'flex items-start gap-2 hover:bg-[--cm-hover] p-1 rounded transition-colors';
@@ -316,10 +321,11 @@ window.ContextGridSmartFilter = class {
         }
         this.renderList();
     }
-}
+};
+})();
 </script>
 <style>
-/* Always highlight the grid column filter icon when ContextGridSmartFilter is active */
+/* Highlight the grid column filter icon when AgGrid.SmartFilter is active */
 .ag-theme-quartz .ag-header-cell-filtered .ag-header-icon,
 .ag-theme-quartz .ag-header-cell-filtered .ag-icon-filter,
 .ag-theme-alpine .ag-header-cell-filtered .ag-header-icon,

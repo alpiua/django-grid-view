@@ -14,11 +14,17 @@ msgstr "Search…"
 msgid "tables.records"
 msgstr "records"
 
-msgid "tables.export"
-msgstr "Export CSV"
-
 msgid "tables.empty"
 msgstr "No records"
+
+msgid "grid.loading"
+msgstr "Loading…"
+
+msgid "grid.no_rows"
+msgstr "No records"
+
+msgid "grid.records_label"
+msgstr "Records:"
 
 msgid "chart.empty"
 msgstr "No data for chart"
@@ -28,3 +34,108 @@ msgstr "Loading chart…"
 
 msgid "kpi.loading"
 msgstr "Loading…"
+
+msgid "chart.packages.included"
+msgstr "Included"
+
+msgid "chart.packages.rejected"
+msgstr "Rejected"
+
+msgid "chart.packages.tariff"
+msgstr "Tariff"
+
+msgid "chart.packages.loss"
+msgstr "Loss"
+
+msgid "column_settings.title"
+msgstr "Column settings"
+
+msgid "column_settings.hint"
+msgstr "Drag pills to change order, L/R to pin, and save the state as a preset."
+
+msgid "column_settings.reset"
+msgstr "Reset to default"
+
+msgid "column_settings.presets"
+msgstr "Column presets"
+
+msgid "column_settings.preset_placeholder"
+msgstr "Enter name…"
+
+msgid "column_settings.save_preset"
+msgstr "Save current preset"
+
+msgid "column_settings.select"
+msgstr "Select:"
+
+msgid "column_settings.all"
+msgstr "All"
+
+msgid "column_settings.none"
+msgstr "None"
+
+msgid "column_settings.standard"
+msgstr "Standard"
+
+msgid "column_settings.main_group"
+msgstr "Main"
+
+msgid "column_settings.apply"
+msgstr "Apply"
+
+msgid "export.pdf"
+msgstr "PDF"
+
+msgid "export.xlsx"
+msgstr "XLSX"
+
+msgid "multiselect.select"
+msgstr "Select"
+
+msgid "multiselect.selected_count"
+msgstr "selected"
+
+msgid "filter.placeholder"
+msgstr "Filter…"
+
+msgid "filter.select_all"
+msgstr "(Select all)"
+
+msgid "filter.non_empty"
+msgstr "Non empty"
+
+msgid "filter.empty"
+msgstr "(Empty)"
+
+msgid "filter.no_matches"
+msgstr "No matches found"
+
+msgid "filter.loading_values"
+msgstr "Loading values…"
+
+msgid "search.smart_placeholder"
+msgstr "Smart search: ',' to combine, '-' to exclude, ';' for OR"
+
+msgid "search.clear"
+msgstr "Clear search"
+
+msgid "column_filter.clear"
+msgstr "Clear filter"
+
+msgid "search.save"
+msgstr "Save current search"
+
+msgid "search.saved_queries"
+msgstr "Saved queries"
+
+msgid "search.saved_searches"
+msgstr "Saved searches"
+
+msgid "filter_bar.all"
+msgstr "All"
+
+msgid "filter_bar.search"
+msgstr "Search"
+
+msgid "section.total"
+msgstr "Total"
