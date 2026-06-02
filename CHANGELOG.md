@@ -2,6 +2,35 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+### Added
+
+- `django_grid_view.ag_grid` — infinite API parsing, filter/sort helpers, export column resolution
+- `AgGridPageSpec` / `AgGridColumnSpec`; `GridView.AgGrid` JS; `ContextGridManager` session and URL persistence
+
+### Changed
+
+- AG-Grid XLSX uses `export_cols` + spec defaults; hosts mount `save_grid_settings` as `api_grid_preferences`
+
+## [1.1.0] — 2026-06-01
+
+### Added
+
+- Filter bar: `FilterSpec`, `SearchSpec`, `{% render_filter_bar %}`, client `FilterBar` in `grid-view.js`
+- Card grids: `CardGridSpec`, `CardGroupSpec`, `TabGroupSpec`, card template tags
+- Export: `artifact_to_html`, PDF backends (`[pdf]` extra), XLSX (`[xlsx]` extra,
+  `GET /export/xlsx/?builder=`, `XlsxReport`, xlsxwriter/openpyxl engines),
+  `{% export_xlsx_href %}`, `ExportThrottleMixin` / `@export_throttle`
+- Docs: architecture integration diagram and responsibility split on the docs site
+
+### Changed
+
+- Unified toolbar/search partials; tab groups and filter init in `grid-view.js`
+- Simple Table XLSX: server `export_xlsx_url` link; removed client SheetJS export from `grid-view.js`
+
+[1.1.0]: https://github.com/alpiua/django-grid-view/releases/tag/v1.1.0
+
 ## [1.0.1] — 2026-05-31
 
 ### Added

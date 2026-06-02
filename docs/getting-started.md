@@ -33,19 +33,40 @@ INSTALLED_APPS = [
 ```
 
 ```python
-# urls.py
-from django.urls import include, path
+# settings.py (export + grid prefs URL names used by templatetags and scripts.html)
+DJANGO_GRID_VIEW_EXPORT_PDF_URL = "api_export_pdf"
+DJANGO_GRID_VIEW_EXPORT_XLSX_URL = "api_export_xlsx"
+```
+
+Mount HTTP routes in **your** API `urls.py` (the package ships an empty `django_grid_view.urls` — do not `include()` it):
+
+```python
+# myapp/api/urls.py — example; mount as path("api/", include("myapp.api.urls"))
+from django.urls import path
+from django_grid_view.export.pdf_view import export_pdf
+from django_grid_view.export.xlsx_view import export_xlsx
+from django_grid_view.views import save_grid_settings
 
 urlpatterns = [
-    path("", include("django_grid_view.urls")),
+    path("grid/preferences/", save_grid_settings, name="api_grid_preferences"),
+    path("export/pdf/", export_pdf, name="api_export_pdf"),
+    path("export/xlsx/", export_xlsx, name="api_export_xlsx"),
 ]
 ```
+
+| Endpoint | URL name | Purpose |
+|----------|----------|---------|
+| `POST …/grid/preferences/` | `api_grid_preferences` | Save `GridPreference` (required for `scripts.html`) |
+| `GET …/export/pdf/?builder=…` | `api_export_pdf` | Server PDF (`{% export_pdf_href %}`) |
+| `GET …/export/xlsx/?builder=…` | `api_export_xlsx` | Server XLSX (`{% export_xlsx_href %}`) |
+
+Register PDF/XLSX **builders** in `AppConfig.ready()` — see [Host app page export](guides/host-app-page-export.md), [PDF export](guides/pdf-export.md), and [XLSX export](guides/xlsx-export.md).
 
 ```bash
 python manage.py migrate django_grid_view
 ```
 
-This creates the `GridPreference` model used for per-user column presets and saved searches (optional; required if you use the save API).
+This creates the `GridPreference` model used for per-user column presets and saved searches.
 
 ## Load assets once per page
 
@@ -106,6 +127,6 @@ See [Python types](reference/python-types.md) for wire types, `GridArtifactJson`
 ## Next steps
 
 - [Simple Table](simple-table.md) — columns, export, footers
-- [AG-Grid integration](ag-grid.md) — HTMX-safe grids and preferences
+- [AG-Grid integration](ag-grid.md) — infinite API contract, persistence, wiring
 - [Charts and KPIs](charts-and-kpis.md) — ECharts and KPI strips
 - [Grid View artifacts](grid-view-artifacts.md) — unified `GridViewSpec` rendering

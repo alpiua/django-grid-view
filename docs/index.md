@@ -17,28 +17,34 @@ Server-rendered lists with sort, search, and export.
 - **Python:** `SimpleTableConfig`
 - **Template:** `{% render_simple_table %}`
 
-### AG-Grid
+### AG-Grid pages
 
-Large datasets, infinite row model, saved searches.
+Extension on [AG Grid Community](https://www.ag-grid.com/) 31.x — infinite model, toolbar, persistence.
 
-- **Python:** your view + `GridPreference`
-- **Template:** `{% django_grid_view_scripts %}`
+- **Python:** `AgGridPageSpec`, `django_grid_view.ag_grid`, host JSON data API
+- **Template:** `{% include "django_grid_view/scripts.html" %}`, `GridView.AgGrid`
 
-### Grid View 1.0
+See [AG-Grid integration](ag-grid.md).
 
-KPI strip, ECharts, and table from one spec.
+### Grid View
+
+KPI strip, ECharts, table, optional filter bar and card grids — one spec.
 
 - **Python:** `GridRenderer` / `build_artifact_from_view`
-- **Template:** `{% render_grid_view %}`
+- **Template:** `{% render_grid_view %}`, `{% render_filter_bar %}`, `{% render_card_grid %}`
 
 ![Layer model: rows + GridViewSpec → GridArtifact](assets/layer-model.svg)
 
 **Core rule:** numeric KPI and chart values always come from Python `rows`. Specs and LLM output describe structure only.
 
+See [Architecture](architecture.md) for how a host project wires domain queries, artifacts, chat, and PDF export.
+
 ## Quick links
 
 - [Getting started](getting-started.md) — install, Django setup, first table
+- [Architecture](architecture.md) — integration diagram and responsibility split
 - [Grid View artifacts](grid-view-artifacts.md) — `GridViewSpec` → `GridArtifact`
+- [Server filtering contract](guides/server-filtering-contract.md) — one queryset path for table/chart/export
 - [Changelog](changelog.md) — release notes
 - [LLM context bundle](llm/django-grid-view-llm-context.md) — single file for agents ([about the bundle](llm/context.md))
 - [GridViewSpec reference](reference/grid-view-spec.md) — JSON Schema contract

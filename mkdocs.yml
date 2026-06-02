@@ -51,7 +51,11 @@ plugins:
 markdown_extensions:
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.tabbed:
@@ -72,6 +76,8 @@ nav:
       - Charts and KPIs: charts-and-kpis.md
       - Grid View artifacts: grid-view-artifacts.md
       - Saved preferences: preferences.md
+      - PDF export: guides/pdf-export.md
+      - XLSX export: guides/xlsx-export.md
   - Architecture: architecture.md
   - Reference:
       - Python types: reference/python-types.md
@@ -81,6 +87,9 @@ nav:
   - Advanced:
       - Chat visualizer: guides/chat-visualizer.md
       - Dashboard builders: guides/dashboard-builders.md
+      - Host app page export: guides/host-app-page-export.md
+      - Server filtering contract: guides/server-filtering-contract.md
+      - Internationalization: guides/i18n.md
   - Changelog: changelog.md
   - LLM context:
       - Download bundle: llm/context.md

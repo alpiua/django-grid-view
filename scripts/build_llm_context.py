@@ -26,6 +26,11 @@ SOURCES: list[Path] = [
     DOCS / "reference" / "python-types.md",
     DOCS / "guides" / "chat-visualizer.md",
     DOCS / "guides" / "dashboard-builders.md",
+    DOCS / "guides" / "host-app-page-export.md",
+    DOCS / "guides" / "server-filtering-contract.md",
+    DOCS / "guides" / "pdf-export.md",
+    DOCS / "guides" / "xlsx-export.md",
+    DOCS / "guides" / "i18n.md",
     DOCS / "changelog.md",
 ]
 

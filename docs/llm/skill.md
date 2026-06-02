@@ -34,11 +34,10 @@ pip install django-grid-view
 ```
 
 ```python
-# settings.py
 INSTALLED_APPS = ["django_grid_view"]
-
-# urls.py — preferences API when using AG-Grid helpers
-urlpatterns = [path("", include("django_grid_view.urls"))]
+DJANGO_GRID_VIEW_EXPORT_PDF_URL = "api_export_pdf"
+DJANGO_GRID_VIEW_EXPORT_XLSX_URL = "api_export_xlsx"
+# Host api/urls.py: api_grid_preferences, api_export_pdf, api_export_xlsx (see getting-started)
 ```
 
 ```bash
