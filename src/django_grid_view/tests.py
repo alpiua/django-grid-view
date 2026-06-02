@@ -2,7 +2,7 @@ from django.template import Engine
 from django.test import SimpleTestCase
 
 
-class ContextGridTemplateTests(SimpleTestCase):
+class AgGridTemplateTests(SimpleTestCase):
     def test_smart_filter_template_syntax(self):
         engine = Engine.get_default()
         template_name = "django_grid_view/plugins/smart_filter.html"

@@ -22,6 +22,12 @@
       {% endfor %}
     {% elif block == "table" and artifact.table %}
     {% render_simple_table artifact.table %}
+    {% elif block == "cards" and artifact.spec.cards %}
+      {% for card_spec in artifact.spec.cards %}
+      {% render_card_grid card_spec artifact.rows %}
+      {% endfor %}
+    {% elif block == "card_groups" and artifact.spec.tabs and artifact.spec.card_groups %}
+    {% render_card_groups artifact.spec.tabs artifact.rows artifact.spec.card_groups %}
     {% endif %}
   {% endfor %}
 </div>

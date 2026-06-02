@@ -162,7 +162,7 @@ class TestBuildFooterCells:
             columns=cols,
             data=[],
             footer_row={"name": "", "position": "", "amount": 999},
-            footer_label="Разом:",
+            footer_label="Total:",
             footer_label_span=2,
         )
         cells = build_footer_cells(config)

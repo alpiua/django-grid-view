@@ -44,3 +44,7 @@ class BlockType(str, Enum):
     TABLE = "table"
     TOOLBAR = "toolbar"
     AG_GRID = "ag_grid"
+    FILTERS = "filters"
+    CARDS = "cards"
+    TABS = "tabs"
+    CARD_GROUPS = "card_groups"

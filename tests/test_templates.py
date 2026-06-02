@@ -28,6 +28,7 @@ def test_grid_view_bundle_assets_exist():
 
     bundle = static_root / "grid-view.js"
     assert bundle.is_file()
+    assert (static_root / "column-settings.js").is_file()
     js = bundle.read_text(encoding="utf-8")
     assert "no Node/Vite build step" in js
     assert "CmSimpleTable" in js

@@ -1,0 +1,32 @@
+{% if tabs %}
+<nav class="cm-tab-group cm-card-tabs" data-cm-tab-group>
+  {% for tab in tabs %}
+  <button type="button" class="cm-tab-btn{% if forloop.first %} is-active{% endif %}"
+    data-cm-tab-target="tab-{{ tab.value }}">
+    {{ tab.label }}
+    {% if tab.badge %}<span class="cm-tab-badge">{{ tab.badge }}</span>{% endif %}
+  </button>
+  {% endfor %}
+</nav>
+{% for tab in tabs %}
+<div id="tab-{{ tab.value }}" class="cm-card-tab-pane{% if not forloop.first %} hidden{% endif %}">
+  <div class="cm-card-groups-grid">
+    {% for group in tab.groups %}
+    <div class="cm-card-group cm-card-group--{{ group.tone.value }}">
+      <div class="cm-card-group-header">
+        <span>{{ group.title }}</span>
+        <span class="cm-card-group-count">{{ group.count }}</span>
+      </div>
+      <ul class="cm-card-group-list">
+        {% for item in group.items %}
+        <li>{{ item }}</li>
+        {% empty %}
+        <li class="cm-card-group-empty">{{ group.empty_message|default:"No items" }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+{% endif %}
