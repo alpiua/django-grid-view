@@ -27,6 +27,7 @@ FilterState = dict[str, FilterStateValue]
 class FilterOption:
     value: str
     label: str
+    exclusive_solo: bool = False
 
 
 @dataclass(frozen=True, slots=True)

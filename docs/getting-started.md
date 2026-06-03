@@ -87,20 +87,20 @@ Place `{% grid_view_bundle %}` in your base template, or rely on auto-load from 
 from django.shortcuts import render
 from django_grid_view.tables import Column, SimpleTableConfig
 
-def doctors_list(request):
+def orders_list(request):
     rows = [
         {"name": "Ada", "visits": 12},
         {"name": "Bob", "visits": 8},
     ]
     config = SimpleTableConfig(
-        grid_id="doctors",
+        grid_id="orders",
         columns=[
-            Column(key="name", label="Doctor"),
+            Column(key="name", label="Customer"),
             Column(key="visits", label="Visits", align="right"),
         ],
         data=rows,
     )
-    return render(request, "doctors.html", {"table": config})
+    return render(request, "orders.html", {"table": config})
 ```
 
 **Template:**

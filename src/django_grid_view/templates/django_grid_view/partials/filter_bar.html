@@ -8,46 +8,7 @@
   {% endif %}
   {% for spec in filter_specs %}
     {% if spec.type == "multiselect" %}
-      <div
-        class="cm-multiselect cm-period-multiselect"
-        data-cm-multiselect
-        data-filter-id="{{ spec.id }}"
-        data-filter-param="{{ spec.param }}"
-        data-filter-scope="{{ spec.scope }}"
-        {% if spec.exclusive_all %}data-exclusive-all="1"{% endif %}
-        {% if spec.select_all_option %}data-select-all-option="1" data-select-all-value="{{ spec.select_all_value }}"{% endif %}
-        data-all-label="{{ spec.all_label|default:spec.placeholder|default:spec.label }}"
-        data-placeholder="{{ spec.placeholder|default:spec.label }}"
-      >
-        <button type="button" class="cm-multiselect-trigger" aria-haspopup="listbox"></button>
-        <div class="cm-multiselect-panel" role="listbox">
-          {% if spec.exclusive_all %}
-          <label class="cm-multiselect-option">
-            <input type="checkbox" value="all" data-label="{% translate 'filter_bar.all' %}" data-period-all="1"
-              {% if period_all_selected %}checked{% endif %}>
-            {% translate "filter_bar.all" %}
-          </label>
-          {% endif %}
-          {% if spec.select_all_option %}
-          <label class="cm-multiselect-option">
-            <input type="checkbox" value="{{ spec.select_all_value }}" data-label="{{ spec.select_all_label|default:all_text }}" data-select-all="1">
-            {{ spec.select_all_label|default:all_text }}
-          </label>
-          {% endif %}
-          {% for opt in spec.options %}
-          <label class="cm-multiselect-option">
-            <input type="checkbox" value="{{ opt.value }}" data-label="{{ opt.label }}"
-              {% if spec.param == "period" and opt.value in selected_periods %}checked{% endif %}
-              {% if spec.param != "period" and selected_values|dict_get:spec.param|comma_contains:opt.value %}checked{% endif %}
-              {% if spec.param != "period" and not selected_values|dict_get:spec.param and opt.value in selected_periods %}checked{% endif %}>
-            {{ opt.label }}
-          </label>
-          {% endfor %}
-          <div class="cm-multiselect-apply-wrap">
-            <button type="button" class="cm-multiselect-apply" data-cm-multiselect-apply>{% translate "filter_bar.apply" %}</button>
-          </div>
-        </div>
-      </div>
+      {% include "django_grid_view/partials/filter_bar_multiselect.html" %}
     {% elif spec.type == "singleselect" %}
       <div
         class="cm-multiselect cm-period-multiselect cm-multiselect--single"
@@ -59,7 +20,9 @@
         data-all-label="{{ spec.all_label|default:spec.placeholder|default:spec.label }}"
         data-placeholder="{{ spec.placeholder|default:spec.label }}"
       >
-        <button type="button" class="cm-multiselect-trigger" aria-haspopup="listbox"></button>
+        <button type="button" class="cm-multiselect-trigger" aria-haspopup="listbox">
+          <span class="cm-multiselect-trigger__label"></span>
+        </button>
         <div class="cm-multiselect-panel" role="listbox">
           {% for opt in spec.options %}
           <label class="cm-multiselect-option">

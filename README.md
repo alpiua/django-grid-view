@@ -132,12 +132,12 @@ Full walkthrough: **[Getting started](https://alpiua.github.io/django-grid-view/
 
 **1.0 (shipped)** is the **renderer**: tables, KPI strip, ECharts, i18n, and `GridRenderer` in this repo.
 
-Next step in the **ContextUnity** stack is protocol alignment, not replacing the renderer:
+Next step for host applications is protocol alignment, not replacing the renderer:
 
 - **A2UI** — treat `GridViewSpec` as the declarative UI catalog (structure-only JSON agents and planners emit).
-- **AG-UI** — stream resolved `grid_view` artifacts over the existing `ContextUnit` event channel (router → SSE → chat/dashboard hosts).
+- **AG-UI** — stream resolved `grid_view` artifacts over an application event channel (router, SSE, chat, dashboard, or another host transport).
 
-django-grid-view stays the single place that turns **rows + spec → `GridArtifact`**. Presenter and transport logic live in consumer apps and ContextUnity router work already tracked in platform planning.
+django-grid-view stays the single place that turns **rows + spec → `GridArtifact`**. Presenter and transport logic live in consumer apps.
 
 ---
 

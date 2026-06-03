@@ -55,7 +55,7 @@ flowchart TB
 ```json
 {
   "data": [
-    { "id": 1, "patient_code": "abc", "doctors": "Dr. Ada" }
+    { "id": 1, "sku": "ABC-001", "customer": "Ada" }
   ],
   "lastRow": 45000
 }
@@ -95,7 +95,7 @@ Set filter (custom or AG set):
 Text filter:
 
 ```json
-{ "patient_code": { "filterType": "text", "type": "contains", "filter": "abc" } }
+{ "sku": { "filterType": "text", "type": "contains", "filter": "abc" } }
 ```
 
 Supported text `type` values in `apply_grid_filters`: `contains`, `notContains`, `equals`, `notEqual`, `startsWith`, `endsWith`.
@@ -348,7 +348,7 @@ Session layout auto-saves on column/filter/search/domain-filter changes. Named p
 ```json
 {
   "colState": [{ "colId": "name", "width": 220, "hide": false }],
-  "filterState": { "doctors": { "values": ["Dr. Ada"] } },
+  "filterState": { "customer": { "values": ["Ada"] } },
   "quickFilter": "uuid-fragment",
   "pageState": { "period": ["2024-01", "2024-02"] }
 }

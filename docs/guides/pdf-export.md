@@ -93,7 +93,7 @@ Load the tag library and point the PDF button at the unified endpoint:
 
 `export_pdf_href` reverses `DJANGO_GRID_VIEW_EXPORT_PDF_URL` (default `api_export_pdf`) and
 adds `builder` plus non-empty query parameters. Pass the **same** `period`, `tab`,
-`department_id`, `doctor_id`, `record_id`, etc. that the HTML page uses so the PDF matches
+`category_id`, `entity_id`, `item_id`, etc. that the HTML page uses so the PDF matches
 on-screen filters.
 
 Prefer shared partials or `{% export_pdf_href %}` in templates — avoid hardcoding `/export/pdf/`
@@ -177,7 +177,7 @@ return pdf_response_from_html(html, "report.pdf")
 | `category_tab` | Category tab (table + chart) |
 | `entity_summary` | Summary page (KPIs + table + cards) |
 | `entity_modal` | Detail modal (`entity_id`, `tab`, `period`) |
-| `record_detail` | Single record modal (`record_id` or legacy `pk`) |
+| `item_detail` | Single item modal (`item_id` or legacy `pk`) |
 | `saved_report` | Saved query report (`saved_id`) |
 
 Keep shared `SimpleTableConfig` factories in one module so HTML and PDF use identical columns and totals.

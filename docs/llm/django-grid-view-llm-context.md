@@ -168,20 +168,20 @@ Place `{% grid_view_bundle %}` in your base template, or rely on auto-load from 
 from django.shortcuts import render
 from django_grid_view.tables import Column, SimpleTableConfig
 
-def doctors_list(request):
+def orders_list(request):
     rows = [
         {"name": "Ada", "visits": 12},
         {"name": "Bob", "visits": 8},
     ]
     config = SimpleTableConfig(
-        grid_id="doctors",
+        grid_id="orders",
         columns=[
-            Column(key="name", label="Doctor"),
+            Column(key="name", label="Customer"),
             Column(key="visits", label="Visits", align="right"),
         ],
         data=rows,
     )
-    return render(request, "doctors.html", {"table": config})
+    return render(request, "orders.html", {"table": config})
 ```
 
 **Template:**
@@ -427,7 +427,7 @@ flowchart TB
 ```json
 {
   "data": [
-    { "id": 1, "patient_code": "abc", "doctors": "Dr. Ada" }
+    { "id": 1, "sku": "ABC-001", "customer": "Ada" }
   ],
   "lastRow": 45000
 }
@@ -467,7 +467,7 @@ Set filter (custom or AG set):
 Text filter:
 
 ```json
-{ "patient_code": { "filterType": "text", "type": "contains", "filter": "abc" } }
+{ "sku": { "filterType": "text", "type": "contains", "filter": "abc" } }
 ```
 
 Supported text `type` values in `apply_grid_filters`: `contains`, `notContains`, `equals`, `notEqual`, `startsWith`, `endsWith`.
@@ -720,7 +720,7 @@ Session layout auto-saves on column/filter/search/domain-filter changes. Named p
 ```json
 {
   "colState": [{ "colId": "name", "width": 220, "hide": false }],
-  "filterState": { "doctors": { "values": ["Dr. Ada"] } },
+  "filterState": { "customer": { "values": ["Ada"] } },
   "quickFilter": "uuid-fragment",
   "pageState": { "period": ["2024-01", "2024-02"] }
 }
@@ -1438,7 +1438,7 @@ UI controls (gear, search, presets) use **declarative markup**, not inline JS:
 
 | Attribute | Example action |
 |-----------|----------------|
-| `data-cm-grid-id` | `"doctor-26488"` |
+| `data-cm-grid-id` | `"order-26488"` |
 | `data-cm-col-action` | `toggle`, `reset`, `savePreset` |
 | `data-cm-grid-action` | `clearSearch`, `saveSearch`, `toggleSavedSearches` |
 | `data-cm-grid-search` | quick-filter input |
@@ -1462,7 +1462,7 @@ Grid options `context`:
 | Key | Purpose |
 |-----|---------|
 | `gridId` | Must match `grid_id` in `scripts.html` |
-| `storageScope` | Optional suffix for session key (e.g. `'medical-records'`) |
+| `storageScope` | Optional suffix for session key (e.g. `'archived-orders'`) |
 | `syncUrlState` | Default `true`; set `false` to disable URL mirroring |
 | `urlPageStateKeys` | Domain params in URL, e.g. `['period']` |
 | `getPageState` / `applyPageState` | Host hooks for filter-bar ↔ `pageState` |
@@ -1757,7 +1757,7 @@ def handle_llm_payload(raw: JsonObject, rows: list[RowDict]) -> ...:
 
 # Typed wire literal (tests, planners, presenters)
 wire: GridViewSpecWire = {
-    "grid_id": "doctors",
+    "grid_id": "orders",
     "columns": [{"key": "name", "label": "Name"}],
     "kpis": [{"label": "Count", "aggregate": "count"}],
 }
@@ -1852,15 +1852,20 @@ toolbar = ToolbarSpec(
             label="Period",
             type="multiselect",
             select_all_option=True,
-            options=(FilterOption("2026-01", "2026-01"),),
+            options=(
+                FilterOption("all_future", "All future periods", exclusive_solo=True),
+                FilterOption("2026-01", "2026-01"),
+            ),
         ),
     ),
     search=SearchSpec(param="q", mode="smart", backend="server"),
 )
 ```
 
-`FilterSpec.param` defaults to `id`. `SearchSpec.backend="grid"` is for AG-Grid quick
-search; `backend="server"` serializes `q` for server loaders and export builders.
+`FilterSpec.param` defaults to `id`. `FilterOption.exclusive_solo=True` marks an
+option that clears other choices when selected. `SearchSpec.backend="grid"` is for
+AG-Grid quick search; `backend="server"` serializes `q` for server loaders and
+export builders.
 
 ## XLSX export (declarative layout)
 
@@ -2079,8 +2084,8 @@ The planner model returns JSON with SQL and presentation hints only:
 
 ```json
 {
-  "sql": "SELECT name AS doctor_name, COUNT(*) AS total_records FROM …",
-  "purpose": "Doctors with the most rejections",
+  "sql": "SELECT name AS customer_name, COUNT(*) AS total_orders FROM …",
+  "purpose": "Customers with the most orders",
   "format": "table"
 }
 ```
@@ -2160,8 +2165,8 @@ Some integrations add a **second LLM node** after SQL that emits layout JSON. Th
 {
   "view": {
     "grid_id": "analytics-result",
-    "columns": [{ "key": "doctor_name", "label": "Doctor" }],
-    "kpis": [{ "label": "Records", "aggregate": "count" }],
+    "columns": [{ "key": "customer_name", "label": "Customer" }],
+    "kpis": [{ "label": "Orders", "aggregate": "count" }],
     "charts": [],
     "layout": { "blocks": ["title", "kpis", "table"] }
   }
@@ -2203,8 +2208,8 @@ Replace ad hoc `ChartSpec + rows + KpiSpec` tuples with one `GridViewSpec` and `
 ## Before
 
 ```python
-chart_spec, chart_rows = build_finance_chart(tab_id, departments)
-kpi_specs, kpi_rows = build_finance_kpis(departments)
+chart_spec, chart_rows = build_revenue_chart(tab_id, categories)
+kpi_specs, kpi_rows = build_revenue_kpis(categories)
 # template: render_kpi_strip + render_chart
 ```
 
@@ -2214,11 +2219,11 @@ kpi_specs, kpi_rows = build_finance_kpis(departments)
 from django_grid_view.types import GridViewSpecWire, RowDict
 from django_grid_view.render import GridRenderer, parse_grid_view_spec
 
-def build_finance_artifact(tab_id: str, departments: list[DepartmentStats]):
-    rows: list[RowDict] = finance_rows(departments)
+def build_revenue_artifact(tab_id: str, categories: list[CategoryStats]):
+    rows: list[RowDict] = revenue_rows(categories)
     view: GridViewSpecWire = {
-        "grid_id": f"finance-{tab_id}",
-        "title": "Finance by department",
+        "grid_id": f"revenue-{tab_id}",
+        "title": "Revenue by category",
         "columns": [...],
         "kpis": [...],
         "charts": [...],
@@ -2307,7 +2312,7 @@ def load_entity_list_page(request: HttpRequest) -> EntityListPage:
     )
 ```
 
-Parse **`request.GET` only here**. Accept alias params (`doctor_id` and legacy `pk`) in one helper.
+Parse **`request.GET` only here**. Accept alias params (`entity_id` and legacy `pk`) in one helper.
 
 ## Step 2 — HTML view
 
@@ -2607,7 +2612,7 @@ Load the tag library and point the PDF button at the unified endpoint:
 
 `export_pdf_href` reverses `DJANGO_GRID_VIEW_EXPORT_PDF_URL` (default `api_export_pdf`) and
 adds `builder` plus non-empty query parameters. Pass the **same** `period`, `tab`,
-`department_id`, `doctor_id`, `record_id`, etc. that the HTML page uses so the PDF matches
+`category_id`, `entity_id`, `item_id`, etc. that the HTML page uses so the PDF matches
 on-screen filters.
 
 Prefer shared partials or `{% export_pdf_href %}` in templates — avoid hardcoding `/export/pdf/`
@@ -2691,7 +2696,7 @@ return pdf_response_from_html(html, "report.pdf")
 | `category_tab` | Category tab (table + chart) |
 | `entity_summary` | Summary page (KPIs + table + cards) |
 | `entity_modal` | Detail modal (`entity_id`, `tab`, `period`) |
-| `record_detail` | Single record modal (`record_id` or legacy `pk`) |
+| `item_detail` | Single item modal (`item_id` or legacy `pk`) |
 | `saved_report` | Saved query report (`saved_id`) |
 
 Keep shared `SimpleTableConfig` factories in one module so HTML and PDF use identical columns and totals.
@@ -2974,9 +2979,9 @@ Use **one page** — this `changelog.md` — unless a release needs a long upgra
 | What | Convention | Example |
 |------|------------|---------|
 | Nav label | Always **Changelog** | `changelog.md` in `mkdocs.yml` |
-| Section heading | `## X.Y.Z` (semver, no `v` prefix in heading) | `## 1.1.0` |
-| Git tag | `v` + same version | `v1.1.0` |
-| PyPI version | Matches tag without `v` | `1.1.0` in `pyproject.toml` |
+| Section heading | `## X.Y` or `## X.Y.Z` (semver, no `v` prefix in heading) | `## 1.1` |
+| Git tag | `v` + same version | `v1.1` |
+| PyPI version | Matches tag without `v` | `1.1` in `pyproject.toml` |
 | Date (optional) | Under the heading | `**2026-05-31** — short title` |
 | Breaking changes | Subsection `### Changed` or `### Removed` | Call out template/API breaks |
 
@@ -2999,12 +3004,16 @@ No unreleased changes.
 
 ---
 
-## 1.1.0
+## 1.1
 
 **2026-06-02** — AG-Grid infinite model, live column export, PDF/XLSX reports, filter/search contracts.
 
 ### Added
 
+- Filter bar multiselects support `FilterOption.exclusive_solo=True` for options
+  that clear all other checked values when selected.
+- Filter bar multiselect markup now renders through a dedicated partial with a
+  stable trigger label span.
 - `django_grid_view.ag_grid`: `parse_infinite_params`, `apply_grid_filters`, `apply_grid_sort`, `resolve_export_columns`, `EXPORT_COLS_PARAM`
 - `AgGridColumnSpec`, `AgGridPageSpec`; `GridView.AgGrid` JS helpers; `ContextGridManager` session/URL persistence
 - AG-Grid integration (see section: ag-grid.md) — API contracts, persistence diagrams, integration checklist
@@ -3017,6 +3026,10 @@ No unreleased changes.
 
 ### Changed
 
+- Multiselect "select all" and label state ignore UI-only/exclusive controls, so
+  URL/export state contains only real filter values.
+- Table shell, badge, chip, tab badge, and column-filter active colors can now be
+  themed via CSS variables.
 - AG-Grid XLSX: `export_cols` query param + `AgGridPageSpec`; session key `agGridState_{grid_id}` or `…__{storageScope}`
 - Host apps mount `save_grid_settings` as `api_grid_preferences` (package `urls.py` is empty)
 - Toolbar/search partials aligned with unified filter bar contract

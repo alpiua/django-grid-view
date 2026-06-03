@@ -50,14 +50,14 @@ class ExportMetaLinesTests(SimpleTestCase):
         self.assertIn("Jan 2024", lines[0])
 
     def test_skips_select_all_token_in_multiselect(self) -> None:
-        request = RequestFactory().get("/", {"department_types": "all_departments"})
+        request = RequestFactory().get("/", {"category_types": "all_categories"})
         specs = (
             FilterSpec(
-                id="department_types",
+                id="category_types",
                 label="Type",
                 type="multiselect",
                 select_all_option=True,
-                select_all_value="all_departments",
+                select_all_value="all_categories",
                 options=(
                     FilterOption(value="standard", label="Standard"),
                 ),

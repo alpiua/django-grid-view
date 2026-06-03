@@ -24,7 +24,13 @@ from django_grid_view.types.enums import (
     KpiAggregate,
     KpiTone,
 )
-from django_grid_view.types.filters import FilterSpec, FilterState, SearchSpec, ToolbarSpec
+from django_grid_view.types.filters import (
+    FilterOption,
+    FilterSpec,
+    FilterState,
+    SearchSpec,
+    ToolbarSpec,
+)
 from django_grid_view.types.json import JsonObject, JsonValue, RowDict
 from django_grid_view.types.kpis import KpiSpec
 from django_grid_view.types.spec_wire import (
@@ -51,6 +57,7 @@ __all__ = [
     "CardGridSpec",
     "CardGroupSpec",
     "ChartOverlay",
+    "FilterOption",
     "FilterSpec",
     "FilterState",
     "SearchSpec",

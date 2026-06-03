@@ -13,7 +13,7 @@ class ToolbarSearchTemplateTests(SimpleTestCase):
     def test_render_toolbar_search_server_compact(self) -> None:
         tpl = Template(
             "{% load django_grid_view %}"
-            "{% render_toolbar_search 'doctor-1' backend='server' value='foo' saved=True %}"
+            "{% render_toolbar_search 'order-1' backend='server' value='foo' saved=True %}"
         )
         html = tpl.render(Context())
         self.assertIn('data-cm-search-backend="server"', html)

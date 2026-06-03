@@ -832,12 +832,12 @@
         return item;
       });
       const total = data.reduce((sum, item) => sum + (item.value || 0), 0);
-      if (bind.pieVariant === "doctor") {
+      if (bind.pieVariant === "center-total") {
         return {
           backgroundColor: "transparent",
           title: {
             text: String(total),
-            subtext: "\u0412\u0441\u044C\u043E\u0433\u043E",
+            subtext: "Total",
             left: "center",
             top: "center",
             textStyle: { color: "#e2e8f0", fontSize: 22, fontWeight: "bold" },
@@ -1434,11 +1434,36 @@ ${overlay.value}`,
     return { terms, excludes, orGroups };
   }
 
+  const MS_VALUE_CHECKBOX =
+    'input[type="checkbox"]:checked:not([data-ui-only])';
+  const MS_COUNTABLE =
+    'input[type="checkbox"]:not([data-period-all]):not([data-select-all]):not([data-ui-only]):not([data-exclusive-solo])';
+
+  function setMultiselectTriggerLabel(root, text) {
+    const trigger = root.querySelector(".cm-multiselect-trigger");
+    if (!trigger) return;
+    const label = trigger.querySelector(".cm-multiselect-trigger__label");
+    if (label) label.textContent = text;
+    else trigger.textContent = text;
+  }
+
   function selectedFilterValues(root) {
     const state = {};
     root.querySelectorAll("[data-cm-multiselect]").forEach((ms) => {
       const param = ms.dataset.filterParam || ms.dataset.filterId || "period";
-      const vals = [...ms.querySelectorAll('input[type="checkbox"]:checked')].map((cb) => cb.value);
+      const vals = [...ms.querySelectorAll(MS_VALUE_CHECKBOX)].map((cb) => cb.value);
+      if (ms.dataset.cmSingleselect === "1") {
+        state[param] = vals[0] || "";
+      } else {
+        state[param] = vals;
+      }
+    });
+    root.querySelectorAll("[data-cm-period-multiselect]").forEach((ms) => {
+      const param = ms.dataset.filterParam || ms.dataset.filterId || "period";
+      const vals =
+        global.CMPeriodFilter && typeof global.CMPeriodFilter.selectedValues === "function"
+          ? global.CMPeriodFilter.selectedValues(ms)
+          : [];
       if (ms.dataset.cmSingleselect === "1") {
         state[param] = vals[0] || "";
       } else {
@@ -1455,28 +1480,34 @@ ${overlay.value}`,
   }
 
   function _updateMultiSelectLabel(ms) {
-    const trigger = ms.querySelector(".cm-multiselect-trigger");
-    if (!trigger) return;
-    const checked = ms.querySelectorAll('input[type="checkbox"]:checked');
     const placeholder = ms.dataset.placeholder || i18n.t("multiselect.select", "Select");
     const allLabel = ms.dataset.allLabel || placeholder;
-    const total = ms.querySelectorAll('input[type="checkbox"]:not([data-period-all])').length;
-    if (!checked.length) {
-      trigger.textContent = allLabel;
+    const total = ms.querySelectorAll(MS_COUNTABLE).length;
+    const periodAll = ms.querySelector("[data-period-all]");
+    if (periodAll?.checked) {
+      setMultiselectTriggerLabel(ms, allLabel);
       return;
     }
-    if (total > 0) {
-      const checkedNonAll = ms.querySelectorAll('input[type="checkbox"]:checked:not([data-period-all])').length;
-      if (checkedNonAll === total) {
-        trigger.textContent = allLabel;
-        return;
-      }
-    }
-    if (checked.length === 1) {
-      trigger.textContent = checked[0].dataset.label || checked[0].value;
+    const countableChecked = ms.querySelectorAll(
+      'input[type="checkbox"]:checked:not([data-period-all]):not([data-select-all]):not([data-ui-only]):not([data-exclusive-solo])'
+    ).length;
+    if (!countableChecked) {
+      setMultiselectTriggerLabel(ms, allLabel);
       return;
     }
-    trigger.textContent = checked.length + " " + i18n.t("multiselect.selected_count", "selected");
+    if (total > 0 && countableChecked === total) {
+      setMultiselectTriggerLabel(ms, allLabel);
+      return;
+    }
+    const valueChecked = [...ms.querySelectorAll(MS_VALUE_CHECKBOX)];
+    if (valueChecked.length === 1) {
+      setMultiselectTriggerLabel(ms, valueChecked[0].dataset.label || valueChecked[0].value);
+      return;
+    }
+    setMultiselectTriggerLabel(
+      ms,
+      valueChecked.length + " " + i18n.t("multiselect.selected_count", "selected")
+    );
   }
 
   function applyFilterValues(root, state) {
@@ -1490,10 +1521,18 @@ ${overlay.value}`,
         const msParam = ms.dataset.filterParam || ms.dataset.filterId || "period";
         if (msParam !== param) return;
         ms.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+          if (cb.dataset.uiOnly === "1") return;
           cb.checked = values.includes(cb.value);
         });
         if (typeof ms._cmUpdateLabel === "function") ms._cmUpdateLabel();
         else _updateMultiSelectLabel(ms);
+      });
+      root.querySelectorAll("[data-cm-period-multiselect]").forEach((ms) => {
+        const msParam = ms.dataset.filterParam || ms.dataset.filterId || "period";
+        if (msParam !== param) return;
+        if (global.CMPeriodFilter && typeof global.CMPeriodFilter.applyValues === "function") {
+          global.CMPeriodFilter.applyValues(ms, values);
+        }
       });
       root.querySelectorAll("select[data-filter-id]").forEach((sel) => {
         const selParam = sel.name || sel.dataset.filterId;
@@ -1572,31 +1611,19 @@ ${overlay.value}`,
       }
     };
     root._cmFlushPendingAutoApply = flushPendingAutoApply;
-    const regularCheckboxes = () =>
-      Array.from(root.querySelectorAll('input[type="checkbox"]:not([data-period-all]):not([data-select-all])'));
+    const regularCheckboxes = () => Array.from(root.querySelectorAll(MS_COUNTABLE));
     const selectAllCheckbox = () => root.querySelector('input[type="checkbox"][data-select-all]');
+    const soloCheckboxes = () =>
+      Array.from(root.querySelectorAll('[data-select-all], [data-exclusive-solo]'));
     const syncSelectAllState = () => {
       const allCb = selectAllCheckbox();
       if (!allCb) return;
-      const regular = regularCheckboxes();
-      allCb.checked = regular.length > 0 && regular.every((box) => box.checked);
+      const anyRegular = regularCheckboxes().some((box) => box.checked);
+      const anySolo = soloCheckboxes().some((box) => box.checked && box !== allCb);
+      allCb.checked = !anyRegular && !anySolo;
     };
     const updateLabel = () => {
-      if (!trigger) return;
-      const checked = root.querySelectorAll('input[type="checkbox"]:checked');
-      const placeholder = root.dataset.placeholder || "Select";
-      const allLabel = root.dataset.allLabel || placeholder;
-      const total = root.querySelectorAll('input[type="checkbox"]:not([data-period-all]):not([data-select-all])').length;
-      if (!checked.length) { trigger.textContent = allLabel; return; }
-      if (total > 0) {
-        const checkedNonAll = root.querySelectorAll('input[type="checkbox"]:checked:not([data-period-all]):not([data-select-all])').length;
-        if (checkedNonAll === total) { trigger.textContent = allLabel; return; }
-      }
-      if (checked.length === 1) {
-        trigger.textContent = checked[0].dataset.label || checked[0].value;
-        return;
-      }
-      trigger.textContent = checked.length + " " + i18n.t("multiselect.selected_count", "selected");
+      _updateMultiSelectLabel(root);
     };
     trigger?.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -1627,15 +1654,30 @@ ${overlay.value}`,
             panel.classList.remove("is-open");
           }
         }
-        if (cb.dataset.selectAll === "1") {
-          regularCheckboxes().forEach((box) => {
-            box.checked = cb.checked;
+        if (
+          (cb.dataset.selectAll === "1" || cb.dataset.exclusiveSolo === "1") &&
+          cb.checked
+        ) {
+          root.querySelectorAll('input[type="checkbox"]').forEach((o) => {
+            if (o !== cb) o.checked = false;
           });
         } else if (root.dataset.exclusiveAll === "1" && cb.dataset.periodAll === "1" && cb.checked) {
-          root.querySelectorAll('input[type="checkbox"]:not([data-period-all])').forEach((o) => { o.checked = false; });
+          root.querySelectorAll('input[type="checkbox"]:not([data-period-all])').forEach((o) => {
+            o.checked = false;
+          });
         } else if (cb.dataset.periodAll !== "1" && cb.checked) {
           const allCb = root.querySelector("[data-period-all]");
           if (allCb) allCb.checked = false;
+        }
+        if (
+          cb.dataset.selectAll !== "1" &&
+          cb.dataset.exclusiveSolo !== "1" &&
+          cb.dataset.periodAll !== "1" &&
+          cb.checked
+        ) {
+          soloCheckboxes().forEach((o) => {
+            o.checked = false;
+          });
         }
         if (cb.dataset.selectAll !== "1") syncSelectAllState();
         updateLabel();
@@ -1661,6 +1703,9 @@ ${overlay.value}`,
   function bindFilterBar(bar, opts) {
     opts = opts || {};
     bar.querySelectorAll("[data-cm-multiselect]").forEach(initMultiSelectWidget);
+    if (global.CMPeriodFilter && typeof global.CMPeriodFilter.bind === "function") {
+      global.CMPeriodFilter.bind(bar);
+    }
     const onChange = () => {
       const state = selectedFilterValues(bar);
       document.dispatchEvent(new CustomEvent("cm-filter-change", { detail: { state, bar } }));

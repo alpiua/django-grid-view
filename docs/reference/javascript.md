@@ -47,7 +47,7 @@ UI controls (gear, search, presets) use **declarative markup**, not inline JS:
 
 | Attribute | Example action |
 |-----------|----------------|
-| `data-cm-grid-id` | `"doctor-26488"` |
+| `data-cm-grid-id` | `"order-26488"` |
 | `data-cm-col-action` | `toggle`, `reset`, `savePreset` |
 | `data-cm-grid-action` | `clearSearch`, `saveSearch`, `toggleSavedSearches` |
 | `data-cm-grid-search` | quick-filter input |
@@ -71,7 +71,7 @@ Grid options `context`:
 | Key | Purpose |
 |-----|---------|
 | `gridId` | Must match `grid_id` in `scripts.html` |
-| `storageScope` | Optional suffix for session key (e.g. `'medical-records'`) |
+| `storageScope` | Optional suffix for session key (e.g. `'archived-orders'`) |
 | `syncUrlState` | Default `true`; set `false` to disable URL mirroring |
 | `urlPageStateKeys` | Domain params in URL, e.g. `['period']` |
 | `getPageState` / `applyPageState` | Host hooks for filter-bar ↔ `pageState` |

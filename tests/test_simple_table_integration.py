@@ -97,7 +97,7 @@ class TestRenderSimpleTableHtml:
         self, anon_request: HttpRequest
     ) -> None:
         config = SimpleTableConfig(
-            grid_id="doctors",
+            grid_id="orders",
             columns=[Column(key="name", label="Name")],
             data=[{"name": "Alice"}],
             wrapper="shell",

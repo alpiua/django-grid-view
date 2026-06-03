@@ -59,19 +59,19 @@ class TestColumnGroup:
 class TestSimpleTableConfig:
     def test_resolve_row_url_basic(self):
         config = SimpleTableConfig(
-            grid_id="doctors",
+            grid_id="orders",
             columns=[Column(key="name")],
             data=[{"name": "Alice", "id": 42}],
-            row_url="/doctor/{id}/page/",
+            row_url="/order/{id}/page/",
         )
-        assert config.resolve_row_url({"id": 42}) == "/doctor/42/page/"
+        assert config.resolve_row_url({"id": 42}) == "/order/42/page/"
 
     def test_resolve_row_url_missing_key(self):
         config = SimpleTableConfig(
-            grid_id="doctors",
+            grid_id="orders",
             columns=[Column(key="name")],
             data=[],
-            row_url="/doctor/{id}/page/",
+            row_url="/order/{id}/page/",
         )
         assert config.resolve_row_url({"name": "Alice"}) == ""
 
@@ -249,14 +249,14 @@ class TestRenderSimpleTable:
     def test_row_url_resolved(self):
         cols = [Column(key="name")]
         config = SimpleTableConfig(
-            grid_id="doctors",
+            grid_id="orders",
             columns=cols,
             data=[{"name": "Alice", "id": 42}],
-            row_url="/doctor/{id}/page/",
+            row_url="/order/{id}/page/",
         )
         request = RequestFactory().get("/")
         request.user = AnonymousUser()
 
         context = RequestContext(request)
         result = render_simple_table(context, config)
-        assert result["rows"][0]["url"] == "/doctor/42/page/"
+        assert result["rows"][0]["url"] == "/order/42/page/"

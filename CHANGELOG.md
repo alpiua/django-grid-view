@@ -4,19 +4,16 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+No unreleased changes.
+
+## [1.1] — 2026-06-01
+
 ### Added
 
+- Filter bar multiselects support `FilterOption.exclusive_solo=True` for options that clear all other checked values when selected
+- Filter bar multiselect markup now renders through a dedicated partial with a stable trigger label span
 - `django_grid_view.ag_grid` — infinite API parsing, filter/sort helpers, export column resolution
 - `AgGridPageSpec` / `AgGridColumnSpec`; `GridView.AgGrid` JS; `ContextGridManager` session and URL persistence
-
-### Changed
-
-- AG-Grid XLSX uses `export_cols` + spec defaults; hosts mount `save_grid_settings` as `api_grid_preferences`
-
-## [1.1.0] — 2026-06-01
-
-### Added
-
 - Filter bar: `FilterSpec`, `SearchSpec`, `{% render_filter_bar %}`, client `FilterBar` in `grid-view.js`
 - Card grids: `CardGridSpec`, `CardGroupSpec`, `TabGroupSpec`, card template tags
 - Export: `artifact_to_html`, PDF backends (`[pdf]` extra), XLSX (`[xlsx]` extra,
@@ -26,10 +23,13 @@ All notable changes to this project are documented here.
 
 ### Changed
 
+- Multiselect "select all" and label state ignore UI-only/exclusive controls, so URL/export state contains only real filter values
+- Table shell, badge, chip, tab badge, and column-filter active colors can now be themed via CSS variables
+- AG-Grid XLSX uses `export_cols` + spec defaults; hosts mount `save_grid_settings` as `api_grid_preferences`
 - Unified toolbar/search partials; tab groups and filter init in `grid-view.js`
 - Simple Table XLSX: server `export_xlsx_url` link; removed client SheetJS export from `grid-view.js`
 
-[1.1.0]: https://github.com/alpiua/django-grid-view/releases/tag/v1.1.0
+[1.1]: https://github.com/alpiua/django-grid-view/releases/tag/v1.1
 
 ## [1.0.1] — 2026-05-31
 

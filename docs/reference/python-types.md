@@ -101,7 +101,7 @@ def handle_llm_payload(raw: JsonObject, rows: list[RowDict]) -> ...:
 
 # Typed wire literal (tests, planners, presenters)
 wire: GridViewSpecWire = {
-    "grid_id": "doctors",
+    "grid_id": "orders",
     "columns": [{"key": "name", "label": "Name"}],
     "kpis": [{"label": "Count", "aggregate": "count"}],
 }
@@ -196,15 +196,20 @@ toolbar = ToolbarSpec(
             label="Period",
             type="multiselect",
             select_all_option=True,
-            options=(FilterOption("2026-01", "2026-01"),),
+            options=(
+                FilterOption("all_future", "All future periods", exclusive_solo=True),
+                FilterOption("2026-01", "2026-01"),
+            ),
         ),
     ),
     search=SearchSpec(param="q", mode="smart", backend="server"),
 )
 ```
 
-`FilterSpec.param` defaults to `id`. `SearchSpec.backend="grid"` is for AG-Grid quick
-search; `backend="server"` serializes `q` for server loaders and export builders.
+`FilterSpec.param` defaults to `id`. `FilterOption.exclusive_solo=True` marks an
+option that clears other choices when selected. `SearchSpec.backend="grid"` is for
+AG-Grid quick search; `backend="server"` serializes `q` for server loaders and
+export builders.
 
 ## XLSX export (declarative layout)
 

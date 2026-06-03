@@ -56,7 +56,7 @@ def load_entity_list_page(request: HttpRequest) -> EntityListPage:
     )
 ```
 
-Parse **`request.GET` only here**. Accept alias params (`doctor_id` and legacy `pk`) in one helper.
+Parse **`request.GET` only here**. Accept alias params (`entity_id` and legacy `pk`) in one helper.
 
 ## Step 2 — HTML view
 

@@ -86,5 +86,5 @@ class SmartSearchTests(SimpleTestCase):
                 return self
 
         qs = FakeQS()
-        apply_smart_queryset_search(qs, "ivan", fields=("doctor__name", "department__name"))
+        apply_smart_queryset_search(qs, "ada", fields=("customer__name", "category__name"))
         self.assertIsNotNone(qs.q)

@@ -9,9 +9,9 @@ Use **one page** — this `changelog.md` — unless a release needs a long upgra
 | What | Convention | Example |
 |------|------------|---------|
 | Nav label | Always **Changelog** | `changelog.md` in `mkdocs.yml` |
-| Section heading | `## X.Y.Z` (semver, no `v` prefix in heading) | `## 1.1.0` |
-| Git tag | `v` + same version | `v1.1.0` |
-| PyPI version | Matches tag without `v` | `1.1.0` in `pyproject.toml` |
+| Section heading | `## X.Y` or `## X.Y.Z` (semver, no `v` prefix in heading) | `## 1.1` |
+| Git tag | `v` + same version | `v1.1` |
+| PyPI version | Matches tag without `v` | `1.1` in `pyproject.toml` |
 | Date (optional) | Under the heading | `**2026-05-31** — short title` |
 | Breaking changes | Subsection `### Changed` or `### Removed` | Call out template/API breaks |
 
@@ -34,12 +34,16 @@ No unreleased changes.
 
 ---
 
-## 1.1.0
+## 1.1
 
 **2026-06-02** — AG-Grid infinite model, live column export, PDF/XLSX reports, filter/search contracts.
 
 ### Added
 
+- Filter bar multiselects support `FilterOption.exclusive_solo=True` for options
+  that clear all other checked values when selected.
+- Filter bar multiselect markup now renders through a dedicated partial with a
+  stable trigger label span.
 - `django_grid_view.ag_grid`: `parse_infinite_params`, `apply_grid_filters`, `apply_grid_sort`, `resolve_export_columns`, `EXPORT_COLS_PARAM`
 - `AgGridColumnSpec`, `AgGridPageSpec`; `GridView.AgGrid` JS helpers; `ContextGridManager` session/URL persistence
 - [AG-Grid integration](ag-grid.md) — API contracts, persistence diagrams, integration checklist
@@ -52,6 +56,10 @@ No unreleased changes.
 
 ### Changed
 
+- Multiselect "select all" and label state ignore UI-only/exclusive controls, so
+  URL/export state contains only real filter values.
+- Table shell, badge, chip, tab badge, and column-filter active colors can now be
+  themed via CSS variables.
 - AG-Grid XLSX: `export_cols` query param + `AgGridPageSpec`; session key `agGridState_{grid_id}` or `…__{storageScope}`
 - Host apps mount `save_grid_settings` as `api_grid_preferences` (package `urls.py` is empty)
 - Toolbar/search partials aligned with unified filter bar contract
