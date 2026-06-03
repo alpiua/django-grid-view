@@ -104,12 +104,7 @@ def simple_table_print_context(config: SimpleTableConfig) -> SimpleTablePrintCon
                 )
             continue
         body.append(
-            _print_row(
-                [
-                    _cell_text(col.render(col.get_value(row), row))
-                    for col in config.columns
-                ]
-            )
+            _print_row([_cell_text(col.render(col.get_value(row), row)) for col in config.columns])
         )
 
     footer_cells: list[PrintFooterCell] | None = None

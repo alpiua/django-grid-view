@@ -32,7 +32,7 @@ class GridManagerActionMarkupTests(SimpleTestCase):
             "{% load django_grid_view %}{% render_django_grid_view_search 'order-26488' %}"
         )
         html = template.render(Context())
-        self.assertIn('data-cm-grid-search', html)
+        self.assertIn("data-cm-grid-search", html)
         self.assertIn('data-cm-grid-action="clearSearch"', html)
         self.assertNotIn("onclick=", html)
         self.assertNotIn("oninput=", html)

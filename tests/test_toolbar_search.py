@@ -17,8 +17,8 @@ class ToolbarSearchTemplateTests(SimpleTestCase):
         )
         html = tpl.render(Context())
         self.assertIn('data-cm-search-backend="server"', html)
-        self.assertIn('data-cm-toolbar-search', html)
-        self.assertIn('cm-toolbar-search--compact', html)
+        self.assertIn("data-cm-toolbar-search", html)
+        self.assertIn("cm-toolbar-search--compact", html)
         self.assertIn('data-cm-toolbar-search-action="save"', html)
         self.assertIn('value="foo"', html)
 
@@ -29,6 +29,6 @@ class ToolbarSearchTemplateTests(SimpleTestCase):
         )
         html = tpl.render(Context())
         self.assertIn('data-cm-search-backend="grid"', html)
-        self.assertIn('data-cm-grid-search', html)
+        self.assertIn("data-cm-grid-search", html)
         self.assertIn('id="ag-quick-filter-orders"', html)
         self.assertIn('data-cm-grid-action="saveSearch"', html)

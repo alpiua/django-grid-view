@@ -202,9 +202,7 @@ def filter_table_for_request(
     result = list(rows)
     col_filters = parse_column_filters_from_request(request)
     if col_filters:
-        result = filter_rows_by_column_filters(
-            result, table, col_filters, preserve_sections=True
-        )
+        result = filter_rows_by_column_filters(result, table, col_filters, preserve_sections=True)
     q = ""
     if request is not None:
         q = (request.GET.get(Q_PARAM) or "").strip()

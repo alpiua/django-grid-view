@@ -206,11 +206,7 @@ class SimpleTableConfig:
         return "-".join(group.column_keys)
 
     def default_visible_export_keys(self) -> list[str]:
-        return [
-            col.key
-            for col in self.columns
-            if col.exportable and not col.hide
-        ]
+        return [col.key for col in self.columns if col.exportable and not col.hide]
 
     def resolve_export_columns(self, active_col_ids: Sequence[str] | None) -> list[str]:
         exportable = {col.key for col in self.columns if col.exportable}

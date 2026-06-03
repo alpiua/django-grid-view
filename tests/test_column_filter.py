@@ -45,9 +45,7 @@ class ColumnFilterTableTests(SimpleTestCase):
 
     def test_filter_rows_by_column(self) -> None:
         table = self._table()
-        rows = filter_rows_by_column_filters(
-            table.data, table, {"amount": ">1000"}
-        )
+        rows = filter_rows_by_column_filters(table.data, table, {"amount": ">1000"})
         self.assertEqual([row["name"] for row in rows], ["Alpha"])
 
     def test_filter_table_for_request_combines_q_and_col_q(self) -> None:

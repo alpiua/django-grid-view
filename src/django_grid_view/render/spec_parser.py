@@ -75,9 +75,7 @@ def _require_spec_wire(raw: JsonObject) -> GridViewSpecWire:
         wire["column_settings"] = column_settings
     groups_order = raw.get("column_groups_order")
     if isinstance(groups_order, list):
-        wire["column_groups_order"] = [
-            str(item) for item in groups_order if isinstance(item, str)
-        ]
+        wire["column_groups_order"] = [str(item) for item in groups_order if isinstance(item, str)]
     return wire
 
 

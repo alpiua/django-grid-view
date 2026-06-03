@@ -28,8 +28,7 @@ def report_from_simple_table(
 
     ctx = simple_table_print_context(config)
     header_rows: list[XlsxRow] = [
-        tuple(force_str(header["label"]) for header in hrow)
-        for hrow in build_header_rows(config)
+        tuple(force_str(header["label"]) for header in hrow) for hrow in build_header_rows(config)
     ]
 
     data_rows: list[XlsxRow] = [tuple(print_table_row_cells(row)) for row in ctx["rows"]]

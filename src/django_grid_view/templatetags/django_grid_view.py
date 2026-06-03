@@ -81,9 +81,7 @@ def render_filter_bar(
     return {
         "filter_specs": filter_specs,
         "selected_periods": list(selected_periods or []),
-        "period_all_selected": period_all_selected or (
-            "all" in (selected_periods or [])
-        ),
+        "period_all_selected": period_all_selected or ("all" in (selected_periods or [])),
         "selected_value": selected_value,
         "selected_values": dict(selected_values or {}),
         "auto_apply": auto_apply,
@@ -94,8 +92,7 @@ def render_filter_bar(
 @register.inclusion_tag("django_grid_view/view/card_grid.html")
 def render_card_grid(spec: CardGridSpec, rows: Sequence[RowDict]) -> dict[str, object]:
     cells = [
-        {"label": row.get(spec.label_key, ""), "value": row.get(spec.value_key, "")}
-        for row in rows
+        {"label": row.get(spec.label_key, ""), "value": row.get(spec.value_key, "")} for row in rows
     ]
     return {"spec": spec, "cells": cells}
 

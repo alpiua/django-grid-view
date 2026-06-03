@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Release gate: formatting, linting, strict typing, and tests.
+set -euo pipefail
+
+uv run ruff format --check .
+uv run ruff check .
+uv run basedpyright --warnings src/django_grid_view tests
+uv run pytest

@@ -115,6 +115,7 @@ def apply_smart_queryset_search(
         return qs
 
     positives, negatives = parse_smart_query(query)
+
     def term_filter(term: str) -> Q:
         if term_q is not None:
             return term_q(term)

@@ -50,12 +50,8 @@ class ParseInfiniteParamsTests(TestCase):
 class ApplyGridHelpersTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="gridtest", password="x")
-        GridPreference.objects.create(
-            user=self.user, grid_id="zebra", col_presets={}, searches=[]
-        )
-        GridPreference.objects.create(
-            user=self.user, grid_id="alpha", col_presets={}, searches=[]
-        )
+        GridPreference.objects.create(user=self.user, grid_id="zebra", col_presets={}, searches=[])
+        GridPreference.objects.create(user=self.user, grid_id="alpha", col_presets={}, searches=[])
 
     def test_text_contains(self):
         qs = GridPreference.objects.filter(user=self.user)

@@ -88,7 +88,7 @@ def build_export_meta_lines(
 
     q = (request.GET.get(Q_PARAM) or "").strip()
     if q:
-        lines.append(_('export.meta.search %(query)s') % {"query": q})
+        lines.append(_("export.meta.search %(query)s") % {"query": q})
 
     filter_parts: list[str] = []
     if filter_specs:

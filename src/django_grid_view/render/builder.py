@@ -21,9 +21,7 @@ def _validate_filter_scopes(spec: GridViewSpec) -> None:
         return
     blocks = spec.layout.blocks
     has_kpi_chart = (
-        bool(spec.kpis or spec.charts)
-        or BlockType.KPIS in blocks
-        or BlockType.CHART in blocks
+        bool(spec.kpis or spec.charts) or BlockType.KPIS in blocks or BlockType.CHART in blocks
     )
     if not has_kpi_chart:
         return

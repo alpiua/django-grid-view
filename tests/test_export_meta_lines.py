@@ -58,9 +58,7 @@ class ExportMetaLinesTests(SimpleTestCase):
                 type="multiselect",
                 select_all_option=True,
                 select_all_value="all_categories",
-                options=(
-                    FilterOption(value="standard", label="Standard"),
-                ),
+                options=(FilterOption(value="standard", label="Standard"),),
             ),
         )
         lines = build_export_meta_lines(request, filter_specs=specs)
