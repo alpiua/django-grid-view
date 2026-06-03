@@ -9,9 +9,9 @@ Use **one page** — this `changelog.md` — unless a release needs a long upgra
 | What | Convention | Example |
 |------|------------|---------|
 | Nav label | Always **Changelog** | `changelog.md` in `mkdocs.yml` |
-| Section heading | `## X.Y` or `## X.Y.Z` (semver, no `v` prefix in heading) | `## 1.1` |
-| Git tag | `v` + same version | `v1.1` |
-| PyPI version | Matches tag without `v` | `1.1` in `pyproject.toml` |
+| Section heading | `## X.Y` or `## X.Y.Z` (semver, no `v` prefix in heading) | `## 1.1.1` |
+| Git tag | `v` + same version | `v1.1.1` |
+| PyPI version | Matches tag without `v` | `1.1.1` in `pyproject.toml` |
 | Date (optional) | Under the heading | `**2026-05-31** — short title` |
 | Breaking changes | Subsection `### Changed` or `### Removed` | Call out template/API breaks |
 
@@ -31,6 +31,17 @@ Prefer a subsection here (`### Migration`) for small notes; a dedicated page onl
 ## Unreleased
 
 No unreleased changes.
+
+---
+
+## 1.1.1
+
+**2026-06-03** — Python 3.10 compatibility fix.
+
+### Fixed
+
+- Search helpers now import `Self` from `typing_extensions`, keeping the package
+  importable on Python 3.10 as declared by `requires-python >=3.10`.
 
 ---
 

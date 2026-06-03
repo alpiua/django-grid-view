@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Callable
-from typing import Protocol, Self, TypeVar
+from typing import Protocol, TypeVar
 
 from django.db.models import Q
+from typing_extensions import Self
 
 __all__ = ["apply_smart_queryset_search", "match_smart_haystack", "parse_smart_query"]
 

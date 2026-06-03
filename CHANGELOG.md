@@ -6,6 +6,14 @@ All notable changes to this project are documented here.
 
 No unreleased changes.
 
+## [1.1.1] — 2026-06-03
+
+### Fixed
+
+- Python 3.10 compatibility: import `Self` from `typing_extensions` in search helpers.
+
+[1.1.1]: https://github.com/alpiua/django-grid-view/releases/tag/v1.1.1
+
 ## [1.1] — 2026-06-01
 
 ### Added
