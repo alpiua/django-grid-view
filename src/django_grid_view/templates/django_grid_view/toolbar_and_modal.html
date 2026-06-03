@@ -1,7 +1,7 @@
 {% load i18n django_grid_view %}
 <div class="flex items-center justify-end gap-3 flex-1 overflow-hidden">
     <div class="flex items-center gap-4 flex-1 justify-end overflow-hidden">
-        {% render_toolbar_search scope_id=grid_id backend="grid" saved=True compact=True %}
+        {% render_toolbar_search scope_id=grid_id backend="ag_grid" saved=True compact=True %}
 
         <div class="text-sm font-medium text-[--cm-muted] whitespace-nowrap shrink-0" id="grid-row-count-{{ grid_id }}">{% translate "grid.records_label" %} 0</div>
     </div>

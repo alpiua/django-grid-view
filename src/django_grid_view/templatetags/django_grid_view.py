@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from dataclasses import replace
 
 from django import template
+from django.template import TemplateSyntaxError
 from django.template.context import Context
 from django.utils.safestring import SafeString, mark_safe
 
@@ -54,7 +55,10 @@ def comma_contains(csv: str, value: str) -> bool:
 
 @register.inclusion_tag("django_grid_view/bundle.html")
 def grid_view_bundle():
-    return {"grid_view_i18n_catalog": mark_safe(get_js_i18n_catalog_json())}
+    return {
+        "grid_view_i18n_catalog": mark_safe(get_js_i18n_catalog_json()),
+        "preferences_url": grid_preferences_url(),
+    }
 
 
 @register.inclusion_tag("django_grid_view/column_settings_assets.html", takes_context=True)
@@ -151,8 +155,9 @@ def render_search_unified(
     }
 
 
-@register.inclusion_tag("django_grid_view/partials/toolbar_search.html")
+@register.inclusion_tag("django_grid_view/partials/toolbar_search.html", takes_context=True)
 def render_toolbar_search(
+    context: Context,
     scope_id: str,
     *,
     search_spec: SearchSpec | None = None,
@@ -169,10 +174,19 @@ def render_toolbar_search(
     """Toolbar search — ``SearchSpec`` or explicit kwargs; see ``SearchSpec`` fields."""
     spec = search_spec or SearchSpec()
     resolved_backend = backend if backend is not None else spec.backend
+    if resolved_backend == "grid":
+        raise TemplateSyntaxError(
+            "render_toolbar_search: backend='grid' was renamed to backend='ag_grid'"
+        )
     resolved_mode = mode if mode is not None else spec.mode
     resolved_saved = saved if saved is not None else spec.saved
     resolved_compact = compact if compact is not None else spec.compact
     resolved_param = param if param is not None else spec.param
+    pref_grid_id = (table_grid_id or scope_id).strip() or scope_id
+    saved_searches: SafeString | str = "[]"
+    if resolved_saved:
+        _presets, raw_searches = get_grid_state(context, pref_grid_id)
+        saved_searches = mark_safe(raw_searches)
     return {
         "scope_id": scope_id,
         "backend": resolved_backend,
@@ -183,6 +197,8 @@ def render_toolbar_search(
         "compact": resolved_compact,
         "placeholder": placeholder if placeholder is not None else spec.placeholder,
         "table_grid_id": table_grid_id or "",
+        "pref_grid_id": pref_grid_id,
+        "saved_searches": saved_searches,
         "apply_on_enter": apply_on_enter,
     }
 
@@ -196,6 +212,18 @@ def get_grid_state(context: Context, grid_id: str) -> tuple[str, str]:
         return json.dumps(pref.col_presets), json.dumps(pref.searches)
     except GridPreference.DoesNotExist:
         return "null", "[]"
+
+
+def grid_preferences_url() -> str:
+    """Resolved POST endpoint for ``GridPreference`` (column presets, saved searches)."""
+    try:
+        from django.urls import reverse
+
+        from django_grid_view.conf import grid_preferences_url_name
+
+        return reverse(grid_preferences_url_name())
+    except Exception:
+        return ""
 
 
 @register.inclusion_tag("django_grid_view/toolbar_and_modal.html", takes_context=True)
@@ -212,10 +240,10 @@ def render_django_grid_view_search(
     compact: bool = True,
     value: str = "",
 ) -> dict[str, object]:
-    """AG-Grid toolbar search — alias for ``render_toolbar_search`` (``backend=grid``)."""
+    """AG-Grid toolbar search — alias for ``render_toolbar_search`` (``backend=ag_grid``)."""
     return {
         "scope_id": grid_id,
-        "backend": "grid",
+        "backend": "ag_grid",
         "mode": "smart",
         "param": "q",
         "value": value,
@@ -255,6 +283,7 @@ def django_grid_view_scripts(
         "groups_order": json.dumps(groups) if groups_order else "null",
         "ag_grid_presets": presets,
         "ag_grid_searches": searches,
+        "preferences_url": grid_preferences_url(),
     }
 
 
@@ -377,6 +406,8 @@ def build_footer_cells(config: SimpleTableConfig) -> list[TableFooterCell] | Non
                 else mark_safe('<span class="cm-muted">—</span>'),
                 "align": col.align,
                 "colspan": 1,
+                "col_key": col.key,
+                "export_raw": col.get_export_raw(val, footer_row) if val not in (None, "") else "",
             }
         )
     return cells

@@ -121,14 +121,23 @@
       </tr>
       {% endif %}
       {% empty %}
-      <tr><td colspan="{{ config.columns|length }}" class="cm-empty">{{ config.empty_message }}</td></tr>
+      <tr data-cm-table-empty-server>
+        <td colspan="{{ config.columns|length }}" class="cm-empty">
+          {% if config.empty_message %}{{ config.empty_message }}{% else %}{% translate "tables.empty" %}{% endif %}
+        </td>
+      </tr>
       {% endfor %}
+      {% if rows %}
+      <tr data-cm-table-empty hidden>
+        <td colspan="{{ config.columns|length }}" class="cm-empty">{% translate "tables.empty" %}</td>
+      </tr>
+      {% endif %}
     </tbody>
     {% if footer_cells %}
     <tfoot>
       <tr>
         {% for cell in footer_cells %}
-        <td data-cm-align="{{ cell.align }}" {% if cell.colspan > 1 %}colspan="{{ cell.colspan }}"{% endif %}>{{ cell.html }}</td>
+        <td data-cm-align="{{ cell.align }}" {% if cell.colspan > 1 %}colspan="{{ cell.colspan }}"{% endif %}{% if cell.col_key %} data-cm-col-key="{{ cell.col_key }}" data-cm-footer-aggregate="1"{% endif %}{% if cell.export_raw %} data-cm-export-raw="{{ cell.export_raw }}"{% endif %}>{{ cell.html }}</td>
         {% endfor %}
       </tr>
     </tfoot>

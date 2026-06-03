@@ -256,7 +256,7 @@ Call on first load and on filter/column/search changes; invoke again in link `on
 
 ```django
 {% render_filter_bar filter_specs … %}
-{% render_toolbar_search scope_id="products" backend="grid" apply_on_enter=True %}
+{% render_toolbar_search scope_id="products" backend="ag_grid" apply_on_enter=True %}
 <div id="products-grid" class="ag-theme-quartz-dark"></div>
 {% include "django_grid_view/modal.html" with grid_id="products" %}
 {% include "django_grid_view/scripts.html" with grid_id="products" container_id="products-grid" options_var="gridOptions" %}

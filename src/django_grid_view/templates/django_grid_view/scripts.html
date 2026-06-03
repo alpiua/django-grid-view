@@ -69,20 +69,6 @@
         if (window.GridView && window.GridView.byId) {
             window.GridView.byId.register(this.gridId, this);
         }
-        this._bindSavedSearchDismiss();
-    }
-
-    _bindSavedSearchDismiss() {
-        if (window._cmAgGridSearchDismissBound) return;
-        window._cmAgGridSearchDismissBound = true;
-        document.addEventListener('click', (e) => {
-            document.querySelectorAll('[id^="saved-searches-dropdown-"]').forEach((dropdown) => {
-                if (dropdown.classList.contains('is-hidden')) return;
-                const gridId = dropdown.id.replace('saved-searches-dropdown-', '');
-                const wrap = dropdown.closest('.cm-toolbar-search-saved-wrap');
-                if (wrap && !wrap.contains(e.target)) dropdown.classList.add('is-hidden');
-            });
-        });
     }
 
     _syncColPresetsFromSettings() {
@@ -289,7 +275,7 @@
                 }
             });
             
-            this.renderSavedSearches();
+            if (gv.ToolbarSearch) gv.ToolbarSearch.mount(this.gridId, this.savedQuickSearches);
             this._initColSettings();
             this.renderSavedPresets();
             this._bindStorageSync();
@@ -379,7 +365,7 @@
             {
                 groupsOrder: this.groupsOrder || [],
                 initialPresets: this.savedColPresets || {},
-                preferencesUrl: '{% url "api_grid_preferences" %}',
+                preferencesUrl: '{{ preferences_url|escapejs }}' || (window.GridView && window.GridView.preferencesUrl) || '',
                 storageScope: ctx.storageScope || '',
                 onStateChange: () => this.saveGridState()
             }
@@ -421,9 +407,9 @@
         const wrap = el?.closest('[data-cm-toolbar-search-root]');
         if (!wrap) return;
         const val = (el?.value || '').trim();
-        const clearBtn = wrap.querySelector('[data-cm-toolbar-search-clear]');
+        const clearBtn = wrap.querySelector('.cm-toolbar-search-clear');
         clearBtn?.classList.toggle('is-visible', val.length > 0);
-        const saveBtn = wrap.querySelector('.cm-export-btn--save-search, [data-cm-grid-action="saveSearch"]');
+        const saveBtn = wrap.querySelector('.cm-toolbar-search-action--save, [data-cm-grid-action="saveSearch"]');
         saveBtn?.classList.toggle(
             'is-active',
             !!(val && this.savedQuickSearches.includes(val))
@@ -525,93 +511,6 @@
         }
     }
 
-    toggleSavedSearches() {
-        const dd = document.getElementById(`saved-searches-dropdown-${this.gridId}`);
-        if (dd) dd.classList.toggle('is-hidden');
-    }
-
-    renderSavedSearches() {
-        const container = document.getElementById(`saved-searches-container-${this.gridId}`);
-        const dropdown = document.getElementById(`saved-searches-dropdown-${this.gridId}`);
-        if (!container) return;
-        container.innerHTML = '';
-        if (this.savedQuickSearches.length === 0) {
-            dropdown?.classList.add('is-hidden');
-            this.syncSearchToolbarUi();
-            return;
-        }
-
-        this.savedQuickSearches.forEach(search => {
-            if (!search) return;
-            const item = document.createElement('div');
-            item.className = 'cm-toolbar-search-saved-item';
-            item.onmousedown = (e) => {
-                e.preventDefault();
-                const input = document.getElementById(`ag-quick-filter-${this.gridId}`);
-                if (input) input.value = search;
-                if (this.gridApi) {
-                    this.gridApi.setFilterModel(null);
-                }
-                this.onQuickFilterChanged();
-                dropdown?.classList.add('is-hidden');
-            };
-
-            const text = document.createElement('span');
-            text.textContent = search;
-
-            const delBtn = document.createElement('button');
-            delBtn.type = 'button';
-            delBtn.className = 'cm-toolbar-search-btn';
-            delBtn.innerHTML = '&times;';
-            delBtn.onmousedown = (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                this.savedQuickSearches = this.savedQuickSearches.filter(s => s !== search);
-                this.saveSearchesToServer();
-                this.renderSavedSearches();
-            };
-
-            item.appendChild(text);
-            item.appendChild(delBtn);
-            container.appendChild(item);
-        });
-        this.syncSearchToolbarUi();
-    }
-
-    saveCurrentSearch() {
-        const val = document.getElementById(`ag-quick-filter-${this.gridId}`).value.trim();
-        if (!val || this.savedQuickSearches.includes(val)) return;
-        this.savedQuickSearches.push(val);
-        this.renderSavedSearches();
-        this.saveSearchesToServer();
-    }
-
-    saveSearchesToServer() {
-        localStorage.setItem(`agGridSearches_${this.gridId}`, JSON.stringify(this.savedQuickSearches));
-        fetch('{% url "api_grid_preferences" %}', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'X-CSRFToken': this.getCookie('csrftoken') || ''
-            },
-            body: JSON.stringify({ grid_id: this.gridId, searches: this.savedQuickSearches })
-        }).catch(err => console.error("Error saving searches", err));
-    }
-    
-    getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
 };
 
 })();
@@ -631,12 +530,13 @@
     }
     presets = presets || {};
     
-    let searchesStr = '{{ ag_grid_searches|escapejs }}';
-    let searches;
-    try { searches = searchesStr && searchesStr !== 'null' ? JSON.parse(searchesStr) : null; } catch(e) { searches = null; }
+    let searches = {{ ag_grid_searches|safe }};
+    if (!Array.isArray(searches)) {
+        try { searches = searches ? JSON.parse(String(searches)) : null; } catch (e) { searches = null; }
+    }
     if (!searches) {
         try {
-            const ls = localStorage.getItem(`agGridSearches_${gridId}`);
+            const ls = localStorage.getItem(`cmSavedSearches_${gridId}`);
             if (ls) searches = JSON.parse(ls);
         } catch(e) {}
     }

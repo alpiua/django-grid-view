@@ -9,8 +9,8 @@ def test_js_i18n_catalog_english_all_keys():
     assert set(catalog) == set(JS_I18N_KEYS)
     assert catalog["tables.search"] == "Search…"
     assert catalog["tables.records"] == "records"
-    assert catalog["tables.empty"] == "No records"
-    assert catalog["chart.empty"] == "No data for chart"
+    assert catalog["tables.empty"] == "No data to display"
+    assert catalog["chart.empty"] == "Data not loaded"
     assert catalog["kpi.loading"] == "Loading…"
 
 
@@ -20,6 +20,6 @@ def test_js_i18n_catalog_ukrainian_all_keys():
     assert set(catalog) == set(JS_I18N_KEYS)
     assert catalog["tables.search"] == "Пошук..."
     assert catalog["tables.records"] == "записів"
-    assert catalog["tables.empty"] == "Немає записів"
-    assert catalog["chart.empty"] == "Немає даних для графіка"
+    assert catalog["tables.empty"] == "Немає даних для відображення"
+    assert catalog["chart.empty"] == "Дані не завантажені"
     assert catalog["kpi.loading"] == "Завантаження…"

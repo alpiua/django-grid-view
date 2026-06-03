@@ -65,7 +65,7 @@ Include (do not use as inclusion tag — needs `options_var` global):
 **Typical partials:**
 
 ```django
-{% render_toolbar_search scope_id="products" backend="grid" saved=True compact=True apply_on_enter=True %}
+{% render_toolbar_search scope_id="products" backend="ag_grid" saved=True compact=True apply_on_enter=True %}
 {% include "django_grid_view/modal.html" with grid_id="products" %}
 {% include "django_grid_view/plugins/smart_filter.html" %}
 {% include "django_grid_view/plugins/custom_tooltip.html" %}

@@ -1,24 +1,26 @@
 {% load i18n %}
-{# Unified toolbar search — SearchSpec / render_toolbar_search. backend=transport only (reload vs grid API). #}
+{# Unified toolbar search — SearchSpec / render_toolbar_search. backend=server reload vs ag_grid Host API. #}
 <div
   class="cm-toolbar-search{% if compact %} cm-toolbar-search--compact{% endif %}"
   data-cm-toolbar-search-root
   data-cm-search-backend="{{ backend }}"
   data-cm-search-mode="{{ mode|default:'smart' }}"
   data-cm-search-scope-id="{{ scope_id }}"
+  data-cm-pref-grid-id="{{ pref_grid_id }}"
   {% if table_grid_id %}data-cm-table-grid-id="{{ table_grid_id }}"{% endif %}
+  {% if saved %}data-cm-saved-searches='{{ saved_searches }}'{% endif %}
 >
   <div class="cm-toolbar-search-field" title="{% translate 'search.smart_tooltip' %}">
     <svg class="cm-toolbar-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input
       type="search"
-      {% if backend == "grid" %}id="ag-quick-filter-{{ scope_id }}"{% else %}id="cm-toolbar-search-{{ scope_id }}"{% endif %}
+      {% if backend == "ag_grid" %}id="ag-quick-filter-{{ scope_id }}"{% else %}id="cm-toolbar-search-{{ scope_id }}"{% endif %}
       name="{{ param }}"
       value="{{ value }}"
       autocomplete="off"
       class="cm-toolbar-search-input"
       title="{% translate 'search.smart_tooltip' %}"
-      {% if backend == "grid" %}
+      {% if backend == "ag_grid" %}
       data-cm-grid-search
       data-cm-grid-id="{{ scope_id }}"
       {% if apply_on_enter %}data-cm-grid-search-apply="enter"{% endif %}
@@ -31,12 +33,11 @@
     <button
       type="button"
       class="cm-toolbar-search-clear"
-      {% if backend == "grid" %}
-      data-cm-grid-action="clearSearch"
-      data-cm-grid-id="{{ scope_id }}"
-      {% else %}
       data-cm-toolbar-search-clear
       data-cm-search-scope-id="{{ scope_id }}"
+      {% if backend == "ag_grid" %}
+      data-cm-grid-action="clearSearch"
+      data-cm-grid-id="{{ scope_id }}"
       {% endif %}
       title="{% translate 'search.clear' %}"
       aria-label="{% translate 'search.clear' %}"
@@ -45,44 +46,36 @@
     </button>
   </div>
   {% if saved %}
-  <div class="cm-export-group cm-export-group--paired cm-toolbar-search-paired">
+  <div class="cm-toolbar-search-saved-actions" role="group" aria-label="{% translate 'search.saved_searches' %}">
     <button
       type="button"
-      class="cm-export-btn cm-export-btn--save-search"
-      {% if backend == "grid" %}
+      class="cm-toolbar-search-action cm-toolbar-search-action--save"
       data-cm-grid-action="saveSearch"
       data-cm-grid-id="{{ scope_id }}"
-      {% else %}
-      data-cm-toolbar-search-action="save"
-      data-cm-search-scope-id="{{ scope_id }}"
-      {% endif %}
       title="{% translate 'search.save' %}"
       aria-label="{% translate 'search.save' %}"
     >
-      <svg class="cm-export-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
     </button>
-    <div class="cm-toolbar-search-saved-wrap">
-      <button
-        type="button"
-        class="cm-export-btn cm-export-btn--load-search"
-        {% if backend == "grid" %}
-        data-cm-grid-action="toggleSavedSearches"
-        data-cm-grid-id="{{ scope_id }}"
-        id="saved-searches-btn-{{ scope_id }}"
-        {% else %}
-        data-cm-toolbar-search-action="toggleSaved"
-        data-cm-search-scope-id="{{ scope_id }}"
-        {% endif %}
-        title="{% translate 'search.load_saved' %}"
-        aria-label="{% translate 'search.load_saved' %}"
-      >
-        <svg class="cm-export-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-      </button>
-      <div id="{% if backend == 'grid' %}saved-searches-dropdown{% else %}cm-saved-searches-dropdown{% endif %}-{{ scope_id }}" class="cm-toolbar-search-saved-panel is-hidden">
-        <div class="cm-toolbar-search-saved-title">{% translate 'search.saved_searches' %}</div>
-        <div id="{% if backend == 'grid' %}saved-searches-container{% else %}cm-saved-searches-container{% endif %}-{{ scope_id }}" class="cm-toolbar-search-saved-list"></div>
-      </div>
-    </div>
+    <button
+      type="button"
+      class="cm-toolbar-search-action cm-toolbar-search-action--load"
+      data-cm-grid-action="toggleSavedSearches"
+      data-cm-grid-id="{{ scope_id }}"
+      id="cm-saved-searches-btn-{{ scope_id }}"
+      title="{% translate 'search.load_saved' %}"
+      aria-label="{% translate 'search.load_saved' %}"
+    >
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    </button>
+  </div>
+  <div
+    id="cm-saved-searches-dropdown-{{ scope_id }}"
+    class="cm-toolbar-search-saved-panel cm-toolbar-search-saved-panel--detached is-hidden"
+    data-cm-saved-dropdown-for="{{ scope_id }}"
+  >
+    <div class="cm-toolbar-search-saved-title">{% translate 'search.saved_searches' %}</div>
+    <div id="cm-saved-searches-container-{{ scope_id }}" class="cm-toolbar-search-saved-list"></div>
   </div>
   {% endif %}
 </div>

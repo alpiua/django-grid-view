@@ -6,6 +6,25 @@ All notable changes to this project are documented here.
 
 No unreleased changes.
 
+## [1.1.2] — 2026-06-03
+
+### Changed
+
+- **Breaking:** toolbar search backend `grid` renamed to `ag_grid` (`SearchBackend`, `{% render_toolbar_search %}`, `{% render_django_grid_view_search %}`). Passing `backend="grid"` raises `TemplateSyntaxError` with a migration hint.
+
+### Fixed
+
+- Toolbar clear (×): `backend="server"` reloads via filter bar + `buildFilterUrl`; `backend="ag_grid"` clears through `GridView.AgGrid.Host.clearSearch` (no spurious grid API call on Simple Table pages).
+- Clear button only receives pointer events when visible (`.is-visible`), avoiding blocked clicks on an empty search field.
+- Delegated save/load/clear handlers resolve toolbar `scope_id` from `data-cm-search-scope-id` when `data-cm-grid-id` is absent.
+
+### Documentation
+
+- User guide and reference examples use `backend="ag_grid"`.
+- i18n tests aligned with `tables.empty` / `chart.empty` locale strings.
+
+[1.1.2]: https://github.com/alpiua/django-grid-view/releases/tag/v1.1.2
+
 ## [1.1.1] — 2026-06-03
 
 ### Fixed

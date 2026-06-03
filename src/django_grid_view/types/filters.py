@@ -17,7 +17,7 @@ FilterType = Literal[
 FilterScope = Literal["server", "client"]
 SearchMode = Literal["simple", "smart"]
 SearchScope = Literal["server", "client"]
-SearchBackend = Literal["server", "grid"]
+SearchBackend = Literal["server", "ag_grid"]
 
 FilterStateValue = str | list[str] | bool
 FilterState = dict[str, FilterStateValue]

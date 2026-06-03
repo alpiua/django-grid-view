@@ -628,7 +628,7 @@ Call on first load and on filter/column/search changes; invoke again in link `on
 
 ```django
 {% render_filter_bar filter_specs … %}
-{% render_toolbar_search scope_id="products" backend="grid" apply_on_enter=True %}
+{% render_toolbar_search scope_id="products" backend="ag_grid" apply_on_enter=True %}
 <div id="products-grid" class="ag-theme-quartz-dark"></div>
 {% include "django_grid_view/modal.html" with grid_id="products" %}
 {% include "django_grid_view/scripts.html" with grid_id="products" container_id="products-grid" options_var="gridOptions" %}
@@ -1357,7 +1357,7 @@ Include (do not use as inclusion tag — needs `options_var` global):
 **Typical partials:**
 
 ```django
-{% render_toolbar_search scope_id="products" backend="grid" saved=True compact=True apply_on_enter=True %}
+{% render_toolbar_search scope_id="products" backend="ag_grid" saved=True compact=True apply_on_enter=True %}
 {% include "django_grid_view/modal.html" with grid_id="products" %}
 {% include "django_grid_view/plugins/smart_filter.html" %}
 {% include "django_grid_view/plugins/custom_tooltip.html" %}
@@ -1863,7 +1863,7 @@ toolbar = ToolbarSpec(
 ```
 
 `FilterSpec.param` defaults to `id`. `FilterOption.exclusive_solo=True` marks an
-option that clears other choices when selected. `SearchSpec.backend="grid"` is for
+option that clears other choices when selected. `SearchSpec.backend="ag_grid"` is for
 AG-Grid quick search; `backend="server"` serializes `q` for server loaders and
 export builders.
 
@@ -3001,6 +3001,28 @@ Prefer a subsection here (`### Migration`) for small notes; a dedicated page onl
 ## Unreleased
 
 No unreleased changes.
+
+---
+
+## 1.1.2
+
+**2026-06-03** — Toolbar search backend rename (`ag_grid`) and clear-button fixes.
+
+### Changed
+
+- **Breaking:** `backend="grid"` on `{% render_toolbar_search %}` / `SearchSpec` is now
+  `backend="ag_grid"`. The old value raises `TemplateSyntaxError` with a migration hint.
+
+### Fixed
+
+- Server vs AG-Grid toolbar clear (×) use the correct transport (page reload vs
+  `GridView.AgGrid.Host.clearSearch`).
+- Clear button pointer-events only when visible.
+- Saved-search delegated clicks resolve `scope_id` on unified toolbar markup.
+
+### Documentation
+
+- Examples and reference updated for `ag_grid`; i18n tests match locale catalogs.
 
 ---
 

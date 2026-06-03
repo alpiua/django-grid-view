@@ -45,9 +45,38 @@
     if (handle && typeof handle[method] === "function") handle[method]();
   }
 
+  function handleToolbarSavedSearchClick(e) {
+    var gridBtn = e.target.closest(
+      '[data-cm-grid-action="saveSearch"], [data-cm-grid-action="toggleSavedSearches"], [data-cm-grid-action="clearSearch"], [data-cm-toolbar-search-clear][data-cm-grid-action="clearSearch"]'
+    );
+    if (!gridBtn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var scopeId =
+      gridBtn.getAttribute("data-cm-grid-id") ||
+      gridBtn.getAttribute("data-cm-search-scope-id") ||
+      gridBtn.closest("[data-cm-toolbar-search-root]")?.dataset.cmSearchScopeId ||
+      "";
+    if (!scopeId) return;
+    var action = gridBtn.getAttribute("data-cm-grid-action");
+    if (action === "saveSearch") ToolbarSearch.save(scopeId);
+    else if (action === "toggleSavedSearches") ToolbarSearch.toggle(scopeId);
+    else if (action === "clearSearch") {
+      var clearInput = gridBtn
+        .closest("[data-cm-toolbar-search-root]")
+        ?.querySelector("[data-cm-toolbar-search]");
+      if (clearInput) {
+        clearInput.value = "";
+        syncToolbarSearchChrome(clearInput);
+      }
+      invokeGridAction(scopeId, "clearSearch");
+    }
+  }
+
   function bindDelegatedGridActions() {
     if (global._cmGridActionsBound) return;
     global._cmGridActionsBound = true;
+    document.addEventListener("click", handleToolbarSavedSearchClick, true);
     document.addEventListener("click", function (e) {
       var colBtn = e.target.closest("[data-cm-col-action]");
       if (colBtn) {
@@ -57,17 +86,6 @@
         else if (colAction === "reset") invokeGridAction(colGridId, "resetColumnsToDefault");
         else if (colAction === "savePreset") invokeGridAction(colGridId, "saveCurrentPreset");
         return;
-      }
-      var gridBtn = e.target.closest("[data-cm-grid-action]");
-      if (gridBtn) {
-        var gridAction = gridBtn.getAttribute("data-cm-grid-action");
-        var gridGridId = gridBtn.getAttribute("data-cm-grid-id");
-        if (gridAction === "clearSearch") {
-          e.preventDefault();
-          invokeGridAction(gridGridId, "clearSearch");
-        }
-        else if (gridAction === "saveSearch") invokeGridAction(gridGridId, "saveCurrentSearch");
-        else if (gridAction === "toggleSavedSearches") invokeGridAction(gridGridId, "toggleSavedSearches");
       }
     });
     document.addEventListener("input", function (e) {
@@ -580,7 +598,18 @@
       }
       return (cell.dataset.cmSortVal || cell.textContent || cell.dataset.cmExportRaw || "").trim();
     }
-    _syncSectionVisibility(colKeys) {
+    _syncTableEmptyState(shownRows, filtered) {
+      var emptyRow = this.tbody.querySelector("tr[data-cm-table-empty]");
+      if (!emptyRow) return;
+      var hasDataRows = this.tbody.querySelectorAll(".cm-row").length > 0;
+      if (!hasDataRows) {
+        emptyRow.hidden = true;
+        return;
+      }
+      emptyRow.hidden = !(filtered && shownRows === 0);
+    }
+    _syncSectionVisibility(colKeys, globalActive) {
+      var filtering = colKeys.length > 0 || globalActive;
       this.tbody.querySelectorAll(".cm-row-section").forEach(function (sectionRow) {
         var next = sectionRow.nextElementSibling;
         var anyVisible = false;
@@ -588,7 +617,7 @@
           if (next.classList.contains("cm-row") && !next.hidden) anyVisible = true;
           next = next.nextElementSibling;
         }
-        sectionRow.hidden = colKeys.length > 0 && !anyVisible;
+        sectionRow.hidden = filtering && !anyVisible;
       });
     }
     applyAllFilters() {
@@ -623,16 +652,78 @@
         row.hidden = !match;
         if (match) shown++;
       });
-      this._syncSectionVisibility(colKeys);
-      const counter = this.w.querySelector("[data-cm-count]");
-      if (counter) counter.textContent = String(shown);
+      this._syncSectionVisibility(colKeys, globalParts.length > 0);
+      this._syncTableEmptyState(shown, globalParts.length > 0 || hasColFilters);
+      this._syncRecordCounters(shown);
+      this._syncTableFooter(globalParts.length > 0 || hasColFilters);
       const table = layout.querySelector("[data-cm-table]");
       if (table) syncColumnFilterChrome(table);
       this._syncGridViewCharts();
     }
+    _syncRecordCounters(shownRows) {
+      this.w.querySelectorAll("[data-cm-count]").forEach((counter) => {
+        const field = counter.dataset.cmCountField;
+        if (field) {
+          let sum = 0;
+          this.tbody.querySelectorAll(".cm-row:not([hidden])").forEach((row) => {
+            const esc =
+              typeof CSS !== "undefined" && CSS.escape
+                ? CSS.escape(field)
+                : field.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+            const cell = row.querySelector('td[data-cm-col-key="' + esc + '"]');
+            const raw = cell?.dataset.cmExportRaw ?? cell?.dataset.cmSortVal ?? cell?.textContent ?? "";
+            const parsed = parseFloat(String(raw).replace(/[^\d.-]/g, ""));
+            if (!Number.isNaN(parsed)) sum += parsed;
+          });
+          counter.textContent = String(Math.round(sum) === sum ? sum : sum);
+          return;
+        }
+        counter.textContent = String(shownRows);
+      });
+    }
+    _syncTableFooter(active) {
+      const tfoot = this.table.querySelector("tfoot");
+      if (!tfoot) return;
+      tfoot.querySelectorAll("td[data-cm-footer-aggregate][data-cm-col-key]").forEach((cell) => {
+        const key = cell.dataset.cmColKey;
+        if (!key) return;
+        if (!cell.dataset.cmFooterHtml) {
+          cell.dataset.cmFooterHtml = cell.innerHTML;
+        }
+        if (!active) {
+          cell.innerHTML = cell.dataset.cmFooterHtml;
+          return;
+        }
+        let sum = 0;
+        let hasNum = false;
+        this.tbody.querySelectorAll(".cm-row:not([hidden])").forEach((row) => {
+          const esc =
+            typeof CSS !== "undefined" && CSS.escape
+              ? CSS.escape(key)
+              : key.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+          const bodyCell = row.querySelector('td[data-cm-col-key="' + esc + '"]');
+          const raw = bodyCell?.dataset.cmExportRaw ?? bodyCell?.dataset.cmSortVal ?? "";
+          const parsed = parseFloat(String(raw).replace(/[^\d.-]/g, ""));
+          if (!Number.isNaN(parsed)) {
+            sum += parsed;
+            hasNum = true;
+          }
+        });
+        if (!hasNum) {
+          cell.textContent = "—";
+          return;
+        }
+        const base = cell.dataset.cmExportRaw || "";
+        if (base.includes("₴") || String(cell.textContent || "").includes("₴")) {
+          cell.textContent =
+            sum.toLocaleString(undefined, { maximumFractionDigits: 2 }) + " ₴";
+        } else {
+          cell.textContent = String(Math.round(sum) === sum ? sum : sum);
+        }
+      });
+    }
     _syncGridViewCharts() {
-      const gridView = this.w.closest(".cm-grid-view");
-      if (!gridView || typeof Charts === "undefined") return;
+      if (typeof Charts === "undefined") return;
       if (!this.tbody.querySelector(".cm-row[data-cm-chart-row]")) return;
       const rows = [];
       this.tbody.querySelectorAll(".cm-row:not([hidden])").forEach(function (tr) {
@@ -642,7 +733,9 @@
           rows.push(JSON.parse(raw));
         } catch (e) {}
       });
-      gridView.querySelectorAll("[data-cm-chart-config]").forEach(function (node) {
+      const chartNodes = this.w.querySelectorAll("[data-cm-chart-config]");
+      if (!chartNodes.length) return;
+      chartNodes.forEach(function (node) {
         if (node.dataset.cmChartInteractive) return;
         let config = {};
         try {
@@ -695,6 +788,45 @@
 
 
   // ── Charts (ECharts bind) ───────────────────────────────────
+
+  function chartRowsHaveData(rows) {
+    if (!Array.isArray(rows) || !rows.length) return false;
+    return rows.some(function (row) {
+      if (!row || typeof row !== "object") return false;
+      return Object.keys(row).some(function (key) {
+        if (key === "name" || key === "label" || key === "color") return false;
+        var n = num(row[key]);
+        return n !== null && n !== 0;
+      });
+    });
+  }
+
+  function setChartEmptyState(wrap, isEmpty) {
+    if (!wrap) return;
+    var plate = wrap.querySelector("[data-cm-chart-empty]");
+    var root = wrap.querySelector("[data-cm-chart-root]");
+    if (plate) {
+      if (!plate.textContent.trim()) {
+        plate.textContent = i18n.t("chart.empty", "Data not loaded");
+      }
+      plate.classList.toggle("is-hidden", !isEmpty);
+      plate.hidden = !isEmpty;
+    }
+    if (root) root.classList.toggle("is-hidden", isEmpty);
+    if (isEmpty) {
+      var inst = wrap._cmChartInstance || (root && root._cmChartInstance);
+      if (inst) {
+        try {
+          inst.dispose();
+        } catch (e) {
+          /* ignore */
+        }
+      }
+      wrap._cmChartInstance = null;
+      if (root) root._cmChartInstance = null;
+      delete wrap.dataset.cmChartReady;
+    }
+  }
 
   function num(value) {
     if (value === null || value === void 0 || value === "") return null;
@@ -914,7 +1046,15 @@ ${overlay.value}`,
     return buildBarOption(config, rows, bind, chartType, isDark);
   }
   function initChart(root, config, rows) {
-    if (!root || typeof window.echarts === "undefined") return null;
+    if (!root) return null;
+    var wrap = root.closest("[data-cm-chart-config], .cm-chart-wrap") || root.parentElement;
+    var rowList = Array.isArray(rows) ? rows : [];
+    if (!chartRowsHaveData(rowList)) {
+      setChartEmptyState(wrap, true);
+      return null;
+    }
+    setChartEmptyState(wrap, false);
+    if (typeof window.echarts === "undefined") return null;
     const chartRoot = root;
     if (chartRoot._cmChartInstance) {
       try {
@@ -924,15 +1064,24 @@ ${overlay.value}`,
       chartRoot._cmChartInstance = null;
     }
     const chart = window.echarts.init(root, config.echartsTheme ?? "dark");
-    chart.setOption(buildEchartsOption(config, rows), true);
+    chart.setOption(buildEchartsOption(config, rowList), true);
     chartRoot._cmChartInstance = chart;
+    if (wrap) wrap._cmChartInstance = chart;
     return chart;
   }
   function refreshChartWrap(wrap, config, rows) {
     if (!wrap) return null;
     const chartRoot = wrap.querySelector("[data-cm-chart-root]") ?? wrap;
-    wrap.dataset.cmChartRows = JSON.stringify(rows);
-    const instance = initChart(chartRoot, config, rows);
+    const rowList = Array.isArray(rows) ? rows : [];
+    wrap.dataset.cmChartRows = JSON.stringify(rowList);
+    if (!chartRowsHaveData(rowList)) {
+      setChartEmptyState(wrap, true);
+      return null;
+    }
+    const runtimeConfig = Object.assign({}, config, {
+      bind: Object.assign({}, config.bind || {}, { rows: rowList }),
+    });
+    const instance = initChart(chartRoot, runtimeConfig, rowList);
     if (!instance) return null;
     wrap.dataset.cmChartReady = "1";
     wrap._cmChartInstance = instance;
@@ -1727,142 +1876,267 @@ ${overlay.value}`,
     return { getState: () => selectedFilterValues(bar), buildUrl: buildFilterUrl };
   }
 
-  function initServerSearchInputs(scope) {
-    const root = scope && scope.querySelectorAll ? scope : document;
-    root.querySelectorAll("[data-cm-server-search]").forEach((searchInput) => {
-      if (searchInput.dataset.cmServerSearchBound) return;
-      searchInput.dataset.cmServerSearchBound = "1";
-
-      const shell =
-        searchInput.closest(".cm-dashboard-page, .cm-page-table-layout, .cm-simple-wrapper, .cm-table-shell") ||
-        document;
-      const filterBar = shell.querySelector("[data-cm-filter-bar]");
-      if (!filterBar) return;
-      const searchName = searchInput.name || "q";
-      const hiddenSearch = filterBar.querySelector(`input[data-cm-search][name="${searchName}"]`);
-      const clearBtn = (searchInput.parentElement || shell).querySelector("[data-cm-search-clear]");
-      function syncStateUi() {
-        const value = searchInput.value || "";
-        if (hiddenSearch) hiddenSearch.value = value;
-        if (clearBtn) clearBtn.classList.toggle("is-visible", value.trim().length > 0);
+  function getCsrfToken() {
+    if (!document.cookie) return "";
+    const parts = document.cookie.split(";");
+    for (let i = 0; i < parts.length; i++) {
+      const c = parts[i].trim();
+      if (c.indexOf("csrftoken=") === 0) {
+        return decodeURIComponent(c.substring("csrftoken=".length));
       }
+    }
+    return "";
+  }
 
-      function navigate() {
-        syncStateUi();
-        const state = selectedFilterValues(filterBar);
-        const q = (searchInput.value || "").trim();
-        if (q) state[searchName] = q;
-        else state[searchName] = "";
-        window.location.href = withActiveTableColumns(
-          buildFilterUrl(window.location.href, state),
-          searchInput
+  function setSavedSearchPanelOpen(dropdown, open) {
+    if (!dropdown) return;
+    var scopeId = dropdown.dataset.cmSavedDropdownFor || "";
+    var loadBtn = scopeId
+      ? document.getElementById("cm-saved-searches-btn-" + scopeId)
+      : null;
+    if (open) {
+      dropdown.classList.remove("is-hidden", "hidden");
+      dropdown.classList.add("is-open");
+      if (loadBtn) loadBtn.setAttribute("aria-expanded", "true");
+    } else {
+      dropdown.classList.add("is-hidden");
+      dropdown.classList.remove("is-open");
+      if (loadBtn) loadBtn.setAttribute("aria-expanded", "false");
+    }
+  }
+
+  /** Saved toolbar searches — one contract: scope_id (DOM), pref_grid_id (GridPreference). */
+  var ToolbarSearch = {
+    ctx: function (scopeId, wrap) {
+      if (!wrap || !wrap.matches || !wrap.matches("[data-cm-toolbar-search-root]")) {
+        if (!scopeId) return null;
+        var esc =
+          typeof CSS !== "undefined" && CSS.escape
+            ? CSS.escape(scopeId)
+            : scopeId.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        wrap = document.querySelector(
+          '[data-cm-toolbar-search-root][data-cm-search-scope-id="' + esc + '"]'
         );
       }
-
-      searchInput.addEventListener("input", () => {
-        syncStateUi();
-      });
-      searchInput.addEventListener("search", () => {
-        syncStateUi();
-      });
-      searchInput.addEventListener("keydown", (event) => {
-        if (event.key !== "Enter") return;
-        event.preventDefault();
-        navigate();
-      });
-      clearBtn?.addEventListener("click", () => {
-        searchInput.value = "";
-        navigate();
-      });
-      syncStateUi();
-    });
-  }
-
-  function toolbarSearchStorageKey(scopeId) {
-    return "cmToolbarSearches_" + scopeId;
-  }
-
-  function loadToolbarSearches(scopeId) {
-    try {
-      const raw = localStorage.getItem(toolbarSearchStorageKey(scopeId));
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed.filter((s) => typeof s === "string" && s) : [];
-    } catch (e) {
+      if (!wrap) return null;
+      var scope = wrap.dataset.cmSearchScopeId || scopeId || "";
+      var prefId = wrap.dataset.cmPrefGridId || scope;
+      var backend = wrap.dataset.cmSearchBackend || "";
+      var input =
+        backend === "ag_grid"
+          ? document.getElementById("ag-quick-filter-" + scope)
+          : document.getElementById("cm-toolbar-search-" + scope);
+      return {
+        root: wrap,
+        scopeId: scope,
+        prefId: prefId,
+        backend: backend,
+        input: input,
+        dropdown: document.getElementById("cm-saved-searches-dropdown-" + scope),
+        container: document.getElementById("cm-saved-searches-container-" + scope),
+      };
+    },
+    load: function (ctx) {
+      if (!ctx) return [];
+      var raw = ctx.root.dataset.cmSavedSearches;
+      if (raw) {
+        try {
+          var parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            var fromAttr = parsed.filter(function (s) {
+              return typeof s === "string" && s;
+            });
+            if (fromAttr.length) return fromAttr;
+          }
+        } catch (e) {
+          /* ignore — broken attribute encoding; fall through to localStorage */
+        }
+      }
+      try {
+        var ls = localStorage.getItem("cmSavedSearches_" + ctx.prefId);
+        if (ls) {
+          var fromLs = JSON.parse(ls);
+          if (Array.isArray(fromLs)) {
+            return fromLs.filter(function (s) {
+              return typeof s === "string" && s;
+            });
+          }
+        }
+      } catch (e) {
+        /* ignore */
+      }
       return [];
-    }
-  }
-
-  function saveToolbarSearches(scopeId, items) {
-    try {
-      localStorage.setItem(toolbarSearchStorageKey(scopeId), JSON.stringify(items));
-    } catch (e) {
-      /* ignore quota */
-    }
-  }
-
-  function loadGridToolbarSearches(scopeId) {
-    try {
-      const raw = localStorage.getItem("agGridSearches_" + scopeId);
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed.filter((s) => typeof s === "string" && s) : [];
-    } catch (e) {
-      return [];
-    }
-  }
+    },
+    persist: function (ctx, items) {
+      if (!ctx) return;
+      ctx.root.dataset.cmSavedSearches = JSON.stringify(items);
+      try {
+        localStorage.setItem("cmSavedSearches_" + ctx.prefId, JSON.stringify(items));
+      } catch (e) {
+        /* ignore */
+      }
+      var host = byId.get(ctx.scopeId);
+      if (host) host.savedQuickSearches = items;
+      var url = (global.GridView && global.GridView.preferencesUrl) || "";
+      if (!url) return;
+      fetch(url, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCsrfToken(),
+        },
+        body: JSON.stringify({ grid_id: ctx.prefId, searches: items }),
+      }).catch(function () {});
+    },
+    apply: function (ctx, text, onPick) {
+      if (!ctx || !ctx.input) return;
+      ctx.input.value = text;
+      syncToolbarSearchChrome(ctx.input);
+      if (ctx.backend === "ag_grid") {
+        var host = byId.get(ctx.scopeId);
+        if (host) {
+          if (host.gridApi) host.gridApi.setFilterModel(null);
+          if (typeof host.onQuickFilterChanged === "function") host.onQuickFilterChanged();
+        }
+      } else if (typeof onPick === "function") {
+        onPick(text);
+      }
+      setSavedSearchPanelOpen(ctx.dropdown, false);
+    },
+    render: function (ctx, items, onPick) {
+      if (!ctx || !ctx.container) return;
+      ctx.container.innerHTML = "";
+      if (!items.length) {
+        setSavedSearchPanelOpen(ctx.dropdown, false);
+        if (ctx.input) syncToolbarSearchChrome(ctx.input);
+        return;
+      }
+      var self = ToolbarSearch;
+      items.forEach(function (text) {
+        var item = document.createElement("div");
+        item.className = "cm-toolbar-search-saved-item";
+        var label = document.createElement("span");
+        label.textContent = text;
+        item.appendChild(label);
+        item.addEventListener("mousedown", function (e) {
+          e.preventDefault();
+          self.apply(ctx, text, onPick);
+        });
+        var del = document.createElement("button");
+        del.type = "button";
+        del.className = "cm-toolbar-search-btn";
+        del.innerHTML = "&times;";
+        del.addEventListener("mousedown", function (e) {
+          e.stopPropagation();
+          e.preventDefault();
+          var next = items.filter(function (s) {
+            return s !== text;
+          });
+          self.persist(ctx, next);
+          self.render(ctx, next, onPick);
+        });
+        item.appendChild(del);
+        ctx.container.appendChild(item);
+      });
+      if (ctx.input) syncToolbarSearchChrome(ctx.input);
+    },
+    save: function (scopeId) {
+      var ctx = ToolbarSearch.ctx(scopeId);
+      if (!ctx || !ctx.input) return;
+      var val = ctx.input.value.trim();
+      if (!val) return;
+      var items = ToolbarSearch.load(ctx);
+      if (items.indexOf(val) >= 0) return;
+      items.push(val);
+      ToolbarSearch.persist(ctx, items);
+      var onPick =
+        ctx.backend === "server" && ctx.input
+          ? serverToolbarSearchNavigate(ctx.input)
+          : null;
+      ToolbarSearch.render(ctx, items, onPick);
+    },
+    toggle: function (scopeId) {
+      var ctx = ToolbarSearch.ctx(scopeId);
+      if (!ctx || !ctx.dropdown) return;
+      var opening = ctx.dropdown.classList.contains("is-hidden");
+      if (opening) {
+        var onPick =
+          ctx.backend === "server" && ctx.input
+            ? serverToolbarSearchNavigate(ctx.input)
+            : null;
+        ToolbarSearch.render(ctx, ToolbarSearch.load(ctx), onPick);
+      }
+      setSavedSearchPanelOpen(ctx.dropdown, opening);
+    },
+    mount: function (scopeId, initialItems) {
+      var ctx = ToolbarSearch.ctx(scopeId);
+      if (!ctx) return;
+      if (initialItems && initialItems.length) {
+        ctx.root.dataset.cmSavedSearches = JSON.stringify(initialItems);
+      }
+      ToolbarSearch.render(ctx, ToolbarSearch.load(ctx), null);
+    },
+    bindDismiss: function () {
+      if (global._cmSavedSearchDismissBound) return;
+      global._cmSavedSearchDismissBound = true;
+      document.addEventListener("click", function (e) {
+        document
+          .querySelectorAll('[id^="cm-saved-searches-dropdown-"]')
+          .forEach(function (dd) {
+            if (dd.classList.contains("is-hidden")) return;
+            var scopeFor = dd.dataset.cmSavedDropdownFor || "";
+            var esc =
+              typeof CSS !== "undefined" && CSS.escape
+                ? CSS.escape(scopeFor)
+                : scopeFor.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+            if (!scopeFor) return;
+            var root = document.querySelector(
+              '[data-cm-toolbar-search-root][data-cm-search-scope-id="' + esc + '"]'
+            );
+            if (root && !root.contains(e.target)) setSavedSearchPanelOpen(dd, false);
+          });
+      });
+    },
+  };
+  ToolbarSearch.bindDismiss();
 
   function syncToolbarSearchChrome(input) {
     const wrap = input?.closest("[data-cm-toolbar-search-root]");
     if (!wrap || !input) return;
-    const scopeId = wrap.dataset.cmSearchScopeId || "";
-    const backend = wrap.dataset.cmSearchBackend || "";
+    const ctx = ToolbarSearch.ctx(wrap.dataset.cmSearchScopeId || "", wrap);
     const val = (input.value || "").trim();
-    const clearBtn = wrap.querySelector("[data-cm-toolbar-search-clear]");
+    const clearBtn = wrap.querySelector(".cm-toolbar-search-clear");
     clearBtn?.classList.toggle("is-visible", val.length > 0);
     const saveBtn = wrap.querySelector(
-      '[data-cm-toolbar-search-action="save"], .cm-export-btn--save-search, [data-cm-grid-action="saveSearch"]'
+      '.cm-toolbar-search-action--save, [data-cm-grid-action="saveSearch"]'
     );
-    const saved =
-      backend === "grid"
-        ? loadGridToolbarSearches(scopeId)
-        : loadToolbarSearches(scopeId);
+    const saved = ctx ? ToolbarSearch.load(ctx) : [];
     saveBtn?.classList.toggle("is-active", !!(val && saved.includes(val)));
   }
 
-  function renderServerSavedSearches(scopeId, items, input, onPick) {
-    const dropdown = document.getElementById("cm-saved-searches-dropdown-" + scopeId);
-    const container = document.getElementById("cm-saved-searches-container-" + scopeId);
-    if (!container) return;
-    container.innerHTML = "";
-    if (!items.length) {
-      dropdown?.classList.add("is-hidden");
-      if (input) syncToolbarSearchChrome(input);
-      return;
-    }
-    items.forEach((text) => {
-      const item = document.createElement("div");
-      item.className = "cm-toolbar-search-saved-item";
-      item.textContent = text;
-      item.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        if (input) input.value = text;
-        syncToolbarSearchChrome(input);
-        if (typeof onPick === "function") onPick(text);
-        dropdown?.classList.add("is-hidden");
-      });
-      const del = document.createElement("button");
-      del.type = "button";
-      del.className = "cm-toolbar-search-btn";
-      del.innerHTML = "&times;";
-      del.addEventListener("mousedown", (e) => {
-        e.stopPropagation();
-        const next = items.filter((s) => s !== text);
-        saveToolbarSearches(scopeId, next);
-        renderServerSavedSearches(scopeId, next, input, onPick);
-      });
-      item.appendChild(del);
-      container.appendChild(item);
-    });
-    if (input) syncToolbarSearchChrome(input);
+  function serverToolbarSearchNavigate(searchInput) {
+    const scopeId = searchInput.closest("[data-cm-toolbar-search-root]")?.dataset.cmSearchScopeId || "";
+    const shell =
+      searchInput.closest(".cm-dashboard-page, .cm-page-table-layout, .cm-simple-wrapper, .cm-table-shell") ||
+      document;
+    const filterBar = shell.querySelector("[data-cm-filter-bar]");
+    const searchName = searchInput.name || "q";
+    const hiddenSearch = filterBar?.querySelector('input[data-cm-search][name="' + searchName + '"]');
+
+    return function navigate() {
+      const value = searchInput.value || "";
+      if (hiddenSearch) hiddenSearch.value = value;
+      if (!filterBar) return;
+      const state = selectedFilterValues(filterBar);
+      const q = value.trim();
+      if (q) state[searchName] = q;
+      else state[searchName] = "";
+      window.location.href = withActiveTableColumns(
+        buildFilterUrl(window.location.href, state),
+        searchInput
+      );
+    };
   }
 
   function initToolbarSearch(scope) {
@@ -1870,42 +2144,28 @@ ${overlay.value}`,
     root.querySelectorAll('[data-cm-search-backend="server"][data-cm-toolbar-search]').forEach((searchInput) => {
       if (searchInput.dataset.cmToolbarSearchBound) return;
       searchInput.dataset.cmToolbarSearchBound = "1";
-      const scopeId = searchInput.closest("[data-cm-toolbar-search-root]")?.dataset.cmSearchScopeId || "";
-      const shell =
-        searchInput.closest(".cm-dashboard-page, .cm-page-table-layout, .cm-simple-wrapper, .cm-table-shell") ||
-        document;
-      const filterBar = shell.querySelector("[data-cm-filter-bar]");
-      const searchName = searchInput.name || "q";
-      const hiddenSearch = filterBar?.querySelector(`input[data-cm-search][name="${searchName}"]`);
-      const clearBtn = searchInput
-        .closest("[data-cm-toolbar-search-root]")
-        ?.querySelector("[data-cm-toolbar-search-clear]");
+      const wrap = searchInput.closest("[data-cm-toolbar-search-root]");
+      const scopeId = wrap?.dataset.cmSearchScopeId || "";
+      const clearBtn = wrap?.querySelector(".cm-toolbar-search-clear");
 
       function syncStateUi() {
         const value = searchInput.value || "";
-        if (hiddenSearch) hiddenSearch.value = value;
         if (clearBtn) clearBtn.classList.toggle("is-visible", value.trim().length > 0);
       }
 
-      function navigate() {
-        syncStateUi();
-        if (!filterBar) return;
-        const state = selectedFilterValues(filterBar);
-        const q = (searchInput.value || "").trim();
-        if (q) state[searchName] = q;
-        else state[searchName] = "";
-        window.location.href = withActiveTableColumns(
-          buildFilterUrl(window.location.href, state),
-          searchInput
-        );
-      }
-
-      const saved = loadToolbarSearches(scopeId);
-      renderServerSavedSearches(scopeId, saved, searchInput, () => navigate());
+      const navigate = serverToolbarSearchNavigate(searchInput);
+      const ctx = ToolbarSearch.ctx(scopeId, wrap);
+      if (ctx) ToolbarSearch.render(ctx, ToolbarSearch.load(ctx), navigate);
 
       searchInput.addEventListener("input", () => {
         syncStateUi();
         syncToolbarSearchChrome(searchInput);
+        const layout = searchInput.closest(
+          ".cm-page-table-layout, .cm-dashboard-page, .cm-simple-wrapper"
+        );
+        if (layout?._simple?.applyAllFilters) {
+          layout._simple.applyAllFilters();
+        }
       });
       searchInput.addEventListener("keydown", (event) => {
         if (event.key !== "Enter") return;
@@ -1917,53 +2177,23 @@ ${overlay.value}`,
         searchInput.value = "";
         syncStateUi();
         syncToolbarSearchChrome(searchInput);
+        const layout = searchInput.closest(
+          ".cm-page-table-layout, .cm-dashboard-page, .cm-simple-wrapper"
+        );
+        if (layout?._simple?.applyAllFilters) {
+          layout._simple.applyAllFilters();
+        }
         navigate();
       });
       syncStateUi();
       syncToolbarSearchChrome(searchInput);
     });
 
-    root.querySelectorAll('[data-cm-search-backend="grid"][data-cm-toolbar-search]').forEach((searchInput) => {
+    root.querySelectorAll('[data-cm-search-backend="ag_grid"][data-cm-toolbar-search]').forEach((searchInput) => {
       if (searchInput.dataset.cmToolbarSearchChromeBound) return;
       searchInput.dataset.cmToolbarSearchChromeBound = "1";
       syncToolbarSearchChrome(searchInput);
       searchInput.addEventListener("input", () => syncToolbarSearchChrome(searchInput));
-    });
-  }
-
-  if (!global._cmToolbarSearchActionsBound) {
-    global._cmToolbarSearchActionsBound = true;
-    document.addEventListener("click", (e) => {
-      const btn = e.target.closest("[data-cm-toolbar-search-action]");
-      if (!btn) return;
-      const scopeId = btn.dataset.cmSearchScopeId || "";
-      const input = document.getElementById("cm-toolbar-search-" + scopeId);
-      const action = btn.getAttribute("data-cm-toolbar-search-action");
-      if (action === "toggleSaved") {
-        const dd = document.getElementById("cm-saved-searches-dropdown-" + scopeId);
-        dd?.classList.toggle("is-hidden");
-        return;
-      }
-      if (action === "save" && input) {
-        const val = input.value.trim();
-        if (!val) return;
-        const items = loadToolbarSearches(scopeId);
-        if (items.includes(val)) return;
-        items.push(val);
-        saveToolbarSearches(scopeId, items);
-        const filterBar =
-          input.closest(".cm-dashboard-page, .cm-page-table-layout")?.querySelector("[data-cm-filter-bar]");
-        renderServerSavedSearches(scopeId, items, input, () => {
-          if (!filterBar) return;
-          const state = selectedFilterValues(filterBar);
-          state[input.name || "q"] = val;
-          window.location.href = withActiveTableColumns(
-            buildFilterUrl(window.location.href, state),
-            input
-          );
-        });
-        syncToolbarSearchChrome(input);
-      }
     });
   }
 
@@ -1976,7 +2206,6 @@ ${overlay.value}`,
       }
     });
     initToolbarSearch(root);
-    initServerSearchInputs(root);
   }
 
   /** Re-bind grid-view widgets after HTMX swaps. */
@@ -2099,7 +2328,11 @@ ${overlay.value}`,
       };
     }
   }
+  var inheritedPreferencesUrl =
+    (global.GridView && global.GridView.preferencesUrl) || "";
+
   var GridView = {
+    preferencesUrl: inheritedPreferencesUrl,
     init,
     byId: byId,
     SimpleTable: { initAll: initAllSimpleTables },
@@ -2120,6 +2353,7 @@ ${overlay.value}`,
     bindGridFilteredCharts: bindGridFilteredCharts,
     FilterBar: FilterBar,
     initToolbarSearch: initToolbarSearch,
+    ToolbarSearch: ToolbarSearch,
     AgGrid: AgGrid,
     bootScope: bootGridViewScope,
     parseSmartQuery: parseSmartQuery,

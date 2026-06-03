@@ -17,7 +17,7 @@
         {% if chart.interactive %}data-cm-chart-interactive="1"{% endif %}
         style="height: {{ chart.height }}px;"
       >
-        <div data-cm-chart-root class="cm-chart-root" style="width:100%;height:100%;"></div>
+        {% include "django_grid_view/partials/chart_body.html" %}
       </div>
       {% endfor %}
     {% elif block == "table" and artifact.table %}

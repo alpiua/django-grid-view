@@ -34,6 +34,28 @@ No unreleased changes.
 
 ---
 
+## 1.1.2
+
+**2026-06-03** — Toolbar search backend rename (`ag_grid`) and clear-button fixes.
+
+### Changed
+
+- **Breaking:** `backend="grid"` on `{% render_toolbar_search %}` / `SearchSpec` is now
+  `backend="ag_grid"`. The old value raises `TemplateSyntaxError` with a migration hint.
+
+### Fixed
+
+- Server vs AG-Grid toolbar clear (×) use the correct transport (page reload vs
+  `GridView.AgGrid.Host.clearSearch`).
+- Clear button pointer-events only when visible.
+- Saved-search delegated clicks resolve `scope_id` on unified toolbar markup.
+
+### Documentation
+
+- Examples and reference updated for `ag_grid`; i18n tests match locale catalogs.
+
+---
+
 ## 1.1.1
 
 **2026-06-03** — Python 3.10 compatibility fix.

@@ -40,6 +40,8 @@ class TableFooterCell(TypedDict):
     html: SafeString | LabelText
     align: str
     colspan: int
+    col_key: NotRequired[str]
+    export_raw: NotRequired[str]
 
 
 class PreparedTableRow(TypedDict):

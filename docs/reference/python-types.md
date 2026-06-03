@@ -207,7 +207,7 @@ toolbar = ToolbarSpec(
 ```
 
 `FilterSpec.param` defaults to `id`. `FilterOption.exclusive_solo=True` marks an
-option that clears other choices when selected. `SearchSpec.backend="grid"` is for
+option that clears other choices when selected. `SearchSpec.backend="ag_grid"` is for
 AG-Grid quick search; `backend="server"` serializes `q` for server loaders and
 export builders.
 

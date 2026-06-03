@@ -15,7 +15,7 @@ msgid "tables.records"
 msgstr "records"
 
 msgid "tables.empty"
-msgstr "No records"
+msgstr "No data to display"
 
 msgid "grid.loading"
 msgstr "Loading…"
@@ -27,7 +27,7 @@ msgid "grid.records_label"
 msgstr "Records:"
 
 msgid "chart.empty"
-msgstr "No data for chart"
+msgstr "Data not loaded"
 
 msgid "chart.loading"
 msgstr "Loading chart…"

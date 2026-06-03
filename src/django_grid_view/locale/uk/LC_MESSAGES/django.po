@@ -20,7 +20,7 @@ msgid "tables.records"
 msgstr "записів"
 
 msgid "tables.empty"
-msgstr "Немає записів"
+msgstr "Немає даних для відображення"
 
 msgid "grid.loading"
 msgstr "Завантаження…"
@@ -35,7 +35,7 @@ msgid "grid.refresh"
 msgstr "Оновити дані"
 
 msgid "chart.empty"
-msgstr "Немає даних для графіка"
+msgstr "Дані не завантажені"
 
 msgid "chart.loading"
 msgstr "Завантаження графіка…"
