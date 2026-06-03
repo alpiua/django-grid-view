@@ -3,8 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
+from django_grid_view.types.cards import CardGridSpec, CardGroupSpec, TabGroupSpec
 from django_grid_view.types.charts import ChartSpec
 from django_grid_view.types.enums import BlockType
+from django_grid_view.types.filters import ToolbarSpec
 from django_grid_view.types.kpis import KpiSpec
 
 SearchMode = Literal["global", "per_column", "disabled"]
@@ -21,6 +23,12 @@ class ColumnSpec:
     searchable: bool = True
     link_template: str | None = None
     width: str | None = None
+    editable: bool = False
+    editor: str = "text"
+    editor_options: tuple[str, ...] = ()
+    hide: bool = False
+    menu_group: str = ""
+    exportable: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,3 +55,10 @@ class GridViewSpec:
     striped: bool = False
     export_xlsx: bool = False
     export_pdf_url: str | None = None
+    toolbar: ToolbarSpec | None = None
+    cards: tuple[CardGridSpec, ...] = ()
+    tabs: TabGroupSpec | None = None
+    card_groups: tuple[CardGroupSpec, ...] = ()
+    editable: bool = False
+    column_settings: bool = False
+    column_groups_order: tuple[str, ...] = ()

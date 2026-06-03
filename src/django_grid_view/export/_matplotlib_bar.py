@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-
-import matplotlib.ticker as mticker
-from matplotlib.axes import Axes
-from matplotlib.pyplot import subplots
+from typing import TYPE_CHECKING
 
 from django_grid_view.export._helpers import as_float
+from django_grid_view.export._matplotlib_backend import configure_matplotlib_agg
 from django_grid_view.export.static_charts import ChartExportOptions, fig_to_base64
 from django_grid_view.types.charts import ChartSpec
 from django_grid_view.types.json import RowDict
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
 
 GREEN = "#22c55e"
 RED = "#ef4444"
@@ -21,13 +22,15 @@ TEXT_COLOR = "#1e293b"
 GRID_COLOR = "#e2e8f0"
 
 
-def _format_uah(value: float, _position: float) -> str:
-    return f"{value:,.0f} грн"
+def _format_number(value: float, _position: float) -> str:
+    return f"{value:,.0f}"
 
 
 def _style_bar_axes(ax: Axes, *, title: str | None = None) -> None:
+    import matplotlib.ticker as mticker
+
     ax.tick_params(axis="y", labelsize=7, colors=TEXT_COLOR)
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(_format_uah))
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(_format_number))
     if title:
         ax.set_title(title, fontsize=10, fontweight="bold", color=TEXT_COLOR, pad=16)
     ax.legend(fontsize=7, loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=4, frameon=False)
@@ -44,6 +47,9 @@ def render_bar_png(
     rows: Sequence[RowDict],
     options: ChartExportOptions,
 ) -> str:
+    configure_matplotlib_agg()
+    from matplotlib.pyplot import subplots
+
     x_key = spec.x_key or "name"
     labels = [str(row.get(x_key, "")) for row in rows]
 
@@ -104,6 +110,9 @@ def _render_stacked_horizontal_bar(
     labels: Sequence[str],
     options: ChartExportOptions,
 ) -> str:
+    configure_matplotlib_agg()
+    from matplotlib.pyplot import subplots
+
     fig, ax = subplots(figsize=(10, 3.2))
     fig.set_facecolor("white")
     y = list(range(len(labels)))
@@ -140,19 +149,22 @@ def render_count_bar_png(
     options: ChartExportOptions | None = None,
 ) -> str:
     """Legacy grouped count chart for PDF index exports."""
+    configure_matplotlib_agg()
+    from matplotlib.pyplot import subplots
+
     opts = options or ChartExportOptions()
     fig, ax = subplots(figsize=(10, 3.2))
     fig.set_facecolor("white")
     x = list(range(len(labels)))
     width = 0.25
-    ax.bar([i - width for i in x], list(included), width, label="Включено", color=GREEN, zorder=3)
-    ax.bar(x, list(rejected), width, label="Відхилено", color=RED, zorder=3)
-    ax.bar([i + width for i in x], list(gb), width, label="ГБ", color=AMBER, zorder=3)
+    ax.bar([i - width for i in x], list(included), width, label="Included", color=GREEN, zorder=3)
+    ax.bar(x, list(rejected), width, label="Rejected", color=RED, zorder=3)
+    ax.bar([i + width for i in x], list(gb), width, label="Group B", color=AMBER, zorder=3)
     short_labels = [name[:20] + "…" if len(name) > 20 else name for name in labels]
     ax.set_xticks(x)
     ax.set_xticklabels(short_labels, rotation=35, ha="right", fontsize=7, color=TEXT_COLOR)
     ax.set_title(
-        "Кількість записів по відділенням",
+        "Record counts by group",
         fontsize=11,
         fontweight="bold",
         color=TEXT_COLOR,

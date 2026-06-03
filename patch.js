@@ -8,17 +8,17 @@
     if (!searches) searches = [];
     
     function startUp() {
-        if (!window['{{ grid_id }}Manager']) {
-            const manager = new ContextGridManager('{{ grid_id }}', '{{ container_id }}', {{ options_var }}, presets, searches, groupsOrder);
+        const gv = window.GridView = window.GridView || window.CmGridView || {};
+        if (!(gv.byId && gv.byId.get('{{ grid_id }}'))) {
+            const host = new gv.AgGrid.Host('{{ grid_id }}', '{{ container_id }}', {{ options_var }}, presets, searches, groupsOrder);
             
-            // Try to wait for ag-grid to be defined if it's injected asynchronously
             if (typeof agGrid !== 'undefined') {
-                manager.initGrid();
+                host.initGrid();
             } else {
                 let p = setInterval(() => {
                     if (typeof agGrid !== 'undefined') {
                         clearInterval(p);
-                        manager.initGrid();
+                        host.initGrid();
                     }
                 }, 50);
                 setTimeout(() => clearInterval(p), 15000);

@@ -1,0 +1,17 @@
+{% load i18n %}
+<div class="cm-grid-search-bar relative flex-1 flex items-center gap-2 group min-w-0 w-full" data-cm-unified-search>
+  <div class="relative w-full">
+    <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-[--cm-muted] pointer-events-none" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text"
+      name="{{ search_spec.param|default:'q' }}"
+      value="{{ search_value|default:'' }}"
+      class="w-full bg-[--cm-bg] border border-[--cm-border] text-[--cm-text] pl-9 pr-10 py-1.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all placeholder:text-[--cm-muted] cm-search-input"
+      data-cm-search
+      data-search-mode="{{ search_spec.mode|default:'simple' }}"
+      data-search-scope="{{ search_spec.scope|default:'client' }}"
+      placeholder="{{ search_spec.placeholder|default:_('Search') }}">
+    <button type="button" data-cm-search-clear title="{% trans 'Clear search' %}" class="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-[--cm-muted] hover:text-red-500 transition-colors rounded hover:bg-[--cm-hover]">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+    </button>
+  </div>
+</div>

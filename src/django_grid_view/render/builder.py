@@ -9,8 +9,30 @@ from django_grid_view.tables import SimpleTableConfig
 from django_grid_view.types.artifact import GridArtifact
 from django_grid_view.types.artifact_bind import GridArtifactJson
 from django_grid_view.types.contracts import ViewSpecInput
+from django_grid_view.types.enums import BlockType
 from django_grid_view.types.json import JsonObject, RowDict
 from django_grid_view.types.view import GridViewSpec
+
+
+def _validate_filter_scopes(spec: GridViewSpec) -> None:
+    """Client-scoped filters must not coexist with KPI/chart blocks (plan invariant)."""
+    toolbar = spec.toolbar
+    if not toolbar or not toolbar.filters:
+        return
+    blocks = spec.layout.blocks
+    has_kpi_chart = (
+        bool(spec.kpis or spec.charts)
+        or BlockType.KPIS in blocks
+        or BlockType.CHART in blocks
+    )
+    if not has_kpi_chart:
+        return
+    for flt in toolbar.filters:
+        if flt.scope == "client":
+            raise ValueError(
+                f"Filter {flt.id!r} has scope=client but view has KPI/chart blocks; "
+                "use scope=server."
+            )
 
 
 def _resolve_view_spec(view: ViewSpecInput) -> GridViewSpec:
@@ -48,6 +70,7 @@ class GridRenderer:
         *,
         table: SimpleTableConfig | None = None,
     ) -> GridArtifact:
+        _validate_filter_scopes(spec)
         row_tuple = tuple(dict(row) for row in rows)
         return GridArtifact(
             spec=spec,

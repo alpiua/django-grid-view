@@ -31,6 +31,11 @@ def parse_grid_view_spec(raw: GridViewSpecWire) -> GridViewSpec:
     kpis = tuple(_parse_kpi(k) for k in _kpi_list(raw))
     charts = tuple(_parse_chart(c) for c in _chart_list(raw))
     title_raw = raw.get("title")
+    column_settings = raw.get("column_settings") is True
+    groups_raw = raw.get("column_groups_order")
+    groups_order: tuple[str, ...] = ()
+    if isinstance(groups_raw, list):
+        groups_order = tuple(str(item) for item in groups_raw)
 
     return GridViewSpec(
         grid_id=grid_id,
@@ -38,6 +43,8 @@ def parse_grid_view_spec(raw: GridViewSpecWire) -> GridViewSpec:
         title=title_raw if isinstance(title_raw, str) else None,
         kpis=kpis,
         charts=charts,
+        column_settings=column_settings,
+        column_groups_order=groups_order,
     )
 
 
@@ -63,6 +70,14 @@ def _require_spec_wire(raw: JsonObject) -> GridViewSpecWire:
     charts = _wire_chart_list(raw.get("charts"))
     if charts:
         wire["charts"] = charts
+    column_settings = raw.get("column_settings")
+    if isinstance(column_settings, bool):
+        wire["column_settings"] = column_settings
+    groups_order = raw.get("column_groups_order")
+    if isinstance(groups_order, list):
+        wire["column_groups_order"] = [
+            str(item) for item in groups_order if isinstance(item, str)
+        ]
     return wire
 
 
@@ -117,6 +132,15 @@ def _wire_column(obj: dict[object, object]) -> ColumnSpecWire | None:
     searchable = obj.get("searchable")
     if isinstance(searchable, bool):
         col["searchable"] = searchable
+    hide = obj.get("hide")
+    if isinstance(hide, bool):
+        col["hide"] = hide
+    menu_group = obj.get("menu_group")
+    if isinstance(menu_group, str):
+        col["menu_group"] = menu_group
+    exportable = obj.get("exportable")
+    if isinstance(exportable, bool):
+        col["exportable"] = exportable
     return col
 
 
@@ -257,6 +281,13 @@ def _parse_column(raw: ColumnSpecWire) -> ColumnSpec:
         label=raw["label"],
         format=raw.get("format", "text"),
         align=raw.get("align", "left"),
+        sortable=raw.get("sortable", True),
+        searchable=raw.get("searchable", True),
+        link_template=raw.get("link_template"),
+        width=raw.get("width"),
+        hide=raw.get("hide", False),
+        menu_group=raw.get("menu_group", ""),
+        exportable=raw.get("exportable", True),
     )
 
 

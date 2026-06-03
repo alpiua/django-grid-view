@@ -38,8 +38,8 @@ The planner model returns JSON with SQL and presentation hints only:
 
 ```json
 {
-  "sql": "SELECT name AS doctor_name, COUNT(*) AS total_records FROM …",
-  "purpose": "Doctors with the most rejections",
+  "sql": "SELECT name AS customer_name, COUNT(*) AS total_orders FROM …",
+  "purpose": "Customers with the most orders",
   "format": "table"
 }
 ```
@@ -119,8 +119,8 @@ Some integrations add a **second LLM node** after SQL that emits layout JSON. Th
 {
   "view": {
     "grid_id": "analytics-result",
-    "columns": [{ "key": "doctor_name", "label": "Doctor" }],
-    "kpis": [{ "label": "Records", "aggregate": "count" }],
+    "columns": [{ "key": "customer_name", "label": "Customer" }],
+    "kpis": [{ "label": "Orders", "aggregate": "count" }],
     "charts": [],
     "layout": { "blocks": ["title", "kpis", "table"] }
   }

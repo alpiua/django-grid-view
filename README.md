@@ -89,8 +89,20 @@ INSTALLED_APPS = ["django_grid_view"]
 ```
 
 ```python
-# urls.py — preferences API for AG-Grid
-urlpatterns = [path("", include("django_grid_view.urls"))]
+# settings.py
+DJANGO_GRID_VIEW_EXPORT_PDF_URL = "api_export_pdf"
+DJANGO_GRID_VIEW_EXPORT_XLSX_URL = "api_export_xlsx"
+
+# api/urls.py — mount under path("api/", include(...))
+from django_grid_view.export.pdf_view import export_pdf
+from django_grid_view.export.xlsx_view import export_xlsx
+from django_grid_view.views import save_grid_settings
+
+urlpatterns = [
+    path("grid/preferences/", save_grid_settings, name="api_grid_preferences"),
+    path("export/pdf/", export_pdf, name="api_export_pdf"),
+    path("export/xlsx/", export_xlsx, name="api_export_xlsx"),
+]
 ```
 
 ```bash
@@ -120,12 +132,12 @@ Full walkthrough: **[Getting started](https://alpiua.github.io/django-grid-view/
 
 **1.0 (shipped)** is the **renderer**: tables, KPI strip, ECharts, i18n, and `GridRenderer` in this repo.
 
-Next step in the **ContextUnity** stack is protocol alignment, not replacing the renderer:
+Next step for host applications is protocol alignment, not replacing the renderer:
 
 - **A2UI** — treat `GridViewSpec` as the declarative UI catalog (structure-only JSON agents and planners emit).
-- **AG-UI** — stream resolved `grid_view` artifacts over the existing `ContextUnit` event channel (router → SSE → chat/dashboard hosts).
+- **AG-UI** — stream resolved `grid_view` artifacts over an application event channel (router, SSE, chat, dashboard, or another host transport).
 
-django-grid-view stays the single place that turns **rows + spec → `GridArtifact`**. Presenter and transport logic live in consumer apps and ContextUnity router work already tracked in platform planning.
+django-grid-view stays the single place that turns **rows + spec → `GridArtifact`**. Presenter and transport logic live in consumer apps.
 
 ---
 

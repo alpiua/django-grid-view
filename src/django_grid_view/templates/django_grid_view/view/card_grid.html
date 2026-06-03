@@ -1,0 +1,13 @@
+{% if spec %}
+<section class="cm-card-section" data-cm-card-id="{{ spec.id }}">
+  {% if spec.title %}<div class="cm-card-section-title">{{ spec.title }}</div>{% endif %}
+  <div class="cm-card-grid cm-card-grid--{{ spec.layout }}" style="--cm-card-cols: {{ spec.columns }}">
+    {% for cell in cells %}
+    <div class="cm-card cm-card--{{ spec.tone.value }}">
+      <div class="cm-card-label">{{ cell.label }}</div>
+      <div class="cm-card-value">{{ cell.value }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}

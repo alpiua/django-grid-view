@@ -19,16 +19,21 @@ class TableHeaderCell(TypedDict):
     col_index: int | None
     width: NotRequired[str]
     css_class: NotRequired[str]
+    hide: NotRequired[bool]
+    group_keys: NotRequired[str]
+    group_id: NotRequired[str]
 
 
 class TableBodyCell(TypedDict):
     html: SafeString | LabelText
-    align: str
-    css_class: str
-    sort_val: str
     export_raw: str
-    attrs: CellAttrs
     col_index: int
+    col_key: str
+    align: NotRequired[str]
+    css_class: NotRequired[str]
+    sort_val: NotRequired[str]
+    attrs: NotRequired[CellAttrs]
+    hide: NotRequired[bool]
 
 
 class TableFooterCell(TypedDict):
@@ -40,14 +45,18 @@ class TableFooterCell(TypedDict):
 class PreparedTableRow(TypedDict):
     cells: list[TableBodyCell]
     url: str
-    onclick: str
+    onclick: NotRequired[str]
+    row_class: NotRequired[str]
+    section_header: NotRequired[str]
+    section_colspan: NotRequired[int]
+    section_cells: NotRequired[list[TableBodyCell]]
+    chart_row_json: NotRequired[str]
 
 
 class ChartTagPayload(TypedDict):
     chart_id: str
     chart_config_json: str
     chart_rows_json: str
-    height: int
     load_assets: bool
     interactive: bool
 
@@ -59,6 +68,11 @@ class SimpleTableRenderContext(TypedDict):
     rows: list[PreparedTableRow]
     count: int
     load_assets: bool
+    column_settings: bool
+    column_meta_json: NotRequired[str]
+    column_groups_order_json: NotRequired[str]
+    ag_grid_presets: NotRequired[str]
+    preferences_url: NotRequired[str]
 
 
 class GridViewChartPayloadItem(TypedDict):

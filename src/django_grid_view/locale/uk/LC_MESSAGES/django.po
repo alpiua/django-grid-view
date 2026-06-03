@@ -4,7 +4,7 @@ msgstr ""
 "Project-Id-Version: django-grid-view 0.2.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-05-30 15:00+0000\n"
-"PO-Revision-Date: 2026-05-30 15:00+0000\n"
+"PO-Revision-Date: 2026-06-02 12:00+0000\n"
 "Last-Translator: \n"
 "Language-Team: Ukrainian\n"
 "Language: uk\n"
@@ -19,11 +19,20 @@ msgstr "Пошук..."
 msgid "tables.records"
 msgstr "записів"
 
-msgid "tables.export"
-msgstr "Експорт CSV"
-
 msgid "tables.empty"
 msgstr "Немає записів"
+
+msgid "grid.loading"
+msgstr "Завантаження…"
+
+msgid "grid.no_rows"
+msgstr "Немає записів"
+
+msgid "grid.records_label"
+msgstr "Записів:"
+
+msgid "grid.refresh"
+msgstr "Оновити дані"
 
 msgid "chart.empty"
 msgstr "Немає даних для графіка"
@@ -33,3 +42,142 @@ msgstr "Завантаження графіка…"
 
 msgid "kpi.loading"
 msgstr "Завантаження…"
+
+msgid "chart.packages.included"
+msgstr "Включено"
+
+msgid "chart.packages.rejected"
+msgstr "Відхилено"
+
+msgid "chart.packages.tariff"
+msgstr "Тариф"
+
+msgid "chart.packages.loss"
+msgstr "Втрата"
+
+msgid "column_settings.title"
+msgstr "Налаштування колонок"
+
+msgid "column_settings.hint"
+msgstr "Перетягніть пігулки для порядку, L/R — закріплення, збережіть як пресет."
+
+msgid "column_settings.reset"
+msgstr "Скинути до типових"
+
+msgid "column_settings.presets"
+msgstr "Пресети колонок"
+
+msgid "column_settings.preset_placeholder"
+msgstr "Введіть назву..."
+
+msgid "column_settings.save_preset"
+msgstr "Зберегти поточний пресет"
+
+msgid "column_settings.select"
+msgstr "Вибрати:"
+
+msgid "column_settings.all"
+msgstr "Усі"
+
+msgid "column_settings.none"
+msgstr "Жодної"
+
+msgid "column_settings.standard"
+msgstr "Стандарт"
+
+msgid "column_settings.main_group"
+msgstr "Основні"
+
+msgid "column_settings.apply"
+msgstr "Застосувати"
+
+msgid "export.pdf"
+msgstr "PDF"
+
+msgid "export.xlsx"
+msgstr "XLSX"
+
+msgid "multiselect.select"
+msgstr "Обрати"
+
+msgid "multiselect.selected_count"
+msgstr "обрано"
+
+msgid "filter.placeholder"
+msgstr "Фільтр..."
+
+msgid "filter.select_all"
+msgstr "(Усі)"
+
+msgid "filter.non_empty"
+msgstr "Не порожні"
+
+msgid "filter.empty"
+msgstr "(Порожньо)"
+
+msgid "filter.no_matches"
+msgstr "Нічого не знайдено"
+
+msgid "filter.loading_values"
+msgstr "Завантаження словника…"
+
+msgid "search.smart_placeholder"
+msgstr "Розумний пошук"
+
+msgid "search.smart_tooltip"
+msgstr "Пошук по видимих колонках таблиці (з урахуванням фільтрів).\n«;» — або: хірур; терап\n«,» — і (обидва в рядку): хірур, терап\n«-» — виключити: -відхилено"
+
+msgid "search.save"
+msgstr "Зберегти поточний текст пошуку"
+
+msgid "search.load_saved"
+msgstr "Завантажити збережений пошук"
+
+msgid "filter_bar.filters_label"
+msgstr "Фільтри:"
+
+msgid "filter_bar.apply"
+msgstr "Застосувати"
+
+msgid "table.grand_total"
+msgstr "Усього"
+
+msgid "search.clear"
+msgstr "Очистити пошук"
+
+
+msgid "search.saved_queries"
+msgstr "Збережені запити"
+
+msgid "search.saved_searches"
+msgstr "Збережені пошуки"
+
+msgid "filter_bar.all"
+msgstr "Усі"
+
+msgid "filter_bar.search"
+msgstr "Пошук"
+
+msgid "section.total"
+msgstr "Разом"
+
+msgid "column_filter.open"
+msgstr "Фільтр колонки"
+
+msgid "column_filter.tooltip"
+msgstr ">10, %текст%, розумний синтаксис"
+
+msgid "column_filter.placeholder"
+msgstr ">10, %назва%"
+
+msgid "column_filter.clear"
+msgstr "Очистити фільтр"
+
+msgid "export.meta.search %(query)s"
+msgstr "Пошук: \"%(query)s\""
+
+msgid "export.meta.filters %(filters)s"
+msgstr "Фільтри: %(filters)s"
+
+msgid "export.meta.filter_part %(label)s %(values)s"
+msgstr "%(label)s: %(values)s"

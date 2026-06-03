@@ -16,6 +16,9 @@ class ColumnSpecWire(TypedDict):
     searchable: NotRequired[bool]
     link_template: NotRequired[str]
     width: NotRequired[str]
+    hide: NotRequired[bool]
+    menu_group: NotRequired[str]
+    exportable: NotRequired[bool]
 
 
 class KpiSpecWire(TypedDict):
@@ -61,3 +64,5 @@ class GridViewSpecWire(TypedDict, total=False):
     columns: list[ColumnSpecWire]
     kpis: list[KpiSpecWire]
     charts: list[ChartSpecWire]
+    column_settings: bool
+    column_groups_order: list[str]

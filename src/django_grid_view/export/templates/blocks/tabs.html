@@ -1,0 +1,21 @@
+{% if tabs %}
+{% for tab in tabs %}
+<div class="tab-pane">
+  <h3 style="font-size: 10pt;">{{ tab.label }}{% if tab.badge %} ({{ tab.badge }}){% endif %}</h3>
+  {% for group in tab.groups %}
+  <div class="card-group">
+    <h3>{{ group.title }} — {{ group.count }}</h3>
+    {% if group.items %}
+    <ul>
+      {% for item in group.items %}
+      <li>{{ item }}</li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty">{{ group.empty_message }}</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
+{% endif %}

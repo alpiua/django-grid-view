@@ -1,0 +1,53 @@
+{% load i18n django_grid_view %}
+{% translate "filter_bar.all" as all_text %}
+<div class="cm-toolbar-filters-block">
+  <span class="cm-toolbar-filters-label">{% translate "filter_bar.filters_label" %}</span>
+  <div class="cm-filter-bar" data-cm-filter-bar{% if auto_apply %} data-auto-apply="1"{% endif %}>
+  {% if search_query is not None %}
+  <input type="hidden" data-cm-search name="q" value="{{ search_query }}">
+  {% endif %}
+  {% for spec in filter_specs %}
+    {% if spec.type == "multiselect" %}
+      {% include "django_grid_view/partials/filter_bar_multiselect.html" %}
+    {% elif spec.type == "singleselect" %}
+      <div
+        class="cm-multiselect cm-period-multiselect cm-multiselect--single"
+        data-cm-multiselect
+        data-cm-singleselect="1"
+        data-filter-id="{{ spec.id }}"
+        data-filter-param="{{ spec.param }}"
+        data-filter-scope="{{ spec.scope }}"
+        data-all-label="{{ spec.all_label|default:spec.placeholder|default:spec.label }}"
+        data-placeholder="{{ spec.placeholder|default:spec.label }}"
+      >
+        <button type="button" class="cm-multiselect-trigger" aria-haspopup="listbox">
+          <span class="cm-multiselect-trigger__label"></span>
+        </button>
+        <div class="cm-multiselect-panel" role="listbox">
+          {% for opt in spec.options %}
+          <label class="cm-multiselect-option">
+            <input type="checkbox" value="{{ opt.value }}" data-label="{{ opt.label }}"
+              {% if selected_values|dict_get:spec.param == opt.value %}checked{% endif %}
+              {% if not selected_values|dict_get:spec.param and forloop.first and spec.default == opt.value %}checked{% endif %}>
+            {{ opt.label }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+    {% elif spec.type == "select" %}
+      <div class="cm-period-wrap">
+        <select
+          name="{{ spec.param }}"
+          class="cm-period-select"
+          data-filter-id="{{ spec.id }}"
+          data-filter-scope="{{ spec.scope }}"
+        >
+          {% for opt in spec.options %}
+          <option value="{{ opt.value }}" {% if opt.value == selected_values|dict_get:spec.param or opt.value == selected_value and not selected_values|dict_get:spec.param %}selected{% endif %}>{{ opt.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    {% endif %}
+  {% endfor %}
+  </div>
+</div>

@@ -40,7 +40,7 @@ class ChartSpec:
     overlay: ChartOverlay | None = None
     orientation: str | None = None  # vertical | horizontal
     stacked: bool = False
-    pie_variant: str | None = None  # doctor — inner labels + center total
+    pie_variant: str | None = None  # center-total — inner labels + center total
     tooltip_kind: str | None = None  # packages — rich axis tooltip
 
 

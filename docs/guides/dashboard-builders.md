@@ -5,8 +5,8 @@ Replace ad hoc `ChartSpec + rows + KpiSpec` tuples with one `GridViewSpec` and `
 ## Before
 
 ```python
-chart_spec, chart_rows = build_finance_chart(tab_id, departments)
-kpi_specs, kpi_rows = build_finance_kpis(departments)
+chart_spec, chart_rows = build_revenue_chart(tab_id, categories)
+kpi_specs, kpi_rows = build_revenue_kpis(categories)
 # template: render_kpi_strip + render_chart
 ```
 
@@ -16,11 +16,11 @@ kpi_specs, kpi_rows = build_finance_kpis(departments)
 from django_grid_view.types import GridViewSpecWire, RowDict
 from django_grid_view.render import GridRenderer, parse_grid_view_spec
 
-def build_finance_artifact(tab_id: str, departments: list[DepartmentStats]):
-    rows: list[RowDict] = finance_rows(departments)
+def build_revenue_artifact(tab_id: str, categories: list[CategoryStats]):
+    rows: list[RowDict] = revenue_rows(categories)
     view: GridViewSpecWire = {
-        "grid_id": f"finance-{tab_id}",
-        "title": "Finance by department",
+        "grid_id": f"revenue-{tab_id}",
+        "title": "Revenue by category",
         "columns": [...],
         "kpis": [...],
         "charts": [...],

@@ -5,12 +5,14 @@ from __future__ import annotations
 import base64
 import io
 from dataclasses import dataclass
-
-from matplotlib.figure import Figure
+from typing import TYPE_CHECKING
 
 from django_grid_view.types.charts import ChartSpec
 from django_grid_view.types.enums import ChartType
 from django_grid_view.types.json import RowDict
+
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure
 
 __all__ = ["ChartExportOptions", "chart_to_png_base64", "fig_to_base64"]
 
@@ -49,8 +51,6 @@ def fig_to_base64(
     dpi: int = 150,
 ) -> str:
     """Convert matplotlib figure to base64-encoded PNG."""
-    import matplotlib.pyplot as plt
-
     buf = io.BytesIO()
     facecolor = "none" if transparent else "white"
     if tight:
@@ -70,6 +70,6 @@ def fig_to_base64(
             facecolor=facecolor,
             transparent=transparent,
         )
-    plt.close(fig)
+    fig.clf()
     buf.seek(0)
     return base64.b64encode(buf.read()).decode("utf-8")

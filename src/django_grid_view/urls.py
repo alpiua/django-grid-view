@@ -1,9 +1,7 @@
-from django.urls import path
+"""django-grid-view no longer mounts HTTP routes; hosts register exports/API under ``/api/``."""
 
-from .views import save_grid_settings
+from django.urls import URLPattern, URLResolver
 
 app_name = "django_grid_view"
 
-urlpatterns = [
-    path("api/django-grid-view/save/", save_grid_settings, name="save_grid_settings"),
-]
+urlpatterns: list[URLPattern | URLResolver] = []

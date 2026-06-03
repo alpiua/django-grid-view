@@ -1,0 +1,10 @@
+{% if kpis %}
+<div class="kpi-row" style="--kpi-cols: {{ layout.kpi_columns }};">
+  {% for k in kpis %}
+  <div class="kpi tone-{{ k.tone }}">
+    <strong>{{ k.label }}</strong>
+    <span class="val">{{ k.value_fmt }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
