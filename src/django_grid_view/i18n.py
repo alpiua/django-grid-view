@@ -39,6 +39,7 @@ JS_I18N_KEYS: tuple[str, ...] = (
     "multiselect.selected_count",
     "filter.placeholder",
     "filter.select_all",
+    "filter.only_empty",
     "filter.non_empty",
     "filter.empty",
     "filter.no_matches",

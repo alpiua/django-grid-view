@@ -7,8 +7,11 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TypeVar
 
-from django.db.models import F, Model, QuerySet
+from django.db.models import F, Model, Q, QuerySet
 from django.http import HttpRequest
+
+from django_grid_view.types.json import as_str_object_dict, json_object_list_from
+from django_grid_view.types.narrowing import is_object_list
 
 _QS = TypeVar("_QS", bound=QuerySet[Model])
 
@@ -43,9 +46,7 @@ def parse_infinite_params(
     filters_json = request.GET.get("filters")
     if filters_json:
         try:
-            raw = json.loads(filters_json)
-            if isinstance(raw, dict):
-                filters = raw
+            filters = as_str_object_dict(json.loads(filters_json))
         except (json.JSONDecodeError, TypeError):
             pass
 
@@ -53,9 +54,10 @@ def parse_infinite_params(
     sort_json = request.GET.get("sort")
     if sort_json:
         try:
-            raw = json.loads(sort_json)
-            if isinstance(raw, list):
-                sort_model = [item for item in raw if isinstance(item, dict)]
+            parsed_sort = json.loads(sort_json)
+            sort_model = [
+                {str(k): v for k, v in item.items()} for item in json_object_list_from(parsed_sort)
+            ]
         except (json.JSONDecodeError, TypeError):
             pass
 
@@ -86,13 +88,25 @@ def apply_grid_filters(
 ) -> _QS:
     """Apply AG-Grid ``filterModel`` entries to *qs* using *field_map* (colId → ORM path)."""
     for col_id, rules in filters.items():
-        if col_id not in field_map or not isinstance(rules, dict):
+        if col_id not in field_map:
+            continue
+        rule_map = as_str_object_dict(rules)
+        if not rule_map:
             continue
         db_field = field_map[col_id]
 
-        if "values" in rules and isinstance(rules["values"], list):
+        mode = rule_map.get("mode")
+        if mode == "empty":
+            qs = qs.filter(_empty_field_q(db_field))
+            continue
+        if mode == "non_empty":
+            qs = qs.exclude(_empty_field_q(db_field))
+            continue
+
+        values = rule_map.get("values")
+        if is_object_list(values):
             target_vals: list[object] = []
-            for val in rules["values"]:
+            for val in values:
                 if format_filter_value is not None:
                     target_vals.append(format_filter_value(col_id, val))
                 else:
@@ -100,9 +114,9 @@ def apply_grid_filters(
             qs = qs.filter(**{f"{db_field}__in": target_vals})
             continue
 
-        if rules.get("filterType") == "text":
-            operator = str(rules.get("type", "contains"))
-            f_val = rules.get("filter", "")
+        if rule_map.get("filterType") == "text":
+            operator = str(rule_map.get("type", "contains"))
+            f_val = rule_map.get("filter", "")
             if not f_val:
                 continue
             lookup = _text_lookup(db_field, operator)
@@ -139,6 +153,11 @@ def apply_grid_sort(
     else:
         f_obj = f_obj.asc(nulls_last=True)
     return qs.order_by(f_obj, tie_breaker)
+
+
+def _empty_field_q(db_field: str) -> Q:
+    """Null, blank, or dash-only values treated as empty in SmartFilter."""
+    return Q(**{f"{db_field}__isnull": True}) | Q(**{db_field: ""}) | Q(**{db_field: "-"})
 
 
 def _text_lookup(db_field: str, operator: str) -> str | None:

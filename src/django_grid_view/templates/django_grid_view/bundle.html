@@ -1,8 +1,10 @@
 {% load static %}
+{% if include_scripts %}
 <script>
-  window.GridView = window.GridView || window.CmGridView || {};
+  window.GridView = window.GridView || {};
   window.GridView.preferencesUrl = '{{ preferences_url|escapejs }}';
   window.GridViewI18n = {{ grid_view_i18n_catalog|safe }};
 </script>
-<script src="{% static 'django_grid_view/grid-view.js' %}"></script>
-<script src="{% static 'django_grid_view/column-settings.js' %}"></script>
+<script src="{% static 'django_grid_view/grid-view.min.js' %}"></script>
+<script src="{% static 'django_grid_view/column-settings.min.js' %}"></script>
+{% endif %}

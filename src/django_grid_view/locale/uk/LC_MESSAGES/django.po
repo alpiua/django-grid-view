@@ -107,7 +107,10 @@ msgid "filter.placeholder"
 msgstr "Фільтр..."
 
 msgid "filter.select_all"
-msgstr "(Усі)"
+msgstr "Усі"
+
+msgid "filter.only_empty"
+msgstr "Порожні"
 
 msgid "filter.non_empty"
 msgstr "Не порожні"

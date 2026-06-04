@@ -99,10 +99,13 @@ msgid "filter.placeholder"
 msgstr "Filter…"
 
 msgid "filter.select_all"
-msgstr "(Select all)"
+msgstr "All"
+
+msgid "filter.only_empty"
+msgstr "Empty"
 
 msgid "filter.non_empty"
-msgstr "Non empty"
+msgstr "Non-empty"
 
 msgid "filter.empty"
 msgstr "(Empty)"

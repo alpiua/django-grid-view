@@ -9,32 +9,9 @@
 >
   {% include "django_grid_view/partials/chart_body.html" %}
 </div>
-{% if load_assets %}
-<link rel="stylesheet" href="{% static 'django_grid_view/table.css' %}">
-{% grid_view_bundle %}
+{% if load_styles or load_scripts %}
+{% include "django_grid_view/assets.html" %}
 {% endif %}
 {% if not interactive %}
-<script>
-  (function () {
-    function bootCharts(scope) {
-      var target = scope || document;
-      function tryInit() {
-        if (window.GridView && typeof window.echarts !== "undefined") {
-          window.GridView.initAllCharts(target);
-          return;
-        }
-        setTimeout(function () { tryInit(); }, 50);
-      }
-      tryInit();
-    }
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", function () { bootCharts(document); });
-    } else {
-      bootCharts(document);
-    }
-    document.body.addEventListener("htmx:afterSwap", function (evt) {
-      bootCharts(evt.detail && evt.detail.target ? evt.detail.target : document);
-    });
-  })();
-</script>
+<script src="{% static 'django_grid_view/chart-static-boot.js' %}"></script>
 {% endif %}

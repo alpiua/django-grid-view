@@ -1,10 +1,6 @@
 {% load i18n static django_grid_view %}
-{% if load_assets %}
-<link rel="stylesheet" href="{% static 'django_grid_view/table.css' %}">
-{% grid_view_bundle %}
-{% endif %}
-{% if column_settings %}
-{% grid_view_column_settings_assets %}
+{% if load_styles or load_scripts %}
+{% include "django_grid_view/assets.html" %}
 {% endif %}
 {% if config.wrapper == "full" %}
 <div class="cm-simple-wrapper cm-layout-{{ config.layout }}" id="cm-table-{{ config.grid_id }}" data-grid-id="{{ config.grid_id }}" data-search-mode="{{ config.search_mode }}"{% if column_settings %} data-cm-column-settings="1" data-cm-columns="{{ column_meta_json|force_escape }}" data-cm-groups-order="{{ column_groups_order_json|force_escape }}" data-cm-presets="{{ ag_grid_presets|force_escape }}" data-cm-preferences-url="{{ preferences_url }}"{% endif %}>
