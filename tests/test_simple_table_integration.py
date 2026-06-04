@@ -55,9 +55,9 @@ class TestRenderSimpleTableHtml:
         assert 'data-cm-col="0"' in html
         assert 'data-cm-sort="name"' in html
         assert "Alice" in html
-        assert "grid-view.js" in html
+        assert "grid-view.min.js" in html
         assert "GridViewI18n" in html
-        assert "table.css" in html
+        assert "grid-view.min.css" in html
 
     def test_assets_included_once_for_multiple_tables(self, anon_request: HttpRequest) -> None:
         configs = [
@@ -74,8 +74,8 @@ class TestRenderSimpleTableHtml:
         ]
         html = _render(None, anon_request, multi=configs)
 
-        assert html.count("table.css") == 1
-        assert html.count("grid-view.js") == 1
+        assert html.count("grid-view.min.css") == 1
+        assert html.count("grid-view.min.js") == 1
         assert html.count("GridViewI18n") == 1
         assert html.count('class="cm-simple-wrapper ') == 2
         assert 'id="cm-table-a"' in html

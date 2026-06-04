@@ -20,6 +20,13 @@ class GridViewI18nTests(SimpleTestCase):
                 self.assertNotEqual(catalog[key], key, msg=f"Untranslated catalog key: {key}")
 
     @override_settings(LANGUAGE_CODE="uk")
+    def test_filter_mode_labels_uk(self) -> None:
+        catalog = get_js_i18n_catalog()
+        self.assertEqual(catalog["filter.select_all"], "Усі")
+        self.assertEqual(catalog["filter.only_empty"], "Порожні")
+        self.assertEqual(catalog["filter.non_empty"], "Не порожні")
+
+    @override_settings(LANGUAGE_CODE="uk")
     def test_modal_msgids_exist_in_catalog(self) -> None:
         expected = (
             "column_settings.title",

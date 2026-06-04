@@ -77,6 +77,30 @@ class ApplyGridHelpersTests(TestCase):
         assert first is not None
         self.assertEqual(first.grid_id, "zebra")
 
+    def test_set_filter_empty_mode(self):
+        GridPreference.objects.create(user=self.user, grid_id="", col_presets={}, searches=[])
+        qs = GridPreference.objects.filter(user=self.user)
+        filtered = apply_grid_filters(
+            qs,
+            {"grid_id": {"mode": "empty"}},
+            {"grid_id": "grid_id"},
+        )
+        self.assertEqual(filtered.count(), 1)
+        first = filtered.first()
+        assert first is not None
+        self.assertEqual(first.grid_id, "")
+
+    def test_set_filter_non_empty_mode(self):
+        GridPreference.objects.create(user=self.user, grid_id="", col_presets={}, searches=[])
+        qs = GridPreference.objects.filter(user=self.user)
+        filtered = apply_grid_filters(
+            qs,
+            {"grid_id": {"mode": "non_empty"}},
+            {"grid_id": "grid_id"},
+        )
+        ids = set(filtered.values_list("grid_id", flat=True))
+        self.assertEqual(ids, {"alpha", "zebra"})
+
     def test_sort_ascending(self):
         qs = GridPreference.objects.filter(user=self.user)
         sorted_qs = apply_grid_sort(

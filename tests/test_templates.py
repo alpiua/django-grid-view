@@ -23,19 +23,38 @@ def test_package_templates_compile():
 
 def test_grid_view_bundle_assets_exist():
     static_root = files("django_grid_view").joinpath("static/django_grid_view")
-    assert (static_root / "table.css").is_file()
+    assert (static_root / "grid-view.css").is_file()
+    assert (static_root / "grid-view.min.css").is_file()
     assert not (static_root / "simple-table.js").is_file()
     assert not (static_root / "dist").is_dir()
+
+    for name in (
+        "ag-grid-cdn.js",
+        "ag-grid-host.js",
+        "ag-grid-boot.js",
+        "ag-grid-smart-filter.js",
+        "ag-grid-advanced-search.js",
+        "ag-grid-tooltip.js",
+        "chart-static-boot.js",
+        "grid-artifact-boot.js",
+        "kpi-static-boot.js",
+        "grid-view.min.js",
+        "column-settings.min.js",
+    ):
+        assert (static_root / name).is_file(), name
 
     bundle = static_root / "grid-view.js"
     assert bundle.is_file()
     assert (static_root / "column-settings.js").is_file()
     js = bundle.read_text(encoding="utf-8")
-    assert "no Node/Vite build step" in js
-    assert "CmSimpleTable" in js
     assert "GridView" in js
-    assert "initAll" in js
-    assert "refreshChartWrap" in js
+    assert "SimpleTable" in js
+    assert "CmSimpleTable" not in js
+    assert "CmGridView" not in js
+
+    min_bundle = static_root / "grid-view.min.js"
+    assert min_bundle.is_file()
+    assert len(min_bundle.read_text(encoding="utf-8")) > 1000
 
 
 def test_js_i18n_catalog_has_table_keys():
