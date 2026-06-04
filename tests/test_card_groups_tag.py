@@ -33,13 +33,10 @@ def test_render_card_groups_prepares_tabs() -> None:
     ]
     ctx = render_card_groups(tabs, rows, groups)
     prepared = ctx["tabs"]
-    assert isinstance(prepared, list)
     assert len(prepared) == 1
     tab = prepared[0]
-    assert isinstance(tab, dict)
     assert tab["label"] == "January"
     assert tab["badge"] == 2
     groups_out = tab["groups"]
-    assert isinstance(groups_out, list)
     assert groups_out[0]["count"] == 2
     assert groups_out[0]["items"] == ["A", "B"]

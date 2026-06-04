@@ -1,0 +1,68 @@
+[
+  {
+    "id": "count_rows",
+    "specs": [{"label": "Rows", "aggregate": "count"}],
+    "rows": [{"a": 1}, {"a": 2}, {"a": 3}],
+    "expect": [{"label": "Rows", "rawValue": 3, "tone": "default"}]
+  },
+  {
+    "id": "sum_amount",
+    "specs": [{"label": "Total", "column_key": "amount", "aggregate": "sum", "format": "number"}],
+    "rows": [{"amount": 100}, {"amount": 250}, {"amount": 50}],
+    "expect": [{"label": "Total", "rawValue": 400, "tone": "default"}]
+  },
+  {
+    "id": "avg_score",
+    "specs": [{"label": "Avg", "column_key": "score", "aggregate": "avg"}],
+    "rows": [{"score": 10}, {"score": 20}, {"score": 30}],
+    "expect": [{"label": "Avg", "rawValue": 20, "tone": "default"}]
+  },
+  {
+    "id": "min_value",
+    "specs": [{"label": "Min", "column_key": "value", "aggregate": "min"}],
+    "rows": [{"value": 5}, {"value": 2}, {"value": 8}],
+    "expect": [{"label": "Min", "rawValue": 2, "tone": "default"}]
+  },
+  {
+    "id": "max_value",
+    "specs": [{"label": "Max", "column_key": "value", "aggregate": "max"}],
+    "rows": [{"value": 5}, {"value": 2}, {"value": 8}],
+    "expect": [{"label": "Max", "rawValue": 8, "tone": "default"}]
+  },
+  {
+    "id": "sum_locale_strings",
+    "specs": [{"label": "Sum", "column_key": "amount", "aggregate": "sum"}],
+    "rows": [{"amount": "1 000"}, {"amount": "2 500,5"}],
+    "expect": [{"label": "Sum", "rawValue": 3500.5, "tone": "default"}]
+  },
+  {
+    "id": "sum_skips_empty",
+    "specs": [{"label": "Sum", "column_key": "amount", "aggregate": "sum"}],
+    "rows": [{"amount": 10}, {"amount": null}, {"amount": ""}, {"amount": 5}],
+    "expect": [{"label": "Sum", "rawValue": 15, "tone": "default"}]
+  },
+  {
+    "id": "sum_no_column_key",
+    "specs": [{"label": "Sum", "aggregate": "sum"}],
+    "rows": [{"amount": 100}],
+    "expect": [{"label": "Sum", "rawValue": 0, "tone": "default"}]
+  },
+  {
+    "id": "avg_empty_rows",
+    "specs": [{"label": "Avg", "column_key": "x", "aggregate": "avg"}],
+    "rows": [],
+    "expect": [{"label": "Avg", "rawValue": 0, "tone": "default"}]
+  },
+  {
+    "id": "multi_spec",
+    "specs": [
+      {"label": "Count", "aggregate": "count"},
+      {"label": "Revenue", "column_key": "amount", "aggregate": "sum", "tone": "green"}
+    ],
+    "rows": [{"amount": 100}, {"amount": 200}],
+    "expect": [
+      {"label": "Count", "rawValue": 2, "tone": "default"},
+      {"label": "Revenue", "rawValue": 300, "tone": "green"}
+    ]
+  }
+]

@@ -1,0 +1,184 @@
+[
+  {
+    "id": "bar_multi_series",
+    "spec": {
+      "id": "finance",
+      "chart_type": "bar",
+      "x_key": "name",
+      "series": [
+        {"key": "revenue", "label": "Revenue", "color": "#22c55e", "series_type": "bar"},
+        {"key": "expenses", "label": "Expenses", "color": "#ca8a04", "series_type": "bar"}
+      ]
+    },
+    "rows": [
+      {"name": "Cardio", "revenue": 1000, "expenses": 200},
+      {"name": "Neuro", "revenue": "800", "expenses": "150"}
+    ],
+    "expect": {
+      "chartType": "bar",
+      "categories": ["Cardio", "Neuro"],
+      "series": [
+        {"name": "Revenue", "values": [1000.0, 800.0], "color": "#22c55e"},
+        {"name": "Expenses", "values": [200.0, 150.0], "color": "#ca8a04"}
+      ],
+      "slices": []
+    }
+  },
+  {
+    "id": "donut_with_overlay",
+    "spec": {
+      "id": "margin",
+      "chart_type": "donut",
+      "label_key": "name",
+      "value_key": "value",
+      "overlay": {"title": "Margin", "value": "+600", "tone": "green"}
+    },
+    "rows": [
+      {"name": "Revenue", "value": 1000, "color": "#10b981"},
+      {"name": "Costs", "value": 300, "color": "#f59e0b"},
+      {"name": "Losses", "value": 100, "color": "#ef4444"}
+    ],
+    "expect": {
+      "chartType": "donut",
+      "categories": [],
+      "series": [],
+      "slices": [
+        {"label": "Revenue", "value": 1000.0, "color": "#10b981"},
+        {"label": "Costs", "value": 300.0, "color": "#f59e0b"},
+        {"label": "Losses", "value": 100.0, "color": "#ef4444"}
+      ],
+      "overlay": {"title": "Margin", "value": "+600", "tone": "green"}
+    }
+  },
+  {
+    "id": "group_by_sum",
+    "spec": {
+      "id": "dept-totals",
+      "chart_type": "bar",
+      "group_by": "dept",
+      "value_key": "amount",
+      "aggregate": "sum"
+    },
+    "rows": [
+      {"dept": "A", "amount": 10},
+      {"dept": "A", "amount": 5},
+      {"dept": "B", "amount": 7}
+    ],
+    "expect": {
+      "chartType": "bar",
+      "categories": ["A", "B"],
+      "series": [{"name": "amount", "values": [15.0, 7.0], "color": null}],
+      "slices": []
+    }
+  },
+  {
+    "id": "pie_filter_zero_values",
+    "spec": {
+      "id": "mix",
+      "chart_type": "pie",
+      "label_key": "label",
+      "value_key": "value"
+    },
+    "rows": [
+      {"label": "Active", "value": 50},
+      {"label": "Empty", "value": 0},
+      {"label": "Negative", "value": -3},
+      {"label": "Small", "value": 10}
+    ],
+    "expect": {
+      "chartType": "pie",
+      "categories": [],
+      "series": [],
+      "slices": [
+        {"label": "Active", "value": 50.0, "color": "#22c55e"},
+        {"label": "Small", "value": 10.0, "color": "#f59e0b"}
+      ]
+    }
+  },
+  {
+    "id": "stacked_bar_rows",
+    "spec": {
+      "id": "packages",
+      "chart_type": "bar",
+      "x_key": "name",
+      "stacked": true,
+      "tooltip_kind": "packages",
+      "series": [
+        {"key": "included", "label": "Included", "color": "#22c55e", "series_type": "bar"},
+        {"key": "rejected", "label": "Rejected", "color": "#ef4444", "series_type": "bar"}
+      ]
+    },
+    "rows": [
+      {"name": "Pkg A", "included": 100, "rejected": 20, "_loss_mode": true},
+      {"name": "Pkg B", "included": 80, "rejected": 10}
+    ],
+    "expect": {
+      "chartType": "bar",
+      "categories": ["Pkg A", "Pkg B"],
+      "series": [
+        {"name": "Included", "values": [0.0, 80.0], "color": "#22c55e"},
+        {"name": "Rejected", "values": [20.0, 10.0], "color": "#ef4444"}
+      ],
+      "slices": []
+    }
+  },
+  {
+    "id": "line_single_series",
+    "spec": {
+      "id": "trend",
+      "chart_type": "line",
+      "x_key": "month",
+      "series": [{"key": "total", "label": "Total", "color": "#3b82f6", "series_type": "line"}]
+    },
+    "rows": [
+      {"month": "Jan", "total": 100},
+      {"month": "Feb", "total": "120,5"}
+    ],
+    "expect": {
+      "chartType": "line",
+      "categories": ["Jan", "Feb"],
+      "series": [{"name": "Total", "values": [100.0, 120.5], "color": "#3b82f6"}],
+      "slices": []
+    }
+  },
+  {
+    "id": "group_by_avg",
+    "spec": {
+      "id": "avg-score",
+      "chart_type": "bar",
+      "group_by": "team",
+      "value_key": "score",
+      "aggregate": "avg"
+    },
+    "rows": [
+      {"team": "X", "score": 10},
+      {"team": "X", "score": 20},
+      {"team": "Y", "score": 5}
+    ],
+    "expect": {
+      "chartType": "bar",
+      "categories": ["X", "Y"],
+      "series": [{"name": "score", "values": [15.0, 5.0], "color": null}],
+      "slices": []
+    }
+  },
+  {
+    "id": "simple_value_chart",
+    "spec": {
+      "id": "plain",
+      "chart_type": "bar",
+      "x_key": "name",
+      "value_key": "qty"
+    },
+    "rows": [
+      {"name": "Alpha", "qty": "1 234,5"},
+      {"name": "Beta", "qty": null}
+    ],
+    "expect": {
+      "chartType": "bar",
+      "categories": ["Alpha", "Beta"],
+      "series": [{"name": "qty", "values": [1234.5, 0.0], "color": null}],
+      "slices": []
+    }
+  }
+]
