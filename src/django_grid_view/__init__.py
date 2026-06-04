@@ -18,6 +18,7 @@ from django_grid_view.types import (
     KpiSpec,
     RowDict,
     ViewSpecInput,
+    coerce_float,
 )
 
 __all__ = [
@@ -36,6 +37,7 @@ __all__ = [
     "ViewSpecInput",
     "build_artifact_from_view",
     "build_artifact_json_from_view",
+    "coerce_float",
     "parse_grid_view_spec",
     "parse_grid_view_spec_json",
 ]

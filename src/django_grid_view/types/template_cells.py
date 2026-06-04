@@ -69,6 +69,8 @@ class SimpleTableRenderContext(TypedDict):
     footer_cells: list[TableFooterCell] | None
     rows: list[PreparedTableRow]
     count: int
+    load_styles: bool
+    load_scripts: bool
     load_assets: bool
     column_settings: bool
     column_meta_json: NotRequired[str]

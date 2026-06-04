@@ -37,6 +37,23 @@ class KpiTone(str, Enum):
     AMBER = "amber"
 
 
+class ChartPaletteColor(str, Enum):
+    """Hex colors for static chart export (matplotlib / PDF)."""
+
+    GREEN = "#22c55e"
+    RED = "#ef4444"
+    AMBER = "#f59e0b"
+    BLUE = "#3b82f6"
+    TEXT = "#1e293b"
+    GRID = "#e2e8f0"
+    OVERLAY_MUTED = "#475569"
+
+    @classmethod
+    def cycle(cls, index: int) -> ChartPaletteColor:
+        """Rotate green → amber → red for uncolored pie/donut slices."""
+        return (cls.GREEN, cls.AMBER, cls.RED)[index % 3]
+
+
 class BlockType(str, Enum):
     TITLE = "title"
     KPIS = "kpis"

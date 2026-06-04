@@ -11,7 +11,7 @@ from django.http import HttpRequest
 from django_grid_view.search.params import COL_FILTERS_PARAM
 from django_grid_view.search.smart import match_smart_haystack
 from django_grid_view.tables import SimpleTableConfig
-from django_grid_view.types.json import RowDict
+from django_grid_view.types.json import RowDict, as_str_object_dict
 
 __all__ = [
     "filter_rows_by_column_filters",
@@ -32,10 +32,11 @@ def parse_column_filters(raw: str | None) -> dict[str, str]:
         parsed = json.loads(text)
     except json.JSONDecodeError:
         return {}
-    if not isinstance(parsed, dict):
+    parsed_map = as_str_object_dict(parsed)
+    if not parsed_map:
         return {}
     out: dict[str, str] = {}
-    for key, val in parsed.items():
+    for key, val in parsed_map.items():
         col_key = str(key).strip()
         query = str(val).strip() if val is not None else ""
         if col_key and query:

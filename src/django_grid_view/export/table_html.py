@@ -14,8 +14,8 @@ from django_grid_view.render.section_totals import (
     grand_total_footer_row,
     inject_group_section_totals,
 )
+from django_grid_view.render.simple_table_context import build_footer_cells, build_header_rows
 from django_grid_view.tables import Column, SimpleTableConfig
-from django_grid_view.templatetags.django_grid_view import build_footer_cells, build_header_rows
 from django_grid_view.types.json import RowDict
 from django_grid_view.types.table import LabelText
 from django_grid_view.types.template_cells import TableHeaderCell

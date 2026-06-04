@@ -9,6 +9,7 @@ from django.utils.translation import gettext
 
 from django_grid_view.tables import SimpleTableConfig
 from django_grid_view.types.json import RowDict
+from django_grid_view.types.numbers import to_json_number
 
 
 def build_section_total_row(
@@ -21,13 +22,13 @@ def build_section_total_row(
         label = config.footer_label or gettext("section.total")
         total_row[config.columns[0].key] = force_str(label)
     for col in config.columns:
-        values = []
+        values: list[int | float | Decimal] = []
         for row in section_rows:
             raw = row.get(col.key)
             if isinstance(raw, (int, float, Decimal)) and not isinstance(raw, bool):
                 values.append(raw)
         if values:
-            total_row[col.key] = sum(values)
+            total_row[col.key] = to_json_number(sum(values))
     return total_row
 
 
