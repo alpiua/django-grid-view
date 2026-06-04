@@ -6,9 +6,11 @@ Load tags with `{% load django_grid_view %}`.
 
 | Tag | Template | Purpose |
 |-----|----------|---------|
-| `{% grid_view_bundle %}` | `bundle.html` | CSS + `grid-view.js` (once per page) |
+| `{% grid_view_styles %}` | `styles.html` | `grid-view.min.css` (table + smart-filter; once per render) |
+| `{% grid_view_bundle %}` | `bundle.html` | i18n boot + `grid-view.min.js` + `column-settings.min.js` (once per page) |
 
-Inclusion tags below auto-load assets on first use unless `grid_view_bundle` was already rendered.
+Host base template: call `{% grid_view_styles %}` in `<head>`, `{% grid_view_bundle %}` before `</body>`.
+Inclusion tags below auto-load both on first use unless the host already rendered them.
 
 ## Simple Table
 
@@ -37,7 +39,6 @@ Inclusion tags below auto-load assets on first use unless `grid_view_bundle` was
 | `{% render_filter_bar %}` | `filter_specs`, selected values | Declarative filter bar (`FilterSpec`) |
 | `{% render_search_unified %}` | `SearchSpec`, value | Unified search input |
 | `{% render_toolbar_search %}` | `scope_id`, backend/mode/value, `apply_on_enter` | Toolbar search for Simple Table or AG-Grid |
-| `{% grid_view_column_settings_assets %}` | — | Lazy-load column settings JS/CSS once |
 
 ### `django_grid_view_scripts`
 
@@ -82,11 +83,14 @@ See [AG-Grid integration](../ag-grid.md) for `gridOptions.context` hooks and boo
 |-----|-----------|---------|
 | `{% export_pdf_href builder … %}` | `builder` + optional query kwargs | PDF URL (`DJANGO_GRID_VIEW_EXPORT_PDF_URL`) |
 | `{% export_xlsx_href builder … %}` | same | XLSX URL (`DJANGO_GRID_VIEW_EXPORT_XLSX_URL`) |
+| `{% ag_grid_cdn_url %}` | — | Pinned AG-Grid script URL (host base template) |
+| `{% sortable_cdn_url %}` | — | Pinned Sortable.js script URL (host base template) |
+| `{% echarts_cdn_url %}` | — | Pinned ECharts script URL (host base template) |
 
-`build_export_href(route_name, builder, **query)` skips empty values. Host must mount export views and register builders — [Getting started](../getting-started.md), [PDF](../guides/pdf-export.md), [XLSX](../guides/xlsx-export.md).
+`build_export_href` lives in `django_grid_view.export.hrefs` (used by templatetags). Skips empty values. Host must mount export views and register builders — [Getting started](../getting-started.md), [PDF](../guides/pdf-export.md), [XLSX](../guides/xlsx-export.md).
 
 For filterable dashboards, keep query params synchronized between page and export links; see [Server filtering contract](../guides/server-filtering-contract.md).
 
 ## Context helper
 
-`get_grid_state(context, grid_id)` — returns `(col_presets_json, searches_json)` for embedding in templates (used internally by toolbar).
+`get_grid_state(context, grid_id)` — in `django_grid_view.render.grid_preferences`; returns `(col_presets_json, searches_json)` for toolbar embedding (used internally by inclusion tags).

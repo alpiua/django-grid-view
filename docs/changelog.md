@@ -34,6 +34,37 @@ No unreleased changes.
 
 ---
 
+## 1.2.0
+
+**2026-06-04** — TypeScript frontend, minified static assets, CSS bundle, Python↔JS conformance.
+
+### Added
+
+- TypeScript sources in `frontend/src/`; CI builds `.min.js` / `.min.css` with esbuild.
+- `{% grid_view_styles %}` → `grid-view.min.css` (table + AG-Grid smart-filter chrome).
+- CDN helpers: `ag_grid_cdn_url()`, `sortable_cdn_url()`, `echarts_cdn_url()` + matching template tags.
+- Shared chart/KPI semantic layer and JSON conformance fixtures (pytest + `npm run test:conformance`).
+
+### Changed
+
+- **Breaking:** dropped `{% grid_view_column_settings_assets %}`, `CmGridView`, `CmSimpleTable` — use `{% grid_view_bundle %}` / `GridView.*`.
+- Asset tags dedupe CSS/JS once per Django render context.
+- AG-Grid boot split into focused static modules.
+
+### Performance
+
+Simple Table page transfer (JS + CSS):
+
+| | Size |
+|--|------|
+| 1.1.2 as shipped (unminified) | 152 KiB |
+| 1.2.0 as shipped (minified) | 92 KiB |
+| **Gain** | **−40%** |
+
+See root `CHANGELOG.md` for maintainer TS → min pipeline notes.
+
+---
+
 ## 1.1.2
 
 **2026-06-03** — Toolbar search backend rename (`ag_grid`) and clear-button fixes.

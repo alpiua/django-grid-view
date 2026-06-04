@@ -106,7 +106,7 @@ footer_label_span=2,
 {% render_simple_table config %}
 ```
 
-The tag builds header/footer rows and injects `data-cm-*` attributes consumed by `grid-view.js` (`GridView.SimpleTable` + `GridView.ColumnSettingsManager`).
+The tag delegates to `render.simple_table_context` (header/footer/body prep) and injects `data-cm-*` attributes consumed by `grid-view.min.js` (`GridView.SimpleTable` + column settings).
 
 ## Export
 
@@ -142,4 +142,4 @@ See [Grid View artifacts](grid-view-artifacts.md) for the unified spec path.
 
 ## Shared column settings with AG-Grid
 
-`GridView.ColumnSettingsManager` lives in `column-settings.js`, loaded only when `column_settings=True` via `{% grid_view_column_settings_assets %}` (included from `simple/table.html` and AG-Grid `scripts.html`). `grid-view.js` stays on every page (sort, search, charts). AG-Grid `ContextGridManager` delegates after `gridApi` init. Same modal: `django_grid_view/modal.html`.
+Column settings UI (`modal.html`, presets, drag/pin) is implemented in `column-settings.min.js` as `GridView.createColumnSettings`. It ships with `{% grid_view_bundle %}` alongside `grid-view.min.js`. `AgGridHost` delegates after `gridApi` init; Simple Table uses the DOM table adapter. Same modal: `django_grid_view/modal.html`.

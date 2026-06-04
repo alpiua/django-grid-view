@@ -19,7 +19,7 @@ Building dashboards and chat analytics in Django usually means stitching togethe
 | Principle | What it means for you |
 |-----------|------------------------|
 | **Structure ≠ data** | Specs (`GridViewSpec`, wire JSON) describe columns, KPIs, and charts — never row values or aggregates from an LLM. |
-| **One render path** | `GridRenderer.build(spec, rows)` → `GridArtifact` → templates + `grid-view.js`. No parallel chart/table code paths. |
+| **One render path** | `GridRenderer.build(spec, rows)` → `GridArtifact` → templates + `grid-view.min.js`. No parallel chart/table code paths. |
 | **Typed boundaries** | `py.typed`, strict-friendly `django_grid_view.types`, JSON Schema for wire specs — host apps keep pyright/mypy honest. |
 | **Production habits** | HTMX-safe AG-Grid lifecycle, saved grid preferences, uk/en i18n, optional matplotlib PNG export for PDFs. |
 
@@ -158,6 +158,28 @@ uv run ruff check . && uv run ruff format --check .
 uv run basedpyright --warnings src/django_grid_view tests
 ./scripts/docs_serve.sh   # MkDocs + LLM bundle
 ```
+
+### JavaScript (maintainers only)
+
+Browser bundles are built from TypeScript in `frontend/src/` and written to `src/django_grid_view/static/django_grid_view/` (`.js` + `.min.js`). **PyPI consumers do not need Node** — the wheel ships pre-built static files.
+
+```
+frontend/src/
+  grid-view-entry.ts      # esbuild entry (IIFE bundle → grid-view.js)
+  grid-view/              # modules: charts, kpi, filter-bar, search/, …
+  column-settings.ts
+  types/                  # chart-bind, kpi-bind (mirror Python contracts)
+```
+
+```bash
+cd frontend && npm ci && npm run build   # transpile + minify
+npm run typecheck && npm run lint        # strict types on search/ + contracts; eslint on all src/
+npm run test:conformance                 # Python↔JS filter/search parity (shared JSON fixtures)
+```
+
+After editing `frontend/src/*.ts`, commit the regenerated static artifacts (CI verifies `git diff --exit-code src/django_grid_view/static/`).
+
+**Load order for host pages:** `{% grid_view_bundle %}` once → `grid-view.min.js` + `column-settings.min.js`. AG-Grid pages add `scripts.html` partials. Details: [Architecture](https://alpiua.github.io/django-grid-view/architecture/#front-end-bundle) · [JavaScript API](https://alpiua.github.io/django-grid-view/reference/javascript/).
 
 Release: tag `v*` on `main` → PyPI via trusted publishing (`environment: pypi`). Docs deploy from `main` via GitHub Actions.
 

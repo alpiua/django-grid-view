@@ -49,6 +49,8 @@ DJANGO_GRID_VIEW_EXPORT_XLSX_URL = "api_export_xlsx"
 
 ```django
 {% load django_grid_view %}
+{% grid_view_styles %}
+{# … page … #}
 {% grid_view_bundle %}
 ```
 
@@ -73,7 +75,7 @@ https://alpiua.github.io/django-grid-view/getting-started/
 
 - `SimpleTableConfig(..., column_settings=True, grid_id="…")`
 - `{% render_django_grid_view_gear grid_id %}` + modal (from `render_simple_table` or explicit `modal.html`)
-- `column_settings_assets` injects `GridViewI18n` before `column-settings.js`
+- `{% grid_view_bundle %}` loads `column-settings.min.js` (Sortable from host base template)
 - Export partials: `grid_id` → syncs `export_cols` on PDF/XLSX href
 
 ---

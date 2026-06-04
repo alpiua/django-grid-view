@@ -36,6 +36,11 @@ INSTALLED_APPS = [
 # settings.py (export + grid prefs URL names used by templatetags and scripts.html)
 DJANGO_GRID_VIEW_EXPORT_PDF_URL = "api_export_pdf"
 DJANGO_GRID_VIEW_EXPORT_XLSX_URL = "api_export_xlsx"
+
+# Optional: pin third-party CDN scripts (see docs/ag-grid.md#cdn-pins-confpy)
+# DJANGO_GRID_VIEW_AG_GRID_VERSION = "31.3.2"
+# DJANGO_GRID_VIEW_SORTABLE_VERSION = "1.15.2"
+# DJANGO_GRID_VIEW_ECHARTS_VERSION = "5.5.1"
 ```
 
 Mount HTTP routes in **your** API `urls.py` (the package ships an empty `django_grid_view.urls` — do not `include()` it):
@@ -70,14 +75,24 @@ This creates the `GridPreference` model used for per-user column presets and sav
 
 ## Load assets once per page
 
-Grid View inclusion tags auto-load CSS/JS on first use. For explicit control:
+Host base template (recommended):
 
 ```django
 {% load django_grid_view %}
-{% grid_view_bundle %}
+{% grid_view_styles %}   {# <head> — grid-view.min.css #}
+…
+{% grid_view_bundle %}   {# before </body> — grid-view.min.js + column-settings.min.js #}
 ```
 
-Place `{% grid_view_bundle %}` in your base template, or rely on auto-load from `render_simple_table`, `render_grid_view`, etc.
+Optional CDN pins in `<head>` before the bundle — see [AG-Grid integration](ag-grid.md#cdn-pins-confpy):
+
+```django
+<script src="{% ag_grid_cdn_url %}"></script>
+<script src="{% sortable_cdn_url %}"></script>
+<script src="{% echarts_cdn_url %}"></script>
+```
+
+Inclusion tags (`{% render_simple_table %}`, `{% render_grid_view %}`, …) auto-load CSS/JS on first use when the host did not call the tags above.
 
 ## First Simple Table
 

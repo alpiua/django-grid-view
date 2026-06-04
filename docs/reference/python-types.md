@@ -9,6 +9,9 @@ Full API surface: `django_grid_view.types` (see `types.__all__` in source).
 | Use case | Import from |
 |----------|-------------|
 | Table rows | `django_grid_view.types` → `RowDict` |
+| Parsed JSON / filters | `as_str_object_dict`, `json_object_list_from`, `is_object_list`, `coerce_float`, `to_json_number` |
+| Card groups render context | `CardGroupsRenderContext`, `PreparedCardTab`, `PreparedCardGroup` |
+| Chart export colors | `ChartPaletteColor` |
 | Python-built grid | `GridViewSpec`, `ColumnSpec`, `KpiSpec`, `ChartSpec`, `SeriesSpec` |
 | LLM / JSON spec | `GridViewSpecWire`, `ColumnSpecWire`, `JsonObject`, `ViewSpecInput` |
 | Chat / frontend payload | `GridArtifactJson`, `GridLayoutDict` |
@@ -46,17 +49,22 @@ Prefer `django_grid_view.types` when you need enums, wire helpers, or the full l
 ```python
 from django_grid_view.types import (
     BlockType,
+    ChartPaletteColor,
     ChartSpec,
     ChartType,
     ColumnFormat,
     ColumnSpec,
     GridViewSpec,
+    JsonObject,
     KpiAggregate,
     KpiSpec,
     KpiTone,
     RowDict,
     SeriesSpec,
     ViewLayout,
+    as_str_object_dict,
+    coerce_float,
+    json_object_list_from,
 )
 from django_grid_view.render import GridRenderer, build_artifact_from_view
 

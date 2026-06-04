@@ -117,6 +117,11 @@ INSTALLED_APPS = [
 # settings.py (export + grid prefs URL names used by templatetags and scripts.html)
 DJANGO_GRID_VIEW_EXPORT_PDF_URL = "api_export_pdf"
 DJANGO_GRID_VIEW_EXPORT_XLSX_URL = "api_export_xlsx"
+
+# Optional: pin third-party CDN scripts (see docs/ag-grid.md#cdn-pins-confpy)
+# DJANGO_GRID_VIEW_AG_GRID_VERSION = "31.3.2"
+# DJANGO_GRID_VIEW_SORTABLE_VERSION = "1.15.2"
+# DJANGO_GRID_VIEW_ECHARTS_VERSION = "5.5.1"
 ```
 
 Mount HTTP routes in **your** API `urls.py` (the package ships an empty `django_grid_view.urls` — do not `include()` it):
@@ -151,14 +156,24 @@ This creates the `GridPreference` model used for per-user column presets and sav
 
 ## Load assets once per page
 
-Grid View inclusion tags auto-load CSS/JS on first use. For explicit control:
+Host base template (recommended):
 
 ```django
 {% load django_grid_view %}
-{% grid_view_bundle %}
+{% grid_view_styles %}   {# <head> — grid-view.min.css #}
+…
+{% grid_view_bundle %}   {# before </body> — grid-view.min.js + column-settings.min.js #}
 ```
 
-Place `{% grid_view_bundle %}` in your base template, or rely on auto-load from `render_simple_table`, `render_grid_view`, etc.
+Optional CDN pins in `<head>` before the bundle — see [AG-Grid integration](ag-grid.md#cdn-pins-confpy):
+
+```django
+<script src="{% ag_grid_cdn_url %}"></script>
+<script src="{% sortable_cdn_url %}"></script>
+<script src="{% echarts_cdn_url %}"></script>
+```
+
+Inclusion tags (`{% render_simple_table %}`, `{% render_grid_view %}`, …) auto-load CSS/JS on first use when the host did not call the tags above.
 
 ## First Simple Table
 
@@ -326,7 +341,7 @@ footer_label_span=2,
 {% render_simple_table config %}
 ```
 
-The tag builds header/footer rows and injects `data-cm-*` attributes consumed by `grid-view.js` (`GridView.SimpleTable` + `GridView.ColumnSettingsManager`).
+The tag delegates to `render.simple_table_context` (header/footer/body prep) and injects `data-cm-*` attributes consumed by `grid-view.min.js` (`GridView.SimpleTable` + column settings).
 
 ## Export
 
@@ -362,7 +377,7 @@ See Grid View artifacts (see section: grid-view-artifacts.md) for the unified sp
 
 ## Shared column settings with AG-Grid
 
-`GridView.ColumnSettingsManager` lives in `column-settings.js`, loaded only when `column_settings=True` via `{% grid_view_column_settings_assets %}` (included from `simple/table.html` and AG-Grid `scripts.html`). `grid-view.js` stays on every page (sort, search, charts). AG-Grid `ContextGridManager` delegates after `gridApi` init. Same modal: `django_grid_view/modal.html`.
+Column settings UI (`modal.html`, presets, drag/pin) is implemented in `column-settings.min.js` as `GridView.createColumnSettings`. It ships with `{% grid_view_bundle %}` alongside `grid-view.min.js`. `AgGridHost` delegates after `gridApi` init; Simple Table uses the DOM table adapter. Same modal: `django_grid_view/modal.html`.
 
 
 ---
@@ -383,6 +398,36 @@ Extension layer for [AG Grid Community](https://www.ag-grid.com/) 31.x in Django
 | `AgGridHost`, toolbar, modal, search bar | Package |
 | `GridView.AgGrid`, `django_grid_view.ag_grid` | Package |
 | `GridPreference` (named presets, saved searches) | Package model; host mounts save URL |
+
+## CDN pins (`conf.py`)
+
+AG-Grid and SortableJS load from CDN on AG-Grid pages. Versions are **pinned in Django settings**, not hardcoded in templates — host apps can override for self-hosting or semver bumps without forking JS.
+
+| Setting | Default | Purpose |
+|---------|---------|---------|
+| `DJANGO_GRID_VIEW_AG_GRID_VERSION` | `31.3.2` | AG-Grid Community semver (jsDelivr URL built automatically) |
+| `DJANGO_GRID_VIEW_AG_GRID_CDN_URL` | *(built from version)* | Full script URL override (self-hosted mirror) |
+| `DJANGO_GRID_VIEW_SORTABLE_VERSION` | `1.15.2` | SortableJS for column-settings drag-reorder |
+| `DJANGO_GRID_VIEW_SORTABLE_CDN_URL` | *(built from version)* | Full Sortable script URL override |
+| `DJANGO_GRID_VIEW_ECHARTS_VERSION` | `5.5.1` | ECharts semver (host base template) |
+| `DJANGO_GRID_VIEW_ECHARTS_CDN_URL` | *(built from version)* | Full ECharts script URL override |
+
+```python
+# settings.py — optional overrides
+DJANGO_GRID_VIEW_AG_GRID_VERSION = "31.3.2"
+# DJANGO_GRID_VIEW_AG_GRID_CDN_URL = "https://static.myapp.example/vendor/ag-grid-community.min.js"
+DJANGO_GRID_VIEW_SORTABLE_VERSION = "1.15.2"
+DJANGO_GRID_VIEW_ECHARTS_VERSION = "5.5.1"
+```
+
+Host base template (charts):
+
+```django
+<script src="{{ echarts_cdn_url }}"></script>
+{# or in view context: from django_grid_view.conf import echarts_cdn_url #}
+```
+
+Python helpers: `django_grid_view.conf.ag_grid_cdn_url()`, `sortable_cdn_url()`, `echarts_cdn_url()`.
 
 ## Architecture
 
@@ -678,7 +723,7 @@ register_xlsx_builder("products", build_products_xlsx_report, filename_fn=…)
 
 ## Persistence
 
-Column settings UI (`modal.html`, presets, drag/pin) is implemented once in `grid-view.js` as `GridView.ColumnSettings`. `AgGridHost` delegates to it after `gridApi` init; Simple Table uses the DOM table adapter. See [Simple Table — column settings](simple-table.md#column-settings).
+Column settings UI (`modal.html`, presets, drag/pin) lives in `column-settings.min.js` (`GridView.createColumnSettings`). `AgGridHost` delegates to it after `gridApi` init; Simple Table uses the DOM table adapter. Both ship via `{% grid_view_bundle %}`. See [Simple Table — column settings](simple-table.md#shared-column-settings-with-ag-grid).
 
 Three storage layers:
 
@@ -824,7 +869,18 @@ kpis = resolve_kpis(specs, rows)
 
 ## Charts (static rows)
 
-Requires `window.echarts` on the page (load ECharts CDN in your base template).
+Requires `window.echarts` on the page. Pin the CDN in settings or load explicitly:
+
+```django
+{% load django_grid_view %}
+<script src="{{ echarts_cdn_url }}"></script>
+```
+
+```python
+# settings.py (optional)
+DJANGO_GRID_VIEW_ECHARTS_VERSION = "5.5.1"
+# from django_grid_view.conf import echarts_cdn_url  # in view context
+```
 
 ```python
 from django_grid_view.types import ChartSpec, ChartType, RowDict, SeriesSpec
@@ -1160,13 +1216,13 @@ flowchart TB
 
 **Single contract:** `GridViewSpec + rows[] → build_artifact_from_view()` (or
 `GridRenderer.build`). The host owns labels, URLs, filter options, and ORM filters; the
-package owns widgets, templates, `grid-view.js`, and export adapters.
+package owns widgets, templates, `grid-view.min.js`, and export adapters.
 
 ### Responsibility split
 
 | Layer | django-grid-view | example project (host) |
 |-------|------------------|----------------------|
-| CSS, toolbar, KPI, chips, cards | `table.css`, partials, `CardGridSpec`, `FilterBarSpec` | domain labels, tones, layout blocks |
+| CSS, toolbar, KPI, chips, cards | `grid-view.css`, partials, `CardGridSpec`, `FilterBarSpec` | domain labels, tones, layout blocks |
 | Tables | `Column`, `SimpleTableConfig`, `ColumnSpec` | domain columns, row serializers |
 | Charts / KPI | `ChartSpec`, `KpiSpec`, ECharts bind | builders from aggregated querysets |
 | Server XLSX | declarative `XlsxReport` + xlsxwriter (openpyxl optional) | register host `…/export/xlsx/?builder=` builders |
@@ -1206,7 +1262,7 @@ rows: list[dict]   +   GridViewSpec          →   GridArtifact
 
 | Layer | Responsibility |
 |-------|----------------|
-| **Package** | Types, parser, `GridRenderer`, adapters, `grid-view.js`, CSS, i18n, export/throttle |
+| **Package** | Types, parser, `GridRenderer`, adapters, static JS bundles, CSS, i18n, export/throttle |
 | **Consumer app** | `rows` (SQL/ORM), domain labels/URLs, AG-Grid instance, filter → queryset |
 | **Chat / LLM** | `GridViewSpec` JSON only; no row data or KPI numbers |
 
@@ -1223,9 +1279,102 @@ See JavaScript API (see section: reference/javascript.md).
 
 ## Front-end bundle
 
-All browser code lives in **`static/django_grid_view/grid-view.js`** — one IIFE, no Vite build. Python types in `types/chart_bind.py` define the chart runtime contract.
+### PyPI vs Node
+
+| Who | Node required? | Why |
+|-----|----------------|-----|
+| **Production host** (`pip install`) | No | Wheel ships pre-built `.min.js` under `static/` |
+| **Host-app developer** | No | Django `{% static %}` / `collectstatic` only |
+| **django-grid-view maintainer** | Yes (local or CI) | `frontend/` → esbuild → committed artifacts |
+
+Node is **not** in `[project.dependencies]`. Consumers never run `npm install`.
+
+### What ships in the wheel
+
+| File | Role |
+|------|------|
+| `grid-view.min.js` | Main IIFE — Simple Table, KPI, charts, filter bar, search (`GridView`) |
+| `column-settings.min.js` | Column presets modal (Sortable); loaded with `{% grid_view_bundle %}` |
+| `ag-grid-cdn.js` | Loads AG-Grid community CDN (pinned version) |
+| `ag-grid-host.js` | `AgGridHost` class (toolbar, persistence, export sync) |
+| `ag-grid-boot.js` | Reads `.cm-ag-grid-boot-config` JSON; HTMX `registerBoot` |
+| `ag-grid-smart-filter.js` | Optional AG-Grid filter plugin (styles in `grid-view.css`) |
+| `ag-grid-advanced-search.js` | Smart quick-filter factory |
+| `ag-grid-tooltip.js` | Custom tooltip component |
+| `chart-static-boot.js` | ECharts poll + HTMX `afterSwap` for static charts |
+| `grid-artifact-boot.js` | Boot `[data-cm-grid-artifact-boot]` → `GridView.init` |
+| `kpi-static-boot.js` | Static KPI strip initializer |
+| `grid-view.css` / `.min.css` | Table, toolbar, KPI, smart-filter chrome (built from `frontend/styles/`) |
+
+Source lives in `frontend/src/` (TypeScript + esbuild). CI runs `npm run build`, `typecheck`, `lint`, and `npm run test:conformance` (Python↔JS filter/search/KPI parity via shared JSON fixtures).
+
+Python types in `types/chart_bind.py` and `types/kpi_bind.py` define wire contracts mirrored in `frontend/src/types/`.
 
 Host apps import public types from `django_grid_view.types` (Python types (see section: reference/python-types.md)); `py.typed` is shipped in the wheel.
+
+### Load order (Simple Table / Grid View pages)
+
+```django
+{% grid_view_bundle %}   {# once per page #}
+```
+
+`bundle.html` injects, in order:
+
+1. Inline boot — `window.GridView.preferencesUrl`, `window.GridViewI18n`
+2. `grid-view.min.js`
+3. `column-settings.min.js`
+
+Inclusion tags (`render_simple_table`, `render_grid_view`, …) set `load_assets=True` on first use and include `bundle.html` when the host did not call `{% grid_view_bundle %}` already.
+
+Optional globals the host may define **before** the bundle:
+
+| Global | Purpose |
+|--------|---------|
+| `window.echarts` | Required for charts (CDN in host base template) |
+| `window.agGrid` | Loaded by `ag-grid-cdn.js` on AG-Grid pages |
+| `window.Sortable` | Column drag-reorder (host base template) |
+| `window.CMPeriodFilter` | Optional period widget hook for filter bar |
+
+Page-specific boot scripts (`chart-static-boot.js`, `grid-artifact-boot.js`) are included by chart/grid templates — no inline business logic in HTML.
+
+### AG-Grid page load order
+
+Via `{% include "django_grid_view/scripts.html" … %}`:
+
+1. Inline `window.__djangoGridViewCdn.agGridUrl` (pinned AG-Grid CDN)
+2. `ag-grid-cdn.js`
+3. `ag-grid-host.js`
+4. JSON boot config (`.cm-ag-grid-boot-config`)
+5. `ag-grid-boot.js`
+
+Plugin partials add their static JS/CSS (`smart_filter.html`, etc.).
+
+See JavaScript API (see section: reference/javascript.md) for runtime APIs and AG-Grid integration (see section: ag-grid.md) for host wiring.
+
+### Python↔JS parity (maintainers)
+
+Filter and smart-search semantics are locked by shared fixtures:
+
+- `tests/fixtures/filter_conformance.json`
+- `tests/fixtures/smart_search_conformance.json`
+
+pytest (`tests/test_filter_conformance.py`) and `npm run test:conformance` in `frontend/` must agree.
+
+KPI **aggregates** (compare `rawValue` only — formatting differs by locale):
+
+- `tests/fixtures/kpi_conformance.json`
+- Python: `resolve_kpis()` in `render/kpi.py`
+- JS: `resolveKpis()` in `frontend/src/grid-view/kpi.ts`
+- Included in `npm run test:conformance`
+
+Chart **semantic** data (categories, series values, pie slices) uses:
+
+- `tests/fixtures/chart_resolve_conformance.json`
+- Python: `resolve_chart_data()` in `render/charts.py`
+- JS: `resolveChartData()` in `frontend/src/grid-view/resolve-chart.ts`
+- `npm run test:chart-conformance`
+
+Matplotlib PDF export reads `ResolvedChartData` only — no direct row parsing in renderers.
 
 ## Internationalization
 
@@ -1237,13 +1386,13 @@ Package chrome uses Django `locale/` (en + uk) and `window.GridViewI18n` injecte
 |--------|----------------|
 | `types/` | Enums, specs, JSON parsing (`filters`, `cards`, wire types, `AgGridPageSpec`) |
 | `ag_grid/` | Infinite API param parsing, filter/sort helpers, export column resolution |
-| `render/` | `GridRenderer`, KPI/chart resolution |
+| `render/` | `GridRenderer`, KPI/chart resolution, `simple_table_context`, `grid_preferences` |
 | `tables.py` | `Column`, `SimpleTableConfig` |
-| `export/` | HTML report, PDF/XLSX backends, static charts, throttle |
-| `templatetags/` | Inclusion tags (`render_grid_view`, `render_filter_bar`, cards) |
+| `export/` | HTML report, PDF/XLSX backends, static charts, throttle, `hrefs` |
+| `templatetags/` | Inclusion tags only (`render_grid_view`, `render_simple_table`, …) |
 | `models.py` | `GridPreference` |
-| `templates/django_grid_view/` | `scripts.html` (`AgGridHost`), plugins, partials |
-| `static/django_grid_view/` | `grid-view.js`, `table.css` |
+| `templates/django_grid_view/` | Thin templates + JSON boot configs + `{% static %}` script tags |
+| `static/django_grid_view/` | Pre-built `.min.js`, `grid-view.min.css` (non-min artifacts for debug) |
 
 ## Server PDF export
 
@@ -1298,9 +1447,11 @@ Load tags with `{% load django_grid_view %}`.
 
 | Tag | Template | Purpose |
 |-----|----------|---------|
-| `{% grid_view_bundle %}` | `bundle.html` | CSS + `grid-view.js` (once per page) |
+| `{% grid_view_styles %}` | `styles.html` | `grid-view.min.css` (table + smart-filter; once per render) |
+| `{% grid_view_bundle %}` | `bundle.html` | i18n boot + `grid-view.min.js` + `column-settings.min.js` (once per page) |
 
-Inclusion tags below auto-load assets on first use unless `grid_view_bundle` was already rendered.
+Host base template: call `{% grid_view_styles %}` in `<head>`, `{% grid_view_bundle %}` before `</body>`.
+Inclusion tags below auto-load both on first use unless the host already rendered them.
 
 ## Simple Table
 
@@ -1329,7 +1480,6 @@ Inclusion tags below auto-load assets on first use unless `grid_view_bundle` was
 | `{% render_filter_bar %}` | `filter_specs`, selected values | Declarative filter bar (`FilterSpec`) |
 | `{% render_search_unified %}` | `SearchSpec`, value | Unified search input |
 | `{% render_toolbar_search %}` | `scope_id`, backend/mode/value, `apply_on_enter` | Toolbar search for Simple Table or AG-Grid |
-| `{% grid_view_column_settings_assets %}` | — | Lazy-load column settings JS/CSS once |
 
 ### `django_grid_view_scripts`
 
@@ -1374,14 +1524,17 @@ See AG-Grid integration (see section: ag-grid.md) for `gridOptions.context` hook
 |-----|-----------|---------|
 | `{% export_pdf_href builder … %}` | `builder` + optional query kwargs | PDF URL (`DJANGO_GRID_VIEW_EXPORT_PDF_URL`) |
 | `{% export_xlsx_href builder … %}` | same | XLSX URL (`DJANGO_GRID_VIEW_EXPORT_XLSX_URL`) |
+| `{% ag_grid_cdn_url %}` | — | Pinned AG-Grid script URL (host base template) |
+| `{% sortable_cdn_url %}` | — | Pinned Sortable.js script URL (host base template) |
+| `{% echarts_cdn_url %}` | — | Pinned ECharts script URL (host base template) |
 
-`build_export_href(route_name, builder, **query)` skips empty values. Host must mount export views and register builders — Getting started (see section: getting-started.md), PDF (see section: guides/pdf-export.md), XLSX (see section: guides/xlsx-export.md).
+`build_export_href` lives in `django_grid_view.export.hrefs` (used by templatetags). Skips empty values. Host must mount export views and register builders — Getting started (see section: getting-started.md), PDF (see section: guides/pdf-export.md), XLSX (see section: guides/xlsx-export.md).
 
 For filterable dashboards, keep query params synchronized between page and export links; see Server filtering contract (see section: guides/server-filtering-contract.md).
 
 ## Context helper
 
-`get_grid_state(context, grid_id)` — returns `(col_presets_json, searches_json)` for embedding in templates (used internally by toolbar).
+`get_grid_state(context, grid_id)` — in `django_grid_view.render.grid_preferences`; returns `(col_presets_json, searches_json)` for toolbar embedding (used internally by inclusion tags).
 
 
 ---
@@ -1391,9 +1544,39 @@ For filterable dashboards, keep query params synchronized between page and expor
 
 # JavaScript API
 
-The package ships a single hand-maintained bundle: `static/django_grid_view/grid-view.js` (global `GridView` / `CmGridView`). No Node build step.
+The package ships pre-built browser bundles under `static/django_grid_view/`. The main entry is **`grid-view.min.js`** (global `GridView`). **PyPI consumers do not need Node** — maintainers build from `frontend/src/` with esbuild (see [Architecture — Front-end bundle](../architecture.md#front-end-bundle)).
 
-Load via `{% grid_view_bundle %}` or any inclusion tag that sets `load_assets`.
+## Loading the bundle
+
+### Simple Table / Grid View pages
+
+```django
+{% load django_grid_view %}
+{% grid_view_bundle %}
+```
+
+`bundle.html` order:
+
+1. Inline — `GridView.preferencesUrl`, `GridViewI18n`
+2. `grid-view.min.js` — tables, search, KPI, charts, filter bar
+3. `column-settings.min.js` — column presets modal
+
+First inclusion tag (`render_simple_table`, `render_grid_view`, …) can auto-include the bundle when `{% grid_view_bundle %}` was not rendered yet.
+
+**External globals** (host base template, before bundle):
+
+| Global | Required for |
+|--------|----------------|
+| `echarts` | Charts |
+| `Sortable` | Column drag-reorder in settings modal |
+
+### AG-Grid pages
+
+`scripts.html` loads CDN → `ag-grid-host.js` → JSON boot → `ag-grid-boot.js`. Optional plugin scripts come from template partials. See AG-Grid integration (see section: ag-grid.md).
+
+### Artifact boot
+
+`grid_view.html` and static chart templates include small boot scripts (`grid-artifact-boot.js`, `chart-static-boot.js`) that call `GridView.init` or poll for ECharts — no inline logic in templates.
 
 ## GridView.AgGrid (infinite row model)
 
@@ -1422,7 +1605,7 @@ GridView.AgGrid.syncExportLinks("my-grid");
 | `syncExportLinks(gridId, options)` | Update all `[data-cm-export-sync]` links for a grid |
 | `getQuickSearchText(gridId)` | Read quick-search text for a grid |
 | `GridView.byId.get(gridId)` | Runtime handle (`AgGridHost` or column settings) |
-| `GridView.byId.registerBoot(gridId, fn)` | Register HTMX/re-mount bootstrap (used by `scripts.html`) |
+| `GridView.byId.registerBoot(gridId, fn)` | Register HTMX/re-mount bootstrap (used by `ag-grid-boot.js`) |
 | `GridView.byId.boot(gridId)` | Re-run bootstrap for a grid |
 | `GridView.AgGrid.Host` | AG-Grid toolbar/search/persistence controller class |
 | `GridView.AgGrid.SmartFilter` / `.Tooltip` | Optional AG-Grid component plugins |
@@ -1431,7 +1614,7 @@ GridView.AgGrid.syncExportLinks("my-grid");
 
 | `createInfiniteDatasource` option | Purpose |
 |-----------------------------------|---------|
-| `gridId` | Must match `grid_id` from `{% django_grid_view_scripts %}` / `data-cm-grid-id` |
+| `gridId` | Must match `grid_id` from `scripts.html` / `data-cm-grid-id` |
 | `manager` | Removed — pass `gridId`; `syncExportHref` can still receive a runtime handle |
 
 UI controls (gear, search, presets) use **declarative markup**, not inline JS:
@@ -1524,9 +1707,11 @@ var adapter = GridView.staticRowsAdapter(rowsArray);
 |-----|---------|
 | `GridView.initChart(el, config, rows)` | Mount one ECharts instance |
 | `GridView.initAllCharts(scope)` | Scan `[data-cm-chart-config]` |
-| `GridView.buildEchartsOption(config, rows)` | Build option object |
+| `GridView.buildEchartsOption(config, rows)` | Build option object (presentation adapter) |
 | `GridView.refreshChartWrap(node, config, rows)` | Update chart data |
 | `GridView.bindGridFilteredCharts(scope, adapter)` | `data_source: grid_filtered` |
+
+Data flow: wire `ChartRuntimeDict` + rows → **`resolveChartData`** (semantic: categories, series, slices) → **`buildEchartsOption`** (ECharts layout/theme only). Same resolver as Python PDF export and `npm run test:chart-conformance`.
 
 Requires global `echarts`.
 
@@ -1534,8 +1719,13 @@ Requires global `echarts`.
 
 ```javascript
 GridView.SimpleTable.initAll(scope);
-// legacy alias: CmSimpleTable.initAll(scope)
 ```
+
+## Search / column filters (maintainers)
+
+Client implementations live in `frontend/src/grid-view/search/` (`matchColumnFilter`, `matchSmartHaystackClient`). They must stay aligned with Python `django_grid_view.search.column` and `django_grid_view.search.smart` — verified by `npm run test:conformance` against the same JSON fixtures as pytest.
+
+KPI aggregates use `resolveKpis()` in `frontend/src/grid-view/kpi.ts` vs Python `resolve_kpis()` — compare `rawValue` only (`tests/fixtures/kpi_conformance.json`, same runner).
 
 ## i18n
 
@@ -1547,9 +1737,17 @@ GridView.i18n.t("search.placeholder", "Search…");
 
 Add translations under `django_grid_view/locale/`.
 
-## Aliases
+## Maintainer toolchain
 
-`CmGridView` is identical to `GridView` for backward compatibility.
+```bash
+cd frontend && npm ci
+npm run build          # → src/django_grid_view/static/django_grid_view/*.min.js
+npm run typecheck      # tsc on typed modules
+npm run lint           # eslint
+npm run test:conformance  # Python↔JS filter/search/KPI fixtures
+```
+
+Commit regenerated static files; CI fails on drift (`git diff --exit-code src/django_grid_view/static/`).
 
 
 ---
@@ -1665,6 +1863,9 @@ Full API surface: `django_grid_view.types` (see `types.__all__` in source).
 | Use case | Import from |
 |----------|-------------|
 | Table rows | `django_grid_view.types` → `RowDict` |
+| Parsed JSON / filters | `as_str_object_dict`, `json_object_list_from`, `is_object_list`, `coerce_float`, `to_json_number` |
+| Card groups render context | `CardGroupsRenderContext`, `PreparedCardTab`, `PreparedCardGroup` |
+| Chart export colors | `ChartPaletteColor` |
 | Python-built grid | `GridViewSpec`, `ColumnSpec`, `KpiSpec`, `ChartSpec`, `SeriesSpec` |
 | LLM / JSON spec | `GridViewSpecWire`, `ColumnSpecWire`, `JsonObject`, `ViewSpecInput` |
 | Chat / frontend payload | `GridArtifactJson`, `GridLayoutDict` |
@@ -1702,17 +1903,22 @@ Prefer `django_grid_view.types` when you need enums, wire helpers, or the full l
 ```python
 from django_grid_view.types import (
     BlockType,
+    ChartPaletteColor,
     ChartSpec,
     ChartType,
     ColumnFormat,
     ColumnSpec,
     GridViewSpec,
+    JsonObject,
     KpiAggregate,
     KpiSpec,
     KpiTone,
     RowDict,
     SeriesSpec,
     ViewLayout,
+    as_str_object_dict,
+    coerce_float,
+    json_object_list_from,
 )
 from django_grid_view.render import GridRenderer, build_artifact_from_view
 
@@ -2132,7 +2338,7 @@ Register a `grid_view` widget that mounts KPI/chart/table DOM from `artifact` an
 GridView.init({ root: wrap, artifact: c.artifact });
 ```
 
-Load `grid-view.js` and ECharts on the chat page (same bundle as dashboards).
+Load `{% grid_view_styles %}` + `{% grid_view_bundle %}` and ECharts (`{% echarts_cdn_url %}`) on the chat page — same asset contract as dashboards.
 
 ### Package API
 
@@ -2391,6 +2597,10 @@ One `SimpleTableConfig` in the page dataclass → `report_from_simple_table`.
 ### C. AG-Grid infinite model (large grids)
 
 Export builder **replays the JSON data API** with the same filters/sort/`q`, plus optional `export_cols` from `GridView.AgGrid.syncExportHref`. Column labels from `AgGridPageSpec`.
+
+### Simple Table XLSX and browser filters
+
+For server-rendered tables, XLSX builders typically call `report_from_simple_table` on a `SimpleTableConfig` rebuilt in the page loader. When the HTML page applies client-side search or column filters, export must **replay the same filter params** from `request.GET` (`q`, `col_q`, etc.) — `export/table_columns.py` imports `filter_table_for_request` from `django_grid_view.search` intentionally so PDF/XLSX match what the user sees. Keep one loader that reads those params; do not maintain a separate export filter path.
 
 ## Invariants
 
@@ -2927,7 +3137,7 @@ django-grid-view is **host-agnostic**: UI chrome uses dotted msgids (`column_set
 
 1. Add `django_grid_view` to `INSTALLED_APPS` (loads `locale/` automatically).
 2. Set `LANGUAGE_CODE` and enable `LocaleMiddleware` in the host project.
-3. Include `{% grid_view_bundle %}` once per page (or rely on `column_settings_assets`, which merges `GridViewI18n`).
+3. Include `{% grid_view_bundle %}` once per page (injects `GridViewI18n` before bundle scripts).
 
 Optional host overrides: add the same msgids under the host `LOCALE_PATHS`.
 
@@ -3001,6 +3211,37 @@ Prefer a subsection here (`### Migration`) for small notes; a dedicated page onl
 ## Unreleased
 
 No unreleased changes.
+
+---
+
+## 1.2.0
+
+**2026-06-04** — TypeScript frontend, minified static assets, CSS bundle, Python↔JS conformance.
+
+### Added
+
+- TypeScript sources in `frontend/src/`; CI builds `.min.js` / `.min.css` with esbuild.
+- `{% grid_view_styles %}` → `grid-view.min.css` (table + AG-Grid smart-filter chrome).
+- CDN helpers: `ag_grid_cdn_url()`, `sortable_cdn_url()`, `echarts_cdn_url()` + matching template tags.
+- Shared chart/KPI semantic layer and JSON conformance fixtures (pytest + `npm run test:conformance`).
+
+### Changed
+
+- **Breaking:** dropped `{% grid_view_column_settings_assets %}`, `CmGridView`, `CmSimpleTable` — use `{% grid_view_bundle %}` / `GridView.*`.
+- Asset tags dedupe CSS/JS once per Django render context.
+- AG-Grid boot split into focused static modules.
+
+### Performance
+
+Simple Table page transfer (JS + CSS):
+
+| | Size |
+|--|------|
+| 1.1.2 as shipped (unminified) | 152 KiB |
+| 1.2.0 as shipped (minified) | 92 KiB |
+| **Gain** | **−40%** |
+
+See root `CHANGELOG.md` for maintainer TS → min pipeline notes.
 
 ---
 
