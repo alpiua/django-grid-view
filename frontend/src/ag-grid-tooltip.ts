@@ -1,0 +1,16 @@
+(function () {
+  var gv = (window.GridView = window.GridView || {});
+  gv.AgGrid = gv.AgGrid || {};
+  gv.AgGrid.Tooltip = class {
+    init(params) {
+      const eGui = document.createElement("div");
+      eGui.className =
+        "bg-[--cm-surface] border border-[--cm-border] p-3 shadow-2xl rounded z-[9999] min-w-[250px] max-w-sm whitespace-pre-wrap text-xs leading-relaxed text-[--cm-body]";
+      eGui.innerHTML = params.value ? params.value : "No data";
+      this.eGui = eGui;
+    }
+    getGui() {
+      return this.eGui;
+    }
+  };
+})();
