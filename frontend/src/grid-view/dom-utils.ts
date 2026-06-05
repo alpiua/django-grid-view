@@ -13,7 +13,8 @@ export function getGlobal(): Window {
 
 /** Resolve ``data-grid-id`` from the table or its shell wrapper. */
 export function tableGridId(table: Element | null | undefined): string {
-  return table?.closest?.("[data-grid-id]")?.dataset?.gridId?.trim() || "";
+  const shell = table?.closest?.("[data-grid-id]");
+  return shell instanceof HTMLElement ? shell.dataset.gridId?.trim() || "" : "";
 }
 
 /**

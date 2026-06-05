@@ -13,8 +13,9 @@
     return window;
   }
   function tableGridId(table) {
-    var _a, _b, _c, _d;
-    return ((_d = (_c = (_b = (_a = table == null ? void 0 : table.closest) == null ? void 0 : _a.call(table, "[data-grid-id]")) == null ? void 0 : _b.dataset) == null ? void 0 : _c.gridId) == null ? void 0 : _d.trim()) || "";
+    var _a, _b;
+    const shell = (_a = table == null ? void 0 : table.closest) == null ? void 0 : _a.call(table, "[data-grid-id]");
+    return shell instanceof HTMLElement ? ((_b = shell.dataset.gridId) == null ? void 0 : _b.trim()) || "" : "";
   }
   function queryRecordCounters(table, fallbackRoot) {
     var _a;
