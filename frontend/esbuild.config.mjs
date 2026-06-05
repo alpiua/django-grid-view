@@ -20,6 +20,9 @@ const ENTRIES = [
   "kpi-static-boot",
 ];
 
+/** Entries that bundle shared search modules (filter-engine). */
+const BUNDLED = new Set(["grid-view", "ag-grid-advanced-search", "ag-grid-smart-filter"]);
+
 async function buildEntry(name, minify) {
   const suffix = minify ? ".min.js" : ".js";
   const banner =
@@ -27,7 +30,7 @@ async function buildEntry(name, minify) {
       ? `/** django-grid-view — built from frontend/src/${name === "grid-view" ? "grid-view/" : name}.ts */\n`
       : undefined;
 
-  const isBundle = name === "grid-view";
+  const isBundle = BUNDLED.has(name);
   const entry =
     name === "grid-view"
       ? path.join(__dirname, "src/grid-view-entry.ts")

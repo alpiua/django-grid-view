@@ -14,7 +14,9 @@ from django_grid_view.render.section_totals import (
     inject_group_section_totals,
 )
 from django_grid_view.render.table_chart import table_row_chart_payload
+from django_grid_view.search.contract import column_filter_wire_for_column
 from django_grid_view.tables import ColumnGroup, SimpleTableConfig
+from django_grid_view.types.table import LabelText
 from django_grid_view.types.template_cells import (
     PreparedTableRow,
     SimpleTableRenderContext,
@@ -29,22 +31,94 @@ def json_attr(value: object) -> str:
     return json.dumps(value, ensure_ascii=False, default=str)
 
 
+def _column_header_cell(
+    col_key: str,
+    *,
+    label: LabelText,
+    align: str,
+    sortable: bool,
+    colspan: int,
+    rowspan: int,
+    width: str,
+    col_index: int | None,
+    hide: bool | None = None,
+    wrap: bool | None = None,
+    column_filter: str | None = None,
+    filter_match: str | None = None,
+) -> TableHeaderCell:
+    cell: TableHeaderCell = {
+        "key": col_key,
+        "label": label,
+        "align": align,
+        "sortable": sortable,
+        "colspan": colspan,
+        "rowspan": rowspan,
+        "width": width,
+        "col_index": col_index,
+    }
+    if hide is not None:
+        cell["hide"] = hide
+    if wrap is not None:
+        cell["wrap"] = wrap
+    if column_filter is not None:
+        cell["column_filter"] = column_filter
+    if filter_match is not None:
+        cell["filter_match"] = filter_match
+    return cell
+
+
+def _group_header_cell(
+    group: ColumnGroup,
+    *,
+    group_id: str,
+) -> TableHeaderCell:
+    return {
+        "key": "",
+        "label": group.label,
+        "align": group.align,
+        "sortable": False,
+        "colspan": len(group.column_keys),
+        "rowspan": 1,
+        "width": "",
+        "css_class": group.css_class,
+        "col_index": None,
+        "group_keys": ",".join(group.column_keys),
+        "group_id": group_id,
+    }
+
+
 def build_header_rows(config: SimpleTableConfig) -> list[list[TableHeaderCell]]:
     """Build 1 or 2 header rows from columns + optional ColumnGroups."""
+    col_by_key = {col.key: col for col in config.columns}
+
+    def _header_meta(col_key: str) -> dict[str, str]:
+        col = col_by_key.get(col_key)
+        if col is None:
+            return {
+                "column_filter": "text",
+                "filter_match": "exact",
+            }
+        return {
+            "column_filter": column_filter_wire_for_column(col),
+            "filter_match": col.filter_match,
+        }
+
     if not config.column_groups:
         return [
             [
-                {
-                    "key": col.key,
-                    "label": col.label,
-                    "align": col.align,
-                    "sortable": col.sortable,
-                    "colspan": 1,
-                    "rowspan": 1,
-                    "width": col.width,
-                    "col_index": idx,
-                    "hide": col.hide,
-                }
+                _column_header_cell(
+                    col.key,
+                    label=col.label,
+                    align=col.align,
+                    sortable=col.sortable,
+                    colspan=1,
+                    rowspan=1,
+                    width=col.width,
+                    col_index=idx,
+                    hide=col.hide,
+                    wrap=col.wrap,
+                    **_header_meta(col.key),
+                )
                 for idx, col in enumerate(config.columns)
             ]
         ]
@@ -69,47 +143,42 @@ def build_header_rows(config: SimpleTableConfig) -> list[list[TableHeaderCell]]:
             group_id = id(group)
             if group_id not in emitted_groups:
                 row1.append(
-                    {
-                        "key": "",
-                        "label": group.label,
-                        "align": group.align,
-                        "sortable": False,
-                        "colspan": len(group.column_keys),
-                        "rowspan": 1,
-                        "width": "",
-                        "css_class": group.css_class,
-                        "col_index": None,
-                        "group_keys": ",".join(group.column_keys),
-                        "group_id": group_id_map[group_id],
-                    }
+                    _group_header_cell(
+                        group,
+                        group_id=group_id_map[group_id],
+                    )
                 )
                 emitted_groups.add(group_id)
             row2.append(
-                {
-                    "key": col.key,
-                    "label": col.label,
-                    "align": col.align,
-                    "sortable": col.sortable,
-                    "colspan": 1,
-                    "rowspan": 1,
-                    "width": col.width,
-                    "col_index": idx,
-                    "hide": col.hide,
-                }
+                _column_header_cell(
+                    col.key,
+                    label=col.label,
+                    align=col.align,
+                    sortable=col.sortable,
+                    colspan=1,
+                    rowspan=1,
+                    width=col.width,
+                    col_index=idx,
+                    hide=col.hide,
+                    wrap=col.wrap,
+                    **_header_meta(col.key),
+                )
             )
         else:
             row1.append(
-                {
-                    "key": col.key,
-                    "label": col.label,
-                    "align": col.align,
-                    "sortable": col.sortable,
-                    "colspan": 1,
-                    "rowspan": 2,
-                    "width": col.width,
-                    "col_index": idx,
-                    "hide": col.hide,
-                }
+                _column_header_cell(
+                    col.key,
+                    label=col.label,
+                    align=col.align,
+                    sortable=col.sortable,
+                    colspan=1,
+                    rowspan=2,
+                    width=col.width,
+                    col_index=idx,
+                    hide=col.hide,
+                    wrap=col.wrap,
+                    **_header_meta(col.key),
+                )
             )
 
     return [row1, row2]
@@ -190,7 +259,9 @@ def prepare_simple_table_rows(
                                 "css_class": col.css_class,
                                 "sort_val": "",
                                 "export_raw": str(value) if value not in (None, "") else "",
-                                "attrs": {},
+                                "attrs": {"data-cm-section-aggregate": "1"}
+                                if value not in (None, "")
+                                else {},
                                 "col_index": col_idx,
                                 "col_key": col.key,
                                 "hide": col.hide,

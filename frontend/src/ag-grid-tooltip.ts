@@ -4,8 +4,7 @@
   gv.AgGrid.Tooltip = class {
     init(params) {
       const eGui = document.createElement("div");
-      eGui.className =
-        "bg-[--cm-surface] border border-[--cm-border] p-3 shadow-2xl rounded z-[9999] min-w-[250px] max-w-sm whitespace-pre-wrap text-xs leading-relaxed text-[--cm-body]";
+      eGui.className = "cm-ellipsis-tip cm-ellipsis-tip--floating";
       eGui.innerHTML = params.value ? params.value : "No data";
       this.eGui = eGui;
     }

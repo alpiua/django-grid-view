@@ -99,6 +99,26 @@ footer_label="Summary",
 footer_label_span=2,
 ```
 
+## Table layout (overflow)
+
+DOM contract rendered by `simple/table.html`:
+
+```
+.cm-table-shell
+  .cm-table-viewport     ← horizontal scroll when columns exceed width
+    table.cm-table
+  .cm-col-filter-portal   ← fixed popover; data-cm-col-filter-table = grid_id
+```
+
+CSS behaviour:
+
+1. **Squeeze** — `th`/`td` use `text-overflow: ellipsis` and `white-space: nowrap` inside a `width: 100%` table.
+2. **Scroll** — when intrinsic column minimums exceed the viewport, `table { min-width: max-content }` expands the table and `.cm-table-viewport { overflow-x: auto }` shows a horizontal scrollbar.
+
+Shell (`.cm-table-shell`) clips border-radius; scrolling happens only in the viewport, not the page.
+
+Column filter UI is documented in [Filter Semantics Contract](guides/filter-semantics-contract.md) (UI layer vs `SimpleTable.applyAllFilters`).
+
 ## Template tag
 
 ```django

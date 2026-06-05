@@ -18,7 +18,7 @@ export const byId: ByIdRegistry = {
       typeof CSS !== "undefined" && CSS.escape
         ? CSS.escape(id)
         : id.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-    const shell = document.querySelector(`[data-grid-id="${esc}"]`) as HTMLElement | null;
+    const shell = document.querySelector<HTMLElement>(`[data-grid-id="${esc}"]`);
     if (shell?._colSettings) return shell._colSettings;
     return null;
   },
@@ -40,6 +40,6 @@ export function invokeGridAction(
   const handle = byId.get(gridId ?? "");
   const fn = handle?.[method];
   if (typeof fn === "function") {
-    (fn as () => void).call(handle);
+    fn.call(handle);
   }
 }

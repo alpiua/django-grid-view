@@ -1,23 +1,92 @@
-import { matchColumnFilter } from "./search/match";
-import { collectColumnFiltersObject, syncColumnFilterChrome } from "./search/column-filter-state";
+import {
+  matchColumnFilterEntry,
+  matchToolbarQuery,
+  parseColumnFilterEntry,
+  parseCellFilterTokens,
+} from "./search/filter-engine";
+import { isToolbarQueryCommitReady } from "./search/query-commit";
+import { headerSearchProfile } from "./search/column-filter-state";
+import { tokenizeSmartQuery } from "./search/smart-query";
+import {
+  buildRowHaystackFromDom,
+  collectRowCellValuesFromDom,
+  collectRowCellsByKeyFromDom,
+  collectSearchColumnsFromTable,
+} from "./search/row-haystack";
+import { termIsExpression } from "./search/term-match";
+import {
+  collectColumnFiltersFromTable,
+  syncColumnFilterChrome,
+  headerFilterMatch,
+} from "./search/column-filter-state";
 import { initColumnFilters } from "./column-filters";
+import { initTableCellUi } from "./table-cell-ui";
+import { initSimpleTableColumnResize } from "./simple-table-column-resize";
 import { Charts } from "./charts";
 import { initSimpleTableColumnSettings } from "./actions";
 import { bootGridViewScope } from "./filter-bar";
-import { getGlobal } from "./dom-utils";
+import { getGlobal, queryRecordCounters } from "./dom-utils";
+
+function simpleTableWrapper(table) {
+  return (
+    table.closest(".cm-simple-wrapper, .cm-table-shell, .cm-page-table-layout, .cm-dashboard-page") ||
+    table.parentElement
+  );
+}
+
+export function ensureSimpleTableForTable(tableEl) {
+  if (!tableEl) return null;
+  var table =
+    tableEl.matches && tableEl.matches("[data-cm-table]")
+      ? tableEl
+      : tableEl.querySelector && tableEl.querySelector("[data-cm-table]");
+  if (!table) return null;
+  if (table._cmSimpleTable) return table._cmSimpleTable;
+  var wrapper = simpleTableWrapper(table);
+  if (!wrapper) return null;
+  table._cmSimpleTable = new SimpleTable(wrapper, table);
+  return table._cmSimpleTable;
+}
+
+export function resolveDataTable(el) {
+  if (!el) return null;
+  if (el.matches && el.matches("[data-cm-table][data-cm-col-filters]")) return el;
+  var nested = el.querySelector && el.querySelector("[data-cm-table][data-cm-col-filters]");
+  return nested || null;
+}
+
+export function applyTableFilters(tableEl) {
+  var table = resolveDataTable(tableEl);
+  if (!table) return;
+  var simple = ensureSimpleTableForTable(table);
+  if (simple) {
+    simple.applyAllFilters();
+    return;
+  }
+  var wrapper = simpleTableWrapper(table);
+  if (!wrapper) return;
+  new SimpleTable(wrapper, table).applyAllFilters();
+}
+
+export function applyFiltersInScope(scope) {
+  var root = scope && scope.querySelectorAll ? scope : document;
+  root.querySelectorAll("[data-cm-table][data-cm-col-filters]").forEach(function (table) {
+    ensureSimpleTableForTable(table)?.applyAllFilters();
+  });
+}
 
 export function ensureSimpleTableLayout(layout) {
-  if (!layout || !layout.querySelector("[data-cm-table]")) return null;
-  if (!layout._simple) layout._simple = new SimpleTable(layout);
-  return layout._simple;
+  if (!layout) return null;
+  var table = layout.querySelector && layout.querySelector("[data-cm-table]");
+  return ensureSimpleTableForTable(table);
 }
 
 export class SimpleTable {
-  constructor(wrapper) {
+  constructor(wrapper, tableEl) {
     this.sortKey = null;
     this.sortDir = null;
     this.w = wrapper;
-    const table = wrapper.querySelector("[data-cm-table]");
+    const table = tableEl || wrapper.querySelector("[data-cm-table]");
     if (!table) throw new Error("SimpleTable: missing [data-cm-table]");
     this.table = table;
     const tbody = table.querySelector("tbody");
@@ -79,7 +148,14 @@ export class SimpleTable {
       if (th.dataset.cmBound) return;
       th.dataset.cmBound = "1";
       th.addEventListener("click", (e) => {
-        if (e.target.closest("[data-cm-col-filter-trigger]")) return;
+        if (
+          e.target.closest(
+            "[data-cm-col-filter-trigger], [data-cm-col-filter-clear], [data-cm-col-resize], .cm-th-header-tools, [data-cm-th-tools]"
+          )
+        ) {
+          return;
+        }
+        if (!th.dataset.cmSort) return;
         this._sort(th);
       });
     });
@@ -143,6 +219,9 @@ export class SimpleTable {
       }
       rows.forEach((row) => this.tbody.appendChild(row));
     }
+    this.w.querySelectorAll("[data-cm-sort]").forEach((headerTh) => {
+      headerTh.classList.toggle("cm-th-sorted", this.sortDir !== null && headerTh.dataset.cmSort === this.sortKey);
+    });
     this.w.querySelectorAll(".cm-sort-arrow").forEach((arrow2) => {
       arrow2.textContent = "\u21C9";
     });
@@ -151,6 +230,39 @@ export class SimpleTable {
       arrow.textContent = this.sortDir === "asc" ? "\u25B2" : this.sortDir === "desc" ? "\u25BC" : "\u21C9";
     }
   }
+  _queryUsesNumericCellText(query) {
+    const q = String(query || "").trim();
+    if (!q) return false;
+    if (termIsExpression(q)) return true;
+    for (const group of tokenizeSmartQuery(q)) {
+      for (const item of group) {
+        if (termIsExpression(item.term)) return true;
+      }
+    }
+    return false;
+  }
+  _resolveToolbarQuery(toolbarSearch, localSearch) {
+    const raw = (
+      (toolbarSearch && toolbarSearch.value) ||
+      (localSearch && localSearch.value) ||
+      ""
+    ).trim();
+    const input = toolbarSearch || localSearch;
+    const searchColumns = collectSearchColumnsFromTable(this.table);
+    if (input instanceof HTMLInputElement) {
+      if (isToolbarQueryCommitReady(raw, { columns: searchColumns })) {
+        if (raw) input.dataset.cmSearchCommitted = raw;
+        else delete input.dataset.cmSearchCommitted;
+        return raw;
+      }
+      return (input.dataset.cmSearchCommitted || "").trim();
+    }
+    return (
+      raw ||
+      new URLSearchParams(window.location.search).get("q") ||
+      ""
+    ).trim();
+  }
   _cellTextForFilter(row, colKey, query) {
     var esc =
       typeof CSS !== "undefined" && CSS.escape
@@ -158,9 +270,7 @@ export class SimpleTable {
         : colKey.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
     var cell = row.querySelector('td[data-cm-col-key="' + esc + '"]');
     if (!cell) return "";
-    var q = String(query || "").trim();
-    var numericQuery = /^(>=|<=|>|<|=)/.test(q);
-    if (numericQuery) {
+    if (this._queryUsesNumericCellText(query)) {
       return (cell.dataset.cmExportRaw || cell.dataset.cmSortVal || cell.textContent || "").trim();
     }
     return (cell.dataset.cmSortVal || cell.textContent || cell.dataset.cmExportRaw || "").trim();
@@ -174,6 +284,52 @@ export class SimpleTable {
       return;
     }
     emptyRow.hidden = !(filtered && shownRows === 0);
+  }
+  _syncSectionTotals(active) {
+    this.tbody.querySelectorAll(".cm-row-section").forEach((sectionRow) => {
+      const visibleRows: Element[] = [];
+      let next = sectionRow.nextElementSibling;
+      while (next && !next.classList.contains("cm-row-section")) {
+        if (next.classList.contains("cm-row") && !next.hidden) visibleRows.push(next);
+        next = next.nextElementSibling;
+      }
+      sectionRow.querySelectorAll<HTMLElement>("td[data-cm-section-aggregate]").forEach((el) => {
+        const key = el.dataset.cmColKey;
+        if (!key) return;
+        if (!el.dataset.cmSectionHtml) {
+          el.dataset.cmSectionHtml = el.innerHTML;
+        }
+        if (!active) {
+          el.innerHTML = el.dataset.cmSectionHtml;
+          return;
+        }
+        let sum = 0;
+        let hasNum = false;
+        const esc =
+          typeof CSS !== "undefined" && CSS.escape
+            ? CSS.escape(key)
+            : key.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        visibleRows.forEach((row) => {
+          const bodyCell = row.querySelector<HTMLElement>('td[data-cm-col-key="' + esc + '"]');
+          const raw = bodyCell?.dataset.cmExportRaw ?? bodyCell?.dataset.cmSortVal ?? "";
+          const parsed = parseFloat(String(raw).replace(/[^\d.-]/g, ""));
+          if (!Number.isNaN(parsed)) {
+            sum += parsed;
+            hasNum = true;
+          }
+        });
+        if (!hasNum) {
+          el.innerHTML = '<span class="cm-muted">—</span>';
+          return;
+        }
+        const base = el.dataset.cmExportRaw || "";
+        if (base.includes("₴") || el.dataset.cmSectionHtml.includes("₴")) {
+          el.textContent = sum.toLocaleString(undefined, { maximumFractionDigits: 2 }) + " ₴";
+        } else {
+          el.textContent = String(Math.round(sum) === sum ? sum : sum);
+        }
+      });
+    });
   }
   _syncSectionVisibility(colKeys, globalActive) {
     var filtering = colKeys.length > 0 || globalActive;
@@ -189,46 +345,76 @@ export class SimpleTable {
   }
   applyAllFilters() {
     const layout = this.w;
+    const table = this.table;
+    const tbody = table.querySelector("tbody");
+    if (!tbody) return;
+    this.tbody = tbody;
     const toolbarSearch =
       layout.querySelector("[data-cm-toolbar-search]") ||
       layout.closest(".cm-page-table-layout, .cm-dashboard-page")?.querySelector("[data-cm-toolbar-search]");
     const localSearch = layout.querySelector("[data-cm-search]");
-    const globalQ = (
-      (toolbarSearch && toolbarSearch.value) ||
-      (localSearch && localSearch.value) ||
-      new URLSearchParams(window.location.search).get("q") ||
-      ""
-    )
-      .trim();
-    const globalParts = globalQ.toLowerCase().trim().split(/\s+/).filter(Boolean);
-    const colFilters = collectColumnFiltersObject(layout);
+    const globalQ = this._resolveToolbarQuery(toolbarSearch, localSearch);
+    const globalActive = !!globalQ;
+    const colFilters = collectColumnFiltersFromTable(this.table);
     const colKeys = Object.keys(colFilters);
     const hasColFilters = colKeys.length > 0;
+    const searchColumns = collectSearchColumnsFromTable(this.table);
     let shown = 0;
     this.tbody.querySelectorAll(".cm-row").forEach((row) => {
       let match = true;
       if (hasColFilters) {
-        match = colKeys.every((key) =>
-          matchColumnFilter(this._cellTextForFilter(row, key, colFilters[key]), colFilters[key])
-        );
+        match = colKeys.every((key) => {
+          const entry = parseColumnFilterEntry(colFilters[key]);
+          if (!entry) return true;
+          var esc =
+            typeof CSS !== "undefined" && CSS.escape
+              ? CSS.escape(key)
+              : key.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+          const th = table.querySelector('th[data-cm-col-key="' + esc + '"]');
+          const td = row.querySelector<HTMLElement>('td[data-cm-col-key="' + esc + '"]');
+          const colMatch = headerFilterMatch(th);
+          const profile = headerSearchProfile(th);
+          const tokens = parseCellFilterTokens(td, colMatch);
+          const cellText = this._cellTextForFilter(
+            row,
+            key,
+            typeof entry === "string" ? entry : ""
+          );
+          return matchColumnFilterEntry(cellText, entry, {
+            tokens,
+            match: colMatch,
+            profile,
+          });
+        });
       }
-      if (match && globalParts.length) {
-        const hay = [...row.querySelectorAll("td")].map((td) => td.textContent?.toLowerCase() ?? "");
-        match = globalParts.every((part) => hay.some((cell) => cell.includes(part)));
+      if (match && globalActive) {
+        const cellsByKey = collectRowCellsByKeyFromDom(row);
+        const rowCells = Object.values(cellsByKey);
+        match = matchToolbarQuery(buildRowHaystackFromDom(row), globalQ, {
+          cells: rowCells.length ? rowCells : collectRowCellValuesFromDom(row),
+          cellsByKey,
+          columns: searchColumns,
+        });
       }
-      row.hidden = !match;
+      if (match) {
+        row.hidden = false;
+        row.removeAttribute("hidden");
+      } else {
+        row.hidden = true;
+      }
       if (match) shown++;
     });
-    this._syncSectionVisibility(colKeys, globalParts.length > 0);
-    this._syncTableEmptyState(shown, globalParts.length > 0 || hasColFilters);
+    const filtered = globalActive || hasColFilters;
+    this._syncSectionVisibility(colKeys, globalActive);
+    this._syncSectionTotals(filtered);
+    this._syncTableEmptyState(shown, filtered);
     this._syncRecordCounters(shown);
-    this._syncTableFooter(globalParts.length > 0 || hasColFilters);
-    const table = layout.querySelector("[data-cm-table]");
+    this._syncTableFooter(filtered);
     if (table) syncColumnFilterChrome(table);
     this._syncGridViewCharts();
   }
   _syncRecordCounters(shownRows) {
-    this.w.querySelectorAll("[data-cm-count]").forEach((counter) => {
+    queryRecordCounters(this.table, this.w).forEach((counter) => {
       const field = counter.dataset.cmCountField;
       if (field) {
         let sum = 0;
@@ -251,6 +437,12 @@ export class SimpleTable {
   _syncTableFooter(active) {
     const tfoot = this.table.querySelector("tfoot");
     if (!tfoot) return;
+    if (this._hasSectionGroups()) {
+      const visibleSections = this.tbody.querySelectorAll(".cm-row-section:not([hidden])").length;
+      tfoot.hidden = active && visibleSections <= 1;
+      if (tfoot.hidden) return;
+    }
+    tfoot.hidden = false;
     tfoot.querySelectorAll("td[data-cm-footer-aggregate][data-cm-col-key]").forEach((cell) => {
       const key = cell.dataset.cmColKey;
       if (!key) return;
@@ -320,22 +512,13 @@ export class SimpleTable {
 };
 export function initAllSimpleTables(root) {
   const scope = root && "querySelectorAll" in root ? root : document;
+  initColumnFilters(scope);
   scope.querySelectorAll('[data-cm-column-settings="1"]').forEach(function (shell) {
     initSimpleTableColumnSettings(shell);
   });
-  initColumnFilters(scope);
-  const layoutSelector = ".cm-page-table-layout, .cm-simple-wrapper";
-  let layouts = [];
-  if (root instanceof HTMLElement && root.matches(layoutSelector)) {
-    layouts = [root];
-  } else {
-    layouts = [...scope.querySelectorAll(layoutSelector)];
-  }
-  layouts.forEach(function (layout) {
-    if (!layout.querySelector("[data-cm-table]")) return;
-    if (!layout._simple) layout._simple = new SimpleTable(layout);
-    else if (typeof layout._simple.applyAllFilters === "function") layout._simple.applyAllFilters();
-  });
+  initSimpleTableColumnResize(scope);
+  initTableCellUi(scope);
+  applyFiltersInScope(scope);
 }
 export function attachSimpleTableGlobals() {
   if (document.readyState === "loading") {
@@ -347,5 +530,4 @@ export function attachSimpleTableGlobals() {
     bootGridViewScope(event.detail?.target || event.target);
   });
 }
-
 

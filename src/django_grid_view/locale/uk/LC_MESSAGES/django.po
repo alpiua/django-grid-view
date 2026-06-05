@@ -124,11 +124,101 @@ msgstr "Нічого не знайдено"
 msgid "filter.loading_values"
 msgstr "Завантаження словника…"
 
+msgid "filter.list_search"
+msgstr "Пошук…"
+
+msgid "filter.empty_mode_hint"
+msgstr "Показано рядки з порожніми клітинками"
+
+msgid "filter.value_count"
+msgstr "%(count)s значень"
+
 msgid "search.smart_placeholder"
 msgstr "Розумний пошук"
 
-msgid "search.smart_tooltip"
-msgstr "Пошук по видимих колонках таблиці (з урахуванням фільтрів).\n«;» — або: хірур; терап\n«,» — і (обидва в рядку): хірур, терап\n«-» — виключити: -відхилено"
+msgid "search.syntax_help"
+msgstr "Довідка з синтаксису пошуку"
+
+msgid "search.tip_col_modifier"
+msgstr "Модифікатор"
+
+msgid "search.tip_col_example"
+msgstr "Приклад"
+
+msgid "search.tip_col_meaning"
+msgstr "Пояснення"
+
+msgid "search.tip_mod_word"
+msgstr "слово"
+
+msgid "search.tip_mod_phrase"
+msgstr "фраза"
+
+msgid "search.tip_mean_word"
+msgstr "Підрядок; пробіли в одному слові ігноруються"
+
+msgid "search.tip_mean_and"
+msgstr "І (AND) — у рядку мають бути обидва терміни"
+
+msgid "search.tip_mean_exclude"
+msgstr "Виключити термін до наступного модифікатора"
+
+msgid "search.tip_mean_or"
+msgstr "Або (OR) між групами; / і \\ теж працюють"
+
+msgid "search.tip_mean_column_scope"
+msgstr "Пошук лише в колонках, чия назва збігається (до наступного OR-роздільника)"
+
+msgid "search.tip_mean_wildcard"
+msgstr "Маска % — містить, починається або закінчується"
+
+msgid "search.tip_mean_compare"
+msgstr "Числове порівняння значення комірки"
+
+msgid "search.tip_mean_range"
+msgstr "Діапазон чисел включно (мін..макс)"
+
+msgid "search.tip_mean_quote"
+msgstr "Літерал у лапках; +, -, , всередині не діють"
+
+msgid "search.tip_mean_phrase"
+msgstr "Текст з пробілами без лапок — як набрано"
+
+msgid "search.tip_ex_word"
+msgstr "слово1"
+
+msgid "search.tip_ex_and"
+msgstr "слово1 +слово2"
+
+msgid "search.tip_ex_exclude"
+msgstr "слово1 -слово2 +слово3"
+
+msgid "search.tip_ex_or"
+msgstr "слово1, слово2"
+
+msgid "search.tip_ex_column_scope"
+msgstr "лікарів:>10, записів:10..20"
+
+msgid "search.tip_ex_compare"
+msgstr ">10+<20"
+
+msgid "search.tip_ex_range"
+msgstr "10..20"
+
+msgid "search.tip_ex_quote"
+msgstr "\"пошук -1 +2\""
+
+msgid "search.tip_ex_phrase"
+msgstr "слово1 слово2"
+
+msgid "search.tip_ex_wildcard"
+msgstr "%назва%"
+
+msgid "search.tip_quote_hint"
+msgstr "Щоб вимкнути модифікатор, візьміть вираз у подвійні лапки"
+
+msgid "search.tip_quote_example"
+msgstr "\"пошук -1 +2\", слово2"
 
 msgid "search.save"
 msgstr "Зберегти поточний текст пошуку"
@@ -168,13 +258,28 @@ msgid "column_filter.open"
 msgstr "Фільтр колонки"
 
 msgid "column_filter.tooltip"
-msgstr ">10, %текст%, розумний синтаксис"
+msgstr "Фільтр колонки (натисніть ? у полі)"
 
 msgid "column_filter.placeholder"
-msgstr ">10, %назва%"
+msgstr "слово1 +слово2, 10..20"
+
+msgid "column_filter.placeholder_text"
+msgstr "Текст: слово, %частина%, \"фраза\""
+
+msgid "column_filter.placeholder_numeric"
+msgstr "Числа: >10, 10..20, %12%"
+
+msgid "column_filter.sort"
+msgstr "Сортувати колонку"
 
 msgid "column_filter.clear"
 msgstr "Очистити фільтр"
+
+msgid "cell_link.copy"
+msgstr "Копіювати значення"
+
+msgid "cell_link.open"
+msgstr "Відкрити в новому вікні"
 
 msgid "export.meta.search %(query)s"
 msgstr "Пошук: \"%(query)s\""

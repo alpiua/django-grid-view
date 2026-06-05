@@ -11,7 +11,7 @@ from django_grid_view.export._matplotlib_backend import configure_matplotlib_agg
 from django_grid_view.export.static_charts import ChartExportOptions, fig_to_base64
 from django_grid_view.types.chart_bind import ResolvedChartData
 from django_grid_view.types.charts import ChartSpec
-from django_grid_view.types.enums import ChartPaletteColor
+from django_grid_view.types.enums import ChartPaletteColor, ChartType
 from django_grid_view.types.json import RowDict
 
 
@@ -58,15 +58,16 @@ def render_bar_png_from_resolved(
         return _render_stacked_horizontal_bar(resolved, spec, labels, options)
 
     series_points = list(resolved.get("series") or [])
+    default_series_type = "line" if spec.chart_type == ChartType.LINE else "bar"
     bar_series = [
         point
         for point, series_spec in zip(series_points, spec.series, strict=False)
-        if (series_spec.series_type or "bar") == "bar"
+        if (series_spec.series_type or default_series_type) == "bar"
     ]
     line_series = [
         point
         for point, series_spec in zip(series_points, spec.series, strict=False)
-        if series_spec.series_type == "line"
+        if (series_spec.series_type or default_series_type) == "line"
     ]
 
     if not bar_series and not line_series:

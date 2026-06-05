@@ -1,32 +1,8 @@
-/* Highlight the grid column filter icon when AgGrid.SmartFilter is active */
+/* AG-Grid SmartFilter — header chrome only; panel styles live in table.css */
 .ag-theme-quartz .ag-header-cell-filtered .ag-header-icon,
 .ag-theme-quartz .ag-header-cell-filtered .ag-icon-filter,
 .ag-theme-alpine .ag-header-cell-filtered .ag-header-icon,
 .ag-header-cell-filtered .ag-icon-filter {
   color: #6366f1 !important;
   opacity: 1 !important;
-}
-
-.cm-smart-filter-modes {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.cm-smart-filter-mode {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  cursor: pointer;
-  white-space: nowrap;
-  user-select: none;
-}
-
-.cm-smart-filter-mode span {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.2;
 }

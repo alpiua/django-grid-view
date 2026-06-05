@@ -13,8 +13,8 @@
   {"id": "numeric_non_numeric_cell", "cell": "n/a", "query": ">10", "expect": false},
   {"id": "numeric_nbsp", "cell": "1\u00a0234", "query": ">1000", "expect": true},
   {"id": "smart_substring_fallback", "cell": "Operations", "query": "oper", "expect": true},
-  {"id": "smart_or_via_fallback", "cell": "north region", "query": "west; north", "expect": true},
-  {"id": "smart_and_via_fallback", "cell": "north region priority", "query": "north, priority", "expect": true},
+  {"id": "smart_or_via_fallback", "cell": "north region", "query": "west/ north", "expect": true},
+  {"id": "smart_and_via_fallback", "cell": "north region priority", "query": "north+ priority", "expect": true},
   {"id": "smart_exclude_via_fallback", "cell": "north region", "query": "-archived", "expect": true},
   {"id": "smart_exclude_hit_via_fallback", "cell": "north archived", "query": "-archived", "expect": false},
   {"id": "plain_text_no_match", "cell": "Alpha", "query": "Beta", "expect": false},
@@ -23,5 +23,14 @@
   {"id": "case_insensitive_smart", "cell": "UPPER", "query": "upper", "expect": true},
   {"id": "numeric_eq_int", "cell": "42", "query": "=42", "expect": true},
   {"id": "numeric_gt_zero", "cell": "0", "query": ">0", "expect": false},
-  {"id": "wildcard_prefix_miss", "cell": "Operations", "query": "xyz%", "expect": false}
+  {"id": "wildcard_prefix_miss", "cell": "Operations", "query": "xyz%", "expect": false},
+  {"id": "smart_space_insensitive", "cell": "Хірург-реаніматолог", "query": "хірург -терап +реан", "expect": true},
+  {"id": "smart_quoted_literal", "cell": "Пошук з -модифікатором", "query": "\"Пошук з -модифікатором\"", "expect": true},
+  {"id": "smart_numeric_term", "cell": "15000", "query": ">10000", "expect": true},
+  {"id": "toolbar_numeric_via_smart", "cell": "бюджет 25000", "query": ">20000", "expect": true},
+  {"id": "numeric_range_dots_column", "cell": "15", "query": "10..20", "expect": true},
+  {"id": "numeric_range_column", "cell": "15", "query": ">10+<20", "expect": true},
+  {"id": "numeric_range_column_miss", "cell": "25", "query": ">10+<20", "expect": false},
+  {"id": "numeric_multi_value_cell_miss", "cell": "5 / 25", "query": ">10+<20", "expect": false},
+  {"id": "numeric_multi_value_cell_hit", "cell": "5 / 15", "query": "10..20", "expect": true}
 ]

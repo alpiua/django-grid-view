@@ -23,7 +23,13 @@ import {
   buildFilterUrl,
 } from "./filter-bar";
 import { parseSmartQuery } from "./search/smart-query";
+import {
+  matchColumnFilter,
+  matchToolbarQuery,
+  matchAgGridQuickFilter,
+} from "./search/filter-engine";
 import { initAllSimpleTables } from "./simple-table";
+import { initButtonEllipsisTips } from "./table-cell-ui";
 import type { GridViewPublic } from "./types";
 
 export function createGridView(): GridViewPublic {
@@ -56,7 +62,11 @@ export function createGridView(): GridViewPublic {
     AgGrid,
     bootScope: bootGridViewScope,
     parseSmartQuery,
+    matchColumnFilter,
+    matchToolbarQuery,
+    matchAgGridQuickFilter,
     buildFilterUrl,
+    initButtonEllipsisTips,
   };
 }
 

@@ -1,6 +1,12 @@
 import type { FilterState } from "../types";
+import { resolveColumnFilter } from "./contract";
+import {
+  parseColumnFilterEntry,
+  serializeColumnFilterEntry,
+  type ColumnFilterEntry,
+} from "./filter-engine";
 
-export { matchColumnFilter } from "./match";
+export { matchColumnFilter } from "./filter-engine";
 
 type Scope = Document | Element | null | undefined;
 
@@ -8,13 +14,19 @@ function asRoot(scope: Scope): Document | Element {
   return scope && "querySelector" in scope ? scope : document;
 }
 
-export function collectColumnFiltersObject(scope: Scope): FilterState {
-  const root = asRoot(scope);
-  const table = root.querySelector("[data-cm-table][data-cm-col-filters]");
+function isHTMLElement(value: unknown): value is HTMLElement {
+  return value instanceof HTMLElement;
+}
+
+function isStringRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+/** Active column filter values for one table (source of truth: header cells). */
+export function collectColumnFiltersFromTable(table: Element | null | undefined): FilterState {
   const filters: FilterState = {};
   if (!table) return filters;
-  table.querySelectorAll("th[data-cm-col-key]").forEach((th) => {
-    const el = th as HTMLElement;
+  table.querySelectorAll<HTMLElement>("th[data-cm-col-key]").forEach((el) => {
     const key = el.dataset.cmColKey;
     const val = (el.dataset.cmColFilterValue || "").trim();
     if (key && val) filters[key] = val;
@@ -22,11 +34,25 @@ export function collectColumnFiltersObject(scope: Scope): FilterState {
   return filters;
 }
 
+export function collectColumnFiltersObject(scope: Scope, tableHint?: Element | null): FilterState {
+  const root = asRoot(scope);
+  const table =
+    (tableHint instanceof HTMLElement && tableHint.matches("[data-cm-table][data-cm-col-filters]")
+      ? tableHint
+      : null) || root.querySelector("[data-cm-table][data-cm-col-filters]");
+  return collectColumnFiltersFromTable(table);
+}
+
 export function serializeColumnFilters(scope: Scope): string {
   const filters = collectColumnFiltersObject(scope);
   const keys = Object.keys(filters);
   if (!keys.length) return "";
-  return JSON.stringify(filters);
+  const out: Record<string, ColumnFilterEntry> = {};
+  keys.forEach((key) => {
+    const entry = parseColumnFilterEntry(filters[key]);
+    if (entry) out[key] = entry;
+  });
+  return JSON.stringify(out);
 }
 
 export function parseColumnFiltersFromUrl(): FilterState {
@@ -34,9 +60,13 @@ export function parseColumnFiltersFromUrl(): FilterState {
   if (!raw) return {};
   try {
     const parsed: unknown = JSON.parse(raw);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as FilterState)
-      : {};
+    if (!isStringRecord(parsed)) return {};
+    const out: FilterState = {};
+    Object.entries(parsed).forEach(([key, val]) => {
+      const entry = parseColumnFilterEntry(val);
+      if (entry) out[key] = serializeColumnFilterEntry(entry);
+    });
+    return out;
   } catch {
     return {};
   }
@@ -59,8 +89,7 @@ export function tableUsesServerFilters(shell: Element | null | undefined): boole
 
 export function syncColumnFilterChrome(table: Element | null | undefined): void {
   if (!table) return;
-  table.querySelectorAll("th[data-cm-col-key]").forEach((th) => {
-    const el = th as HTMLElement;
+  table.querySelectorAll<HTMLElement>("th[data-cm-col-key]").forEach((el) => {
     const key = el.dataset.cmColKey;
     const active = !!(key && (el.dataset.cmColFilterValue || "").trim());
     const btn = el.querySelector("[data-cm-col-filter-trigger]");
@@ -69,3 +98,24 @@ export function syncColumnFilterChrome(table: Element | null | undefined): void 
     clearBtn?.classList.toggle("is-visible", active);
   });
 }
+
+export function headerFilterUi(th: Element | null | undefined): "list" | "search" | "none" {
+  const cf = resolveColumnFilter(isHTMLElement(th) ? th.dataset.cmColumnFilter : undefined);
+  if (cf === "list") return "list";
+  if (cf === "nosearch") return "none";
+  return "search";
+}
+
+/** @deprecated use headerFilterUi */
+export function headerFilterKind(th: Element | null | undefined): "expr" | "set" | "none" {
+  const ui = headerFilterUi(th);
+  if (ui === "list") return "set";
+  if (ui === "none") return "none";
+  return "expr";
+}
+
+export function headerFilterMatch(th: Element | null | undefined): "exact" | "any_token" {
+  return isHTMLElement(th) && th.dataset.cmFilterMatch === "any_token" ? "any_token" : "exact";
+}
+
+export { tokenProfileForHeader as headerSearchProfile } from "./contract";

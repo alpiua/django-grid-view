@@ -45,6 +45,14 @@ def _cell_text(html: str | SafeString | LabelText) -> str:
     return text if text else "—"
 
 
+def _print_cell_text(col: Column, row: RowDict) -> str:
+    value = col.get_value(row)
+    export_raw = col.get_export_raw(value, row).strip()
+    if export_raw:
+        return export_raw
+    return _cell_text(col.render(value, row))
+
+
 def _print_row(cells: list[str], *, section: bool = False) -> PrintTableRow:
     row: PrintTableRow = {"cells": cells}
     if section:
@@ -103,9 +111,7 @@ def simple_table_print_context(config: SimpleTableConfig) -> SimpleTablePrintCon
                     )
                 )
             continue
-        body.append(
-            _print_row([_cell_text(col.render(col.get_value(row), row)) for col in config.columns])
-        )
+        body.append(_print_row([_print_cell_text(col, row) for col in config.columns]))
 
     footer_cells: list[PrintFooterCell] | None = None
     if grouped_mode:

@@ -196,6 +196,10 @@ def _build_bind(spec: ChartSpec, rows: Sequence[RowDict]) -> ChartBindDict:
             bind["stacked"] = True
         if spec.tooltip_kind:
             bind["tooltipKind"] = spec.tooltip_kind
+        if spec.y_axis_format:
+            bind["yAxisFormat"] = spec.y_axis_format
+        if spec.y_axis_symbol:
+            bind["yAxisSymbol"] = spec.y_axis_symbol
         return bind
 
     if spec.group_by:

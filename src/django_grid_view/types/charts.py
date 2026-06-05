@@ -42,6 +42,8 @@ class ChartSpec:
     stacked: bool = False
     pie_variant: str | None = None  # center-total — inner labels + center total
     tooltip_kind: str | None = None  # packages — rich axis tooltip
+    y_axis_format: str | None = None  # number | percent | symbol
+    y_axis_symbol: str | None = None  # used when y_axis_format=symbol
 
 
 @dataclass(frozen=True, slots=True)

@@ -37,7 +37,7 @@ def chart_to_png_base64(
         from django_grid_view.export._matplotlib_donut import render_donut_png_from_resolved
 
         return render_donut_png_from_resolved(resolved, options=opts)
-    if spec.chart_type == ChartType.BAR:
+    if spec.chart_type in (ChartType.BAR, ChartType.LINE):
         from django_grid_view.export._matplotlib_bar import render_bar_png_from_resolved
 
         return render_bar_png_from_resolved(resolved, spec, options=opts)

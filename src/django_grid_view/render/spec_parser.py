@@ -218,6 +218,12 @@ def _wire_chart(obj: JsonObject) -> ChartSpecWire | None:
     overlay = _wire_overlay(obj.get("overlay"))
     if overlay is not None:
         chart["overlay"] = overlay
+    y_axis_format = obj.get("y_axis_format")
+    if isinstance(y_axis_format, str) and y_axis_format in {"number", "percent", "symbol"}:
+        chart["y_axis_format"] = y_axis_format
+    y_axis_symbol = obj.get("y_axis_symbol")
+    if isinstance(y_axis_symbol, str) and y_axis_symbol:
+        chart["y_axis_symbol"] = y_axis_symbol
     return chart
 
 
@@ -325,4 +331,6 @@ def _parse_chart(raw: ChartSpecWire) -> ChartSpec:
         height=raw.get("height", 300),
         data_source=ChartDataSource(raw.get("data_source", "static")),
         overlay=overlay,
+        y_axis_format=raw.get("y_axis_format"),
+        y_axis_symbol=raw.get("y_axis_symbol"),
     )

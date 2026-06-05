@@ -165,6 +165,64 @@
       return order;
     }
 
+    function readWidth(colId) {
+      var col = tableEl.querySelector('colgroup col[data-cm-col-key="' + colId + '"]');
+      if (col && col.style && col.style.width) return col.style.width;
+      var th = tableEl.querySelector('thead [data-cm-col-key="' + colId + '"]');
+      if (th && th.dataset && th.dataset.cmColWidth) return th.dataset.cmColWidth + "px";
+      if (th && th.style && th.style.width) return th.style.width;
+      return null;
+    }
+
+    function applyWidth(colId, width) {
+      if (!width) return;
+      var px = typeof width === "number" ? width + "px" : String(width);
+      tableEl.classList.add("cm-table--has-col-widths");
+      var col = tableEl.querySelector('colgroup col[data-cm-col-key="' + colId + '"]');
+      if (col) {
+        col.style.width = px;
+        col.style.minWidth = px;
+      }
+      var th = tableEl.querySelector('thead [data-cm-col-key="' + colId + '"]');
+      if (th) {
+        th.style.width = px;
+        var num = parseFloat(String(px).replace(/px$/i, ""));
+        if (!isNaN(num)) th.dataset.cmColWidth = String(num);
+      }
+    }
+
+    function clearWidths() {
+      tableEl.classList.remove("cm-table--has-col-widths");
+      tableEl.querySelectorAll("colgroup col[data-cm-col-key]").forEach(function (col) {
+        col.style.width = "";
+        col.style.minWidth = "";
+      });
+      tableEl.querySelectorAll("thead th[data-cm-col-key]").forEach(function (th) {
+        th.style.width = "";
+        delete th.dataset.cmColWidth;
+      });
+    }
+
+    function syncColgroupOrder(state) {
+      var cg = tableEl.querySelector("colgroup[data-cm-colgroup]");
+      if (!cg) return;
+      if (!groupedMode) {
+        state.forEach(function (item) {
+          if (!item || !item.colId) return;
+          var col = cg.querySelector('[data-cm-col-key="' + item.colId + '"]');
+          if (col) cg.appendChild(col);
+        });
+        return;
+      }
+      state.forEach(function (item) {
+        if (!item || !item.colId) return;
+        expandKeys(item.colId).forEach(function (key) {
+          var col = cg.querySelector('[data-cm-col-key="' + key + '"]');
+          if (col) cg.appendChild(col);
+        });
+      });
+    }
+
     function reorderUnits(state) {
       if (!groupedMode) {
         var row = leafHeaderRow();
@@ -185,6 +243,7 @@
             if (item && item.colId && tds[item.colId]) tr.appendChild(tds[item.colId]);
           });
         });
+        syncColgroupOrder(state);
         return;
       }
       var row1 = headerRow1();
@@ -221,6 +280,7 @@
           });
         });
       });
+      syncColgroupOrder(state);
     }
 
     return {
@@ -263,10 +323,13 @@
       },
       getColumnState: function () {
         return readUnitOrderFromDom().map(function (unitId) {
+          var meta = metaById[unitId];
+          var width = meta && meta.isGroup ? null : readWidth(unitId);
           return {
             colId: unitId,
             hide: !isUnitVisible(unitId),
-            pinned: groupedMode ? null : readPin(unitId)
+            pinned: groupedMode ? null : readPin(unitId),
+            width: width || null
           };
         });
       },
@@ -276,16 +339,21 @@
           if (!item || !item.colId) return;
           setUnitVisible(item.colId, !item.hide);
           if (!groupedMode) applyPin(item.colId, item.pinned || null);
+          if (item.width && !(metaById[item.colId] && metaById[item.colId].isGroup)) {
+            applyWidth(item.colId, item.width);
+          }
         });
         if (applyOrder) reorderUnits(state);
         syncGroupHeaders();
       },
       resetColumnState: function () {
+        clearWidths();
         var defaultState = (columnsMeta || []).map(function (meta) {
-          return { colId: meta.colId, hide: !!meta.hide, pinned: null };
+          return { colId: meta.colId, hide: !!meta.hide, pinned: null, width: null };
         });
         this.applyColumnState(defaultState, true);
       },
+      clearWidths: clearWidths,
       getDisplayedColumnIds: function () {
         var out = [];
         readUnitOrderFromDom().forEach(function (unitId) {
@@ -409,7 +477,19 @@
         } catch (e) {}
       }
       if (state && Array.isArray(state)) {
-        this.adapter.applyColumnState(state, true);
+        if (typeof this.adapter.clearWidths === "function") {
+          this.adapter.clearWidths();
+        }
+        var layoutState = state.map(function (item) {
+          if (!item || !item.colId) return item;
+          return {
+            colId: item.colId,
+            hide: !!item.hide,
+            pinned: item.pinned || null,
+            width: null
+          };
+        });
+        this.adapter.applyColumnState(layoutState, true);
       } else {
         this.adapter.resetColumnState();
       }

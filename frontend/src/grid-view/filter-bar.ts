@@ -6,7 +6,8 @@ import { collectColumnFiltersObject, serializeColumnFilters, matchColumnFilter }
 import { initColumnFilters, navigateWithTableFilters } from "./column-filters";
 import { Charts } from "./charts";
 import { Kpi } from "./kpi";
-import { initAllSimpleTables } from "./simple-table";
+import { initAllSimpleTables, applyFiltersInScope } from "./simple-table";
+import { initButtonEllipsisTips } from "./table-cell-ui";
 
 const MS_VALUE_CHECKBOX =
   'input[type="checkbox"]:checked:not([data-ui-only])';
@@ -477,7 +478,7 @@ export const ToolbarSearch = {
     ToolbarSearch.persist(ctx, items);
     var onPick =
       ctx.backend === "server" && ctx.input
-        ? serverToolbarSearchNavigate(ctx.input)
+        ? serverToolbarSearchApplyClient(ctx.input)
         : null;
     ToolbarSearch.render(ctx, items, onPick);
   },
@@ -488,7 +489,7 @@ export const ToolbarSearch = {
     if (opening) {
       var onPick =
         ctx.backend === "server" && ctx.input
-          ? serverToolbarSearchNavigate(ctx.input)
+          ? serverToolbarSearchApplyClient(ctx.input)
           : null;
       ToolbarSearch.render(ctx, ToolbarSearch.load(ctx), onPick);
     }
@@ -551,7 +552,7 @@ export function serverToolbarSearchNavigate(searchInput) {
 
   return function navigate() {
     const value = searchInput.value || "";
-    if (hiddenSearch) hiddenSearch.value = value;
+    if (hiddenSearch instanceof HTMLInputElement) hiddenSearch.value = value;
     if (!filterBar) return;
     const state = selectedFilterValues(filterBar);
     const q = value.trim();
@@ -561,6 +562,28 @@ export function serverToolbarSearchNavigate(searchInput) {
       buildFilterUrl(window.location.href, state),
       searchInput
     );
+  };
+}
+
+/** Live SimpleTable filter for server-toolbar pages (Enter still navigates via serverToolbarSearchNavigate). */
+export function serverToolbarSearchApplyClient(searchInput) {
+  const scopeId = searchInput.closest("[data-cm-toolbar-search-root]")?.dataset.cmSearchScopeId || "";
+  const shell =
+    searchInput.closest(".cm-dashboard-page, .cm-page-table-layout, .cm-simple-wrapper, .cm-table-shell") ||
+    document;
+  const filterBar = shell.querySelector("[data-cm-filter-bar]");
+  const searchName = searchInput.name || "q";
+  const hiddenSearch = filterBar?.querySelector('input[data-cm-search][name="' + searchName + '"]');
+
+  return function applyClient() {
+    syncToolbarSearchChrome(searchInput);
+    if (hiddenSearch instanceof HTMLInputElement) {
+      hiddenSearch.value = searchInput.value || "";
+    }
+    const layout =
+      searchInput.closest(".cm-page-table-layout, .cm-dashboard-page, .cm-simple-wrapper, .cm-table-shell") ||
+      searchInput.closest(".cm-dashboard-page");
+    applyFiltersInScope(layout || document);
   };
 }
 
@@ -579,18 +602,13 @@ export function initToolbarSearch(scope) {
     }
 
     const navigate = serverToolbarSearchNavigate(searchInput);
+    const applyClient = serverToolbarSearchApplyClient(searchInput);
     const ctx = ToolbarSearch.ctx(scopeId, wrap);
-    if (ctx) ToolbarSearch.render(ctx, ToolbarSearch.load(ctx), navigate);
+    if (ctx) ToolbarSearch.render(ctx, ToolbarSearch.load(ctx), applyClient);
 
     searchInput.addEventListener("input", () => {
       syncStateUi();
-      syncToolbarSearchChrome(searchInput);
-      const layout = searchInput.closest(
-        ".cm-page-table-layout, .cm-dashboard-page, .cm-simple-wrapper"
-      );
-      if (layout?._simple?.applyAllFilters) {
-        layout._simple.applyAllFilters();
-      }
+      applyClient();
     });
     searchInput.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") return;
@@ -601,13 +619,7 @@ export function initToolbarSearch(scope) {
       e.preventDefault();
       searchInput.value = "";
       syncStateUi();
-      syncToolbarSearchChrome(searchInput);
-      const layout = searchInput.closest(
-        ".cm-page-table-layout, .cm-dashboard-page, .cm-simple-wrapper"
-      );
-      if (layout?._simple?.applyAllFilters) {
-        layout._simple.applyAllFilters();
-      }
+      applyClient();
       navigate();
     });
     syncStateUi();
@@ -646,6 +658,7 @@ export function bootGridViewScope(scope) {
   if (!hasWidgets) return;
   initAllSimpleTables(root);
   initFilterBars(root);
+  initButtonEllipsisTips(root);
   initTabGroups(root);
   Kpi.initAllKpi(root);
   Charts.initAllCharts(root);

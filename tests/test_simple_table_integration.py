@@ -92,6 +92,7 @@ class TestRenderSimpleTableHtml:
 
         assert "data-cm-search" not in html
         assert "cm-counter" in html
+        assert 'data-cm-count-for="no-search"' in html
 
     def test_shell_wrapper_renders_table_shell_without_toolbar(
         self, anon_request: HttpRequest
@@ -108,6 +109,31 @@ class TestRenderSimpleTableHtml:
         assert 'class="cm-table-shell' in html
         assert 'class="cm-simple-wrapper' not in html
         assert '<div class="cm-toolbar' not in html
+
+    def test_table_viewport_wraps_table(self, anon_request: HttpRequest) -> None:
+        config = SimpleTableConfig(
+            grid_id="scroll",
+            columns=[Column(key="name", label="Name")],
+            data=[{"name": "Alice"}],
+        )
+        html = _render(config, anon_request)
+        assert 'class="cm-table-viewport"' in html
+        assert html.index("cm-table-viewport") < html.index("data-cm-table")
+        assert 'data-cm-col-filter-table="scroll"' in html
+
+    def test_th_header_actions_stack_hover(self, anon_request: HttpRequest) -> None:
+        config = SimpleTableConfig(
+            grid_id="stack-th",
+            columns=[Column(key="name", label="Name")],
+            data=[{"name": "Alice"}],
+            th_header_actions="stack-hover",
+        )
+        html = _render(config, anon_request)
+        assert "cm-table--th-stack-hover" in html
+        assert 'data-cm-th-actions="stack-hover"' in html
+        assert "cm-th-rails" in html
+        assert "cm-th-actions-row" in html
+        assert "cm-th-icon-slot--reserved" not in html
 
     def test_grouped_header_renders_single_group_label(self, anon_request: HttpRequest) -> None:
         config = SimpleTableConfig(

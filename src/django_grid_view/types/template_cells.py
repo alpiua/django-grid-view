@@ -20,6 +20,9 @@ class TableHeaderCell(TypedDict):
     width: NotRequired[str]
     css_class: NotRequired[str]
     hide: NotRequired[bool]
+    wrap: NotRequired[bool]
+    column_filter: NotRequired[str]
+    filter_match: NotRequired[str]
     group_keys: NotRequired[str]
     group_id: NotRequired[str]
 

@@ -3,6 +3,7 @@ import { Kpi } from "./kpi";
 import { bindGridKpis, bindGridFilteredCharts } from "./grid-adapter";
 import { initFilterBars, initTabGroups } from "./filter-bar";
 import { initAllSimpleTables } from "./simple-table";
+import { initButtonEllipsisTips } from "./table-cell-ui";
 import type { GridInitOptions } from "./types";
 
 export function init(opts: GridInitOptions | undefined) {
@@ -39,6 +40,7 @@ export function init(opts: GridInitOptions | undefined) {
   Charts.initAllCharts(scope);
   initAllSimpleTables(scope);
   initFilterBars(scope);
+  initButtonEllipsisTips(scope);
   initTabGroups(scope);
   if (typeof opts.onCellEdit === "function") {
     scope.querySelectorAll("[data-cm-editable]").forEach((cell) => {

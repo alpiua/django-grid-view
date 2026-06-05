@@ -18,18 +18,30 @@ export function chartRowsHaveData(rows) {
 
 export function setChartEmptyState(wrap, isEmpty) {
   if (!wrap) return;
-  var plate = wrap.querySelector("[data-cm-chart-empty]");
-  var root = wrap.querySelector("[data-cm-chart-root]");
-  if (plate) {
+  var plates = wrap.querySelectorAll("[data-cm-chart-empty]");
+  var roots = wrap.querySelectorAll("[data-cm-chart-root]");
+  if (!plates.length && wrap.matches?.("[data-cm-chart-empty]")) {
+    plates = [wrap];
+  }
+  if (!roots.length && wrap.matches?.("[data-cm-chart-root]")) {
+    roots = [wrap];
+  }
+  plates.forEach((plate) => {
     if (!plate.textContent.trim()) {
       plate.textContent = i18n.t("chart.empty", "Data not loaded");
     }
     plate.classList.toggle("is-hidden", !isEmpty);
     plate.hidden = !isEmpty;
-  }
-  if (root) root.classList.toggle("is-hidden", isEmpty);
+    plate.style.display = isEmpty ? "" : "none";
+  });
+  roots.forEach((root) => {
+    root.classList.toggle("is-hidden", isEmpty);
+    root.hidden = isEmpty;
+    root.style.visibility = isEmpty ? "hidden" : "";
+  });
   if (isEmpty) {
-    var inst = wrap._cmChartInstance || (root && root._cmChartInstance);
+    const firstRoot = roots[0];
+    var inst = wrap._cmChartInstance || (firstRoot && firstRoot._cmChartInstance);
     if (inst) {
       try {
         inst.dispose();
@@ -38,7 +50,9 @@ export function setChartEmptyState(wrap, isEmpty) {
       }
     }
     wrap._cmChartInstance = null;
-    if (root) root._cmChartInstance = null;
+    roots.forEach((root) => {
+      root._cmChartInstance = null;
+    });
     delete wrap.dataset.cmChartReady;
   }
 }
@@ -181,6 +195,22 @@ ${overlay.value}`,
   };
 }
 
+function axisValueFormatter(
+  format: string | undefined,
+  symbol: string | undefined,
+): (value: number) => string {
+  const fmt = format ?? "number";
+  const localized = (value: number) => value.toLocaleString("uk-UA");
+  if (fmt === "percent") {
+    return (value: number) => `${localized(value)}%`;
+  }
+  if (fmt === "symbol") {
+    const tail = symbol ?? "";
+    return (value: number) => `${localized(value)}${tail}`;
+  }
+  return localized;
+}
+
 function buildBarOptionFromResolved(
   resolved: ResolvedChartData,
   bind: ChartBindDict,
@@ -193,6 +223,11 @@ function buildBarOptionFromResolved(
   const horizontal = bind.orientation === "horizontal";
   const stacked = bind.stacked === true;
   const categories = resolved.categories;
+  const valueAxisLabel = {
+    formatter: axisValueFormatter(bind.yAxisFormat, bind.yAxisSymbol),
+    color: isDark ? "#94a3b8" : "#64748b",
+    fontSize: 10,
+  };
   const series = resolved.series.map((point, idx) => {
     const seriesDef = seriesDefs[idx] ?? {};
     const type = seriesDef.seriesType ?? defaultType;
@@ -243,7 +278,7 @@ function buildBarOptionFromResolved(
       grid: { left: 10, right: 30, top: 30, bottom: 5, containLabel: true },
       xAxis: {
         type: "value",
-        axisLabel: { color: isDark ? "#94a3b8" : "#64748b", fontSize: 10 },
+        axisLabel: valueAxisLabel,
         splitLine: { lineStyle: { color: isDark ? "#1e293b" : "#e2e8f0" } },
       },
       yAxis: {
@@ -281,7 +316,7 @@ function buildBarOptionFromResolved(
     },
     yAxis: {
       type: "value",
-      axisLabel: { formatter: "{value} \u20B4", color: "#10b981", fontSize: 10 },
+      axisLabel: valueAxisLabel,
       splitLine: { lineStyle: { color: isDark ? "#1e293b" : "#e2e8f0" } },
     },
     series,

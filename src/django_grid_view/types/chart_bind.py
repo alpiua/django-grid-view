@@ -32,6 +32,8 @@ class ChartBindDict(TypedDict, total=False):
     tooltipKind: str
     groupBy: str
     aggregate: str
+    yAxisFormat: str
+    yAxisSymbol: str
 
 
 class ChartRuntimeDict(TypedDict, total=False):

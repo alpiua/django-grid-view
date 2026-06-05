@@ -1,90 +1,126 @@
 # Server Filtering Contract
 
-Use one server pipeline for all filterable views: page table, KPIs/charts, and exports.
+Use one server pipeline for every filtered surface: HTML tables, KPIs, charts,
+PDF, and XLSX. If the page and export use different filtering paths, totals,
+rows, and chart values will drift.
 
-## Why this matters
+Filter syntax and matching rules are defined in
+[Filter Semantics Contract](filter-semantics-contract.md). This page focuses on
+where filtering belongs in the server pipeline.
 
-If one part is filtered from queryset and another part is filtered from rendered rows, totals drift:
+## Contract
 
-- table rows do not match counters,
-- charts do not match export,
-- URL state becomes hard to reason about.
-
-The fix is to keep one source of truth.
-
-## Correct flow
-
-1. **Read URL/filter state** (`period`, `category`, `q`, etc.).
-2. **Build one base queryset** for the page.
-3. **Apply all server filters to that queryset** (including search).
-4. **Aggregate table rows/charts/KPIs from that filtered queryset only**.
-5. **Build export URLs with the same query params** so PDF/XLSX reuse the same filter state.
+The host app should treat URL/request state as the public filter contract.
 
 ```text
-URL params -> load_*_page -> PageData (table, page.artifact) -> HTML / PDF / XLSX
+request.GET -> load_page_data() -> PageData(table, artifact, export metadata)
 ```
 
-Do **not** use a state token as the primary contract. URL is fine when every consumer calls the same loader and `build_*_page_artifact(page, for_export=…)`.
+The same loader should serve the HTML page and export handlers. Avoid state tokens
+or separate export-only loaders unless they delegate back to the same request
+filtering code.
 
-## Search behavior for grouped tables
+## Recommended Flow
 
-For grouped section tables (for example, entities grouped by category), keep grouping in the table builder,
-but still derive rows from the already filtered queryset.
+1. Read URL state: FilterBar params, toolbar `q`, column `col_q`, and export
+   column state.
+2. Build the base queryset.
+3. Apply page-level filters to the queryset.
+4. Apply server-side search/filter parameters that belong to the queryset.
+5. Aggregate rows, KPIs, and charts from the filtered queryset.
+6. Build `SimpleTableConfig` and/or `GridArtifact`.
+7. Build export links with the same GET params.
+
+All numeric KPI and chart values must come from the filtered Python rows or
+queryset. Specs describe structure only.
+
+## Column Filters (`col_q`)
+
+SimpleTable column filters serialize to one GET parameter. String values are
+expression filters; object values are set/list models.
+
+```text
+col_q={"amount": ">1000", "name": "%Alpha%", "status": {"values": ["Open"]}}
+```
+
+Use:
+
+```python
+from django_grid_view.search.server import filter_table_for_request
+
+rows = filter_table_for_request(rows, table, request)
+```
+
+`filter_table_for_request()` applies column filters and toolbar search in the
+same order as the SimpleTable client. Export helpers use the same path, so PDF
+and XLSX can match the visible table.
+
+## Toolbar Search (`q`)
+
+Toolbar search should be applied to the same visible/searchable column set used
+by the rendered table.
+
+For ORM-backed views, map visible table columns to ORM paths and use the search
+helpers from `django_grid_view.search.server`. For in-memory rows, use
+`filter_table_for_request()` after the table config is built.
+
+Do not apply an extra ad hoc row filter after aggregation unless that same rule
+is also used for KPIs, charts, and exports.
+
+## Grouped Tables
+
+Grouped section tables should preserve grouping in the table builder, not in a
+separate export path.
 
 Recommended pattern:
 
-- use an explicit row policy, e.g. `row_policy="catalog"` when search is empty,
-- switch to `row_policy="strict"` when search is non-empty (hide zero-total rows).
+- build rows from the already filtered queryset,
+- use an explicit row policy such as `row_policy="catalog"` when search is empty,
+- switch to `row_policy="strict"` when search is non-empty and zero-total rows
+  should disappear,
+- let `inject_group_section_totals()` prepare HTML/PDF/XLSX section totals.
 
-Do **not** do an extra row-level post-filter after aggregation.
+Do not post-process grouped export rows separately in the host app.
 
-## Column filters (`col_q`)
+## Export Parity
 
-Per-column smart filters live in table headers (magnifier icon). Active values serialize to one GET param:
+Export links should carry the same state as the page:
 
-```json
-col_q={"amount": ">1000", "name": "%Alpha%"}
+- FilterBar params such as `period` or category/type filters,
+- toolbar `q`,
+- column `col_q`,
+- column order/visibility through `export_cols`.
+
+The browser syncs live column state through `data-cm-export-sync` and
+`data-cm-grid-id`. Export handlers should call:
+
+- `resolve_simple_table_for_export()` for `SimpleTableConfig`,
+- `resolve_artifact_table_for_export()` for artifact tables.
+
+For title/subtitle metadata, pass the request into the export helpers or call:
+
+```python
+from django_grid_view.export.meta_lines import build_export_meta_lines
+
+meta_lines = build_export_meta_lines(request, table=table, filter_specs=filter_specs)
 ```
 
-Apply on the server with ``filter_table_for_request(rows, table, request)`` — same helper used by
-``resolve_simple_table_for_export``. Combine with toolbar ``q`` and FilterBar params in export URLs
-(``syncExportHref`` / ``syncExportLinks`` on ``data-cm-export-sync`` links add ``col_q`` automatically).
+PDF/XLSX subtitle rows can then include active search and filter labels without
+duplicating parsing code.
 
-Export PDF/XLSX subtitle lines (when set):
+## FilterBar Integration
 
-- ``Search: "…"`` from ``q``
-- ``Filters: …`` from FilterBar specs + column filters
+`GridView.FilterBar` should serialize UI state to the URL. Data filtering remains
+server-side.
 
-Use ``build_export_meta_lines(request, table=…, filter_specs=…)`` or pass ``request=`` to
-``report_from_simple_table`` for XLSX title rows.
+Client-side debounce is fine for input ergonomics, but the backend must still be
+the authority for filtered rows, KPIs, charts, and exports.
 
-## FilterBar integration
+## Checklist
 
-`GridView.FilterBar` should only serialize state to URL. Filtering stays server-side.
-
-- multiselect debounce can be client-side for UX,
-- data filtering must still happen on backend from GET params.
-
-## Export contract
-
-Pass the same params into export links (`q`, `period`, type filters, etc.):
-
-- `{% export_xlsx_href ... q=q period=period category=category %}`
-- `{% export_pdf_href ... q=q period=period category=category %}`
-
-Export handlers should load and filter data with the same code path as the page.
-
-When the page uses column settings (hide/reorder/pin), export links must carry the live
-column snapshot as ``export_cols`` (comma-separated column keys in display order).
-The browser syncs this via ``data-cm-export-sync`` + ``data-cm-grid-id`` on PDF/XLSX links;
-PDF/XLSX handlers call ``resolve_simple_table_for_export`` or
-``resolve_artifact_table_for_export`` so export matches the on-screen table.
-
-## Render parity (grouped section tables)
-
-When the table builder inserts `__section__` row markers and sets `footer_row` (to enable per-section totals), HTML, PDF, and XLSX must share one preparation path:
-
-- `django_grid_view.render.section_totals.inject_group_section_totals`
-- used by `{% render_simple_table %}` and `simple_table_print_context` (PDF/XLSX)
-
-Do **not** post-process export rows separately in the host app.
+- One loader builds both page data and export data.
+- Page-level filters are applied before aggregating rows/KPIs/charts.
+- `q` and `col_q` are replayed for exports.
+- `export_cols` is respected by PDF/XLSX.
+- Grouped totals use `inject_group_section_totals()`.
+- No host-specific export path reimplements table filtering.

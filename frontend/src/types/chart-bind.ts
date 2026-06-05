@@ -15,6 +15,8 @@ export interface SeriesBindDict {
 
 export type RowDict = Record<string, string | number | boolean | null>;
 
+export type YAxisValueFormat = "number" | "percent" | "symbol";
+
 export interface ChartBindDict {
   labelKey?: string;
   valueKey?: string;
@@ -27,6 +29,10 @@ export interface ChartBindDict {
   tooltipKind?: string;
   groupBy?: string;
   aggregate?: string;
+  /** Value-axis label format: number (default), percent, or symbol (+ yAxisSymbol). */
+  yAxisFormat?: YAxisValueFormat;
+  /** Appended when yAxisFormat is symbol — host-defined, e.g. " ₴". */
+  yAxisSymbol?: string;
 }
 
 export interface ChartRuntimeDict {
