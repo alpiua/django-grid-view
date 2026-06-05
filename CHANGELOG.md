@@ -6,7 +6,7 @@ All notable changes to this project are documented here.
 
 No unreleased changes.
 
-## [1.2.0] — 2026-06-04
+## [1.2.0] — 2026-06-05
 
 ### Added
 
@@ -15,6 +15,9 @@ No unreleased changes.
 - `{% ag_grid_cdn_url %}`, `{% sortable_cdn_url %}`, `{% echarts_cdn_url %}` template tags; `conf.py` CDN pin settings.
 - Python↔JS conformance fixtures for filters, smart search, KPI aggregates, and chart `resolveChartData`.
 - `resolve_chart_data()` / `ResolvedChartData` (Python) and `resolveChartData()` (JS) shared semantic layer.
+- Unified search/filter contract modules for Python and TypeScript (`toolbar q`, `col_q`, column scope, and set/list filters).
+- SimpleTable column filter popovers with expression filters, list/checklist filters, syntax help, and export URL sync.
+- Shared `SetFilterPanel` used by SimpleTable list columns and AG-Grid SmartFilter.
 
 ### Changed
 
@@ -22,6 +25,18 @@ No unreleased changes.
 - `{% grid_view_bundle %}` and inclusion tags dedupe assets once per render context.
 - AG-Grid page scripts split into focused modules (`ag-grid-host`, `ag-grid-boot`, plugins).
 - Smart-filter CSS ships inside `grid-view.min.css` (no separate stylesheet tag).
+- Search, column filter, and set/list matching now share one conformance-tested engine across Python and JavaScript.
+- Frontend filter code now uses typed runtime guards instead of unsafe assertions in the search/list-filter path.
+
+### Fixed
+
+- `django_grid_view.__version__` now matches the package release version.
+- AG-Grid SmartFilter focuses the actual list-search input when the popup opens.
+
+### Documentation
+
+- Added the Filter Semantics Contract guide.
+- Rewrote the Server Filtering Contract guide around one request-driven server pipeline for tables, KPIs, charts, PDF, and XLSX.
 
 ### Removed
 
