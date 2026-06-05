@@ -8,7 +8,7 @@ from django_grid_view.types.enums import (
     KpiAggregate,
     KpiTone,
 )
-from django_grid_view.types.json import JsonObject
+from django_grid_view.types.json import JsonObject, is_json_object, json_object_list_from
 from django_grid_view.types.kpis import KpiSpec
 from django_grid_view.types.spec_wire import (
     ChartOverlayWire,
@@ -96,17 +96,14 @@ def _chart_list(raw: GridViewSpecWire) -> list[ChartSpecWire]:
 
 def _wire_column_list(value: object | None) -> list[ColumnSpecWire]:
     result: list[ColumnSpecWire] = []
-    if not isinstance(value, list):
-        return result
-    for item in value:
-        if isinstance(item, dict):
-            parsed = _wire_column(item)
-            if parsed is not None:
-                result.append(parsed)
+    for item in json_object_list_from(value):
+        parsed = _wire_column(item)
+        if parsed is not None:
+            result.append(parsed)
     return result
 
 
-def _wire_column(obj: dict[object, object]) -> ColumnSpecWire | None:
+def _wire_column(obj: JsonObject) -> ColumnSpecWire | None:
     key = obj.get("key")
     label = obj.get("label")
     if not isinstance(key, str) or not isinstance(label, str):
@@ -144,17 +141,14 @@ def _wire_column(obj: dict[object, object]) -> ColumnSpecWire | None:
 
 def _wire_kpi_list(value: object | None) -> list[KpiSpecWire]:
     result: list[KpiSpecWire] = []
-    if not isinstance(value, list):
-        return result
-    for item in value:
-        if isinstance(item, dict):
-            parsed = _wire_kpi(item)
-            if parsed is not None:
-                result.append(parsed)
+    for item in json_object_list_from(value):
+        parsed = _wire_kpi(item)
+        if parsed is not None:
+            result.append(parsed)
     return result
 
 
-def _wire_kpi(obj: dict[object, object]) -> KpiSpecWire | None:
+def _wire_kpi(obj: JsonObject) -> KpiSpecWire | None:
     label = obj.get("label")
     if not isinstance(label, str):
         return None
@@ -179,17 +173,14 @@ def _wire_kpi(obj: dict[object, object]) -> KpiSpecWire | None:
 
 def _wire_chart_list(value: object | None) -> list[ChartSpecWire]:
     result: list[ChartSpecWire] = []
-    if not isinstance(value, list):
-        return result
-    for item in value:
-        if isinstance(item, dict):
-            parsed = _wire_chart(item)
-            if parsed is not None:
-                result.append(parsed)
+    for item in json_object_list_from(value):
+        parsed = _wire_chart(item)
+        if parsed is not None:
+            result.append(parsed)
     return result
 
 
-def _wire_chart(obj: dict[object, object]) -> ChartSpecWire | None:
+def _wire_chart(obj: JsonObject) -> ChartSpecWire | None:
     chart_id = obj.get("id")
     chart_type = obj.get("chart_type")
     if not isinstance(chart_id, str) or not isinstance(chart_type, str):
@@ -227,22 +218,25 @@ def _wire_chart(obj: dict[object, object]) -> ChartSpecWire | None:
     overlay = _wire_overlay(obj.get("overlay"))
     if overlay is not None:
         chart["overlay"] = overlay
+    y_axis_format = obj.get("y_axis_format")
+    if isinstance(y_axis_format, str) and y_axis_format in {"number", "percent", "symbol"}:
+        chart["y_axis_format"] = y_axis_format
+    y_axis_symbol = obj.get("y_axis_symbol")
+    if isinstance(y_axis_symbol, str) and y_axis_symbol:
+        chart["y_axis_symbol"] = y_axis_symbol
     return chart
 
 
 def _wire_series_list(value: object | None) -> list[SeriesSpecWire]:
     result: list[SeriesSpecWire] = []
-    if not isinstance(value, list):
-        return result
-    for item in value:
-        if isinstance(item, dict):
-            parsed = _wire_series(item)
-            if parsed is not None:
-                result.append(parsed)
+    for item in json_object_list_from(value):
+        parsed = _wire_series(item)
+        if parsed is not None:
+            result.append(parsed)
     return result
 
 
-def _wire_series(obj: dict[object, object]) -> SeriesSpecWire | None:
+def _wire_series(obj: JsonObject) -> SeriesSpecWire | None:
     key = obj.get("key")
     if not isinstance(key, str):
         return None
@@ -260,7 +254,7 @@ def _wire_series(obj: dict[object, object]) -> SeriesSpecWire | None:
 
 
 def _wire_overlay(value: object | None) -> ChartOverlayWire | None:
-    if not isinstance(value, dict):
+    if not is_json_object(value):
         return None
     title = value.get("title")
     overlay_value = value.get("value")
@@ -337,4 +331,6 @@ def _parse_chart(raw: ChartSpecWire) -> ChartSpec:
         height=raw.get("height", 300),
         data_source=ChartDataSource(raw.get("data_source", "static")),
         overlay=overlay,
+        y_axis_format=raw.get("y_axis_format"),
+        y_axis_symbol=raw.get("y_axis_symbol"),
     )

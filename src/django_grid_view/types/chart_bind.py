@@ -32,6 +32,8 @@ class ChartBindDict(TypedDict, total=False):
     tooltipKind: str
     groupBy: str
     aggregate: str
+    yAxisFormat: str
+    yAxisSymbol: str
 
 
 class ChartRuntimeDict(TypedDict, total=False):
@@ -42,6 +44,33 @@ class ChartRuntimeDict(TypedDict, total=False):
     bind: ChartBindDict
     overlay: ChartOverlayDict
     echartsTheme: str
+    resolved: ResolvedChartData
+
+
+class ChartSliceDict(TypedDict, total=False):
+    """Normalized pie/donut slice."""
+
+    label: str
+    value: float
+    color: str | None
+
+
+class ChartSeriesPointDict(TypedDict, total=False):
+    """One bar/line series aligned to ``categories``."""
+
+    name: str
+    values: list[float]
+    color: str | None
+
+
+class ResolvedChartData(TypedDict, total=False):
+    """Semantic chart payload — shared by ECharts, matplotlib, and conformance tests."""
+
+    chartType: str
+    categories: list[str]
+    series: list[ChartSeriesPointDict]
+    slices: list[ChartSliceDict]
+    overlay: ChartOverlayDict | None
 
 
 class ResolvedKpiDict(TypedDict, total=False):

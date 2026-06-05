@@ -25,7 +25,18 @@ kpis = resolve_kpis(specs, rows)
 
 ## Charts (static rows)
 
-Requires `window.echarts` on the page (load ECharts CDN in your base template).
+Requires `window.echarts` on the page. Pin the CDN in settings or load explicitly:
+
+```django
+{% load django_grid_view %}
+<script src="{{ echarts_cdn_url }}"></script>
+```
+
+```python
+# settings.py (optional)
+DJANGO_GRID_VIEW_ECHARTS_VERSION = "5.5.1"
+# from django_grid_view.conf import echarts_cdn_url  # in view context
+```
 
 ```python
 from django_grid_view.types import ChartSpec, ChartType, RowDict, SeriesSpec

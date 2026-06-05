@@ -1,0 +1,14 @@
+{% load i18n %}
+<button
+  type="button"
+  class="cm-search-help-btn cm-tip-host"
+  data-cm-tip-profile="toolbar"
+  aria-label="{% translate 'search.syntax_help' %}"
+>
+  <svg class="cm-search-help-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+    <circle cx="12" cy="8" r="1.35" fill="currentColor" stroke="none"/>
+    <path d="M12 11v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+  <span class="cm-ellipsis-tip cm-ellipsis-tip--search-help" role="tooltip"></span>
+</button>

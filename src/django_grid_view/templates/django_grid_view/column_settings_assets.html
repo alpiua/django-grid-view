@@ -1,8 +1,0 @@
-{% load static %}
-{% if include_scripts %}
-<script>
-window.GridViewI18n = Object.assign(window.GridViewI18n || {}, {{ grid_view_i18n_catalog|safe }});
-</script>
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-<script src="{% static 'django_grid_view/column-settings.js' %}"></script>
-{% endif %}

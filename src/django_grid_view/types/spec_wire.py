@@ -56,6 +56,8 @@ class ChartSpecWire(TypedDict):
     height: NotRequired[int]
     data_source: NotRequired[str]
     overlay: NotRequired[ChartOverlayWire]
+    y_axis_format: NotRequired[str]
+    y_axis_symbol: NotRequired[str]
 
 
 class GridViewSpecWire(TypedDict, total=False):

@@ -18,10 +18,12 @@ from django_grid_view.search.column import (
     filter_rows_by_column_filters,
     parse_column_filters_from_request,
 )
+from django_grid_view.search.column_scope import ColumnSearchMeta
+from django_grid_view.search.contract import column_is_searchable
 from django_grid_view.search.params import Q_PARAM
 from django_grid_view.search.smart import apply_smart_queryset_search, match_smart_haystack
 from django_grid_view.tables import SimpleTableConfig
-from django_grid_view.types.json import RowDict
+from django_grid_view.types.json import RowDict, is_json_object, is_json_value_list
 
 
 class SupportsFilter(Protocol):
@@ -83,7 +85,7 @@ def orm_fields_for_table_search(
     seen: set[str] = set()
     for key in keys:
         col = col_by_key.get(key)
-        if col is None or not col.searchable:
+        if col is None or not column_is_searchable(col):
             continue
         for path in field_map.get(key, ()):
             if path not in seen:
@@ -119,28 +121,63 @@ def _active_search_column_keys(
             active_keys = list(parse_active_col_ids(request, param="search_cols"))
     keys = resolve_simple_table_column_keys(table, active_keys)
     col_by_key = {col.key: col for col in table.columns}
-    resolved = [key for key in keys if key in col_by_key and col_by_key[key].searchable]
+    resolved = [key for key in keys if key in col_by_key and column_is_searchable(col_by_key[key])]
     if resolved:
         return resolved
-    return [col.key for col in table.columns if col.searchable]
+    return [col.key for col in table.columns if column_is_searchable(col)]
+
+
+def _row_cell_text_for_search(val: object) -> str:
+    if val in (None, ""):
+        return ""
+    if is_json_value_list(val):
+        cell_parts: list[str] = []
+        for item in val:
+            if is_json_object(item):
+                cell_parts.extend(str(v) for v in item.values() if v not in (None, ""))
+            elif item not in (None, ""):
+                cell_parts.append(str(item))
+        return " ".join(cell_parts)
+    return str(val)
+
+
+def _row_cell_values_for_search(row: RowDict, column_keys: Sequence[str]) -> list[str]:
+    """Per-column searchable values for toolbar ``q`` (numeric terms match per cell)."""
+    parts: list[str] = []
+    for key in column_keys:
+        text = _row_cell_text_for_search(row.get(key))
+        if text:
+            parts.append(text)
+    return parts
+
+
+def _row_cells_by_key_for_search(row: RowDict, column_keys: Sequence[str]) -> dict[str, str]:
+    cells: dict[str, str] = {}
+    for key in column_keys:
+        text = _row_cell_text_for_search(row.get(key))
+        if text:
+            cells[key] = text
+    return cells
+
+
+def _search_columns_meta(
+    table: SimpleTableConfig,
+    column_keys: Sequence[str],
+) -> list[ColumnSearchMeta]:
+    col_by_key = {col.key: col for col in table.columns}
+    meta: list[ColumnSearchMeta] = []
+    for key in column_keys:
+        col = col_by_key.get(key)
+        if col is None:
+            continue
+        label = col.label if isinstance(col.label, str) else str(col.label)
+        meta.append({"key": key, "label": label})
+    return meta
 
 
 def row_haystack_for_search(row: RowDict, column_keys: Sequence[str]) -> str:
     """Flatten row cell values for in-memory smart search."""
-    parts: list[str] = []
-    for key in column_keys:
-        val = row.get(key)
-        if val in (None, ""):
-            continue
-        if isinstance(val, list):
-            for item in val:
-                if isinstance(item, dict):
-                    parts.extend(str(v) for v in item.values() if v not in (None, ""))
-                elif item not in (None, ""):
-                    parts.append(str(item))
-        else:
-            parts.append(str(val))
-    return " ".join(parts)
+    return " ".join(_row_cell_values_for_search(row, column_keys))
 
 
 def filter_rows_by_table_search(
@@ -154,12 +191,21 @@ def filter_rows_by_table_search(
     if not q:
         return list(rows)
     column_keys = _active_search_column_keys(table, request)
+    columns = _search_columns_meta(table, column_keys)
     filtered: list[RowDict] = []
     for row in rows:
         if row.get("__section__"):
             continue
-        haystack = row_haystack_for_search(row, column_keys)
-        if match_smart_haystack(haystack, q):
+        cells_by_key = _row_cells_by_key_for_search(row, column_keys)
+        cells = list(cells_by_key.values())
+        haystack = " ".join(cells)
+        if match_smart_haystack(
+            haystack,
+            q,
+            cells=cells,
+            cells_by_key=cells_by_key,
+            columns=columns,
+        ):
             filtered.append(row)
     return filtered
 
@@ -175,6 +221,7 @@ def filter_table_rows_preserving_sections(
     if not q:
         return list(rows)
     column_keys = _active_search_column_keys(table, request)
+    columns = _search_columns_meta(table, column_keys)
     out: list[RowDict] = []
     pending_section: RowDict | None = None
     section_kept = False
@@ -185,7 +232,15 @@ def filter_table_rows_preserving_sections(
             pending_section = row
             section_kept = False
             continue
-        if match_smart_haystack(row_haystack_for_search(row, column_keys), q):
+        cells_by_key = _row_cells_by_key_for_search(row, column_keys)
+        cells = list(cells_by_key.values())
+        if match_smart_haystack(
+            " ".join(cells),
+            q,
+            cells=cells,
+            cells_by_key=cells_by_key,
+            columns=columns,
+        ):
             if pending_section is not None and not section_kept:
                 out.append(pending_section)
                 section_kept = True

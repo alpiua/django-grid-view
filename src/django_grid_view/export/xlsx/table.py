@@ -8,8 +8,8 @@ from django.utils.encoding import force_str
 
 from django_grid_view.export.table_html import print_table_row_cells, simple_table_print_context
 from django_grid_view.export.xlsx.layout import XlsxCell, XlsxReport, XlsxRow, XlsxSheet
+from django_grid_view.render.simple_table_context import build_header_rows
 from django_grid_view.tables import SimpleTableConfig
-from django_grid_view.templatetags.django_grid_view import build_header_rows
 
 
 def report_from_simple_table(

@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from django_grid_view.render.format import format_value, to_float
+from django_grid_view.render.format import format_value
 from django_grid_view.types.artifact import ResolvedKpi
 from django_grid_view.types.enums import KpiAggregate
 from django_grid_view.types.json import RowDict
 from django_grid_view.types.kpis import KpiSpec
+from django_grid_view.types.numbers import parse_number
 
 
 def resolve_kpis(specs: Sequence[KpiSpec], rows: Sequence[RowDict]) -> tuple[ResolvedKpi, ...]:
@@ -53,7 +54,7 @@ def _numeric_values(rows: Sequence[RowDict], column_key: str | None) -> list[flo
         return []
     values: list[float] = []
     for row in rows:
-        parsed = to_float(row.get(column_key))
+        parsed = parse_number(row.get(column_key))
         if parsed is not None:
             values.append(parsed)
     return values

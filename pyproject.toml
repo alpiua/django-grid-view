@@ -1,6 +1,6 @@
 [project]
 name = "django-grid-view"
-version = "1.1.2"
+version = "1.2.0"
 description = "Declarative grid views for Django: Simple Table, AG-Grid helpers, KPI cards, ECharts, and an LLM-friendly GridViewSpec contract"
 readme = "README.md"
 authors = [
@@ -124,10 +124,7 @@ exclude = ["**/migrations/**", "**/__pycache__/**", "hooks/**"]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
 reportMissingTypeStubs = false
-# matplotlib-stubs: loose **kwargs; spec_parser: runtime JSON ingress via isinstance.
-reportUnknownMemberType = "none"
-reportUnknownVariableType = "none"
-reportUnknownArgumentType = "none"
+stubPath = "typings"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]

@@ -1,0 +1,19 @@
+[
+  {"id": "inactive", "cell": "Alpha", "model": null, "expect": true},
+  {"id": "empty_mode_hit", "cell": "", "model": {"mode": "empty"}, "expect": true},
+  {"id": "empty_mode_dash", "cell": "-", "model": {"mode": "empty"}, "expect": true},
+  {"id": "empty_mode_em_dash", "cell": "—", "model": {"mode": "empty"}, "expect": true},
+  {"id": "empty_mode_tokens", "cell": "ignored", "model": {"mode": "empty"}, "tokens": [], "expect": true},
+  {"id": "empty_mode_miss", "cell": "Alpha", "model": {"mode": "empty"}, "expect": false},
+  {"id": "non_empty_hit", "cell": "Alpha", "model": {"mode": "non_empty"}, "expect": true},
+  {"id": "non_empty_miss", "cell": "", "model": {"mode": "non_empty"}, "expect": false},
+  {"id": "values_exact_hit", "cell": "Alpha", "model": {"values": ["Alpha", "Beta"]}, "expect": true},
+  {"id": "values_exact_miss", "cell": "Gamma", "model": {"values": ["Alpha", "Beta"]}, "expect": false},
+  {"id": "values_no_partial", "cell": "Alpha Beta", "model": {"values": ["Alpha"]}, "expect": false},
+  {"id": "values_empty_cell", "cell": "", "model": {"values": ["Alpha"]}, "expect": false},
+  {"id": "values_trim", "cell": " Alpha ", "model": {"values": ["Alpha"]}, "expect": true},
+  {"id": "any_token_hit", "cell": "ignored", "model": {"values": ["Lab"], "match": "any_token"}, "tokens": ["Акушер", "Lab"], "expect": true},
+  {"id": "any_token_miss", "cell": "ignored", "model": {"values": ["X-Ray"], "match": "any_token"}, "tokens": ["Акушер", "Lab"], "expect": false},
+  {"id": "any_token_empty_tokens", "cell": "", "model": {"values": ["Alpha"], "match": "any_token"}, "tokens": [], "expect": false},
+  {"id": "values_none_selected", "cell": "Alpha", "model": {"values": []}, "expect": false}
+]

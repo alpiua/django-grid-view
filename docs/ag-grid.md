@@ -12,6 +12,36 @@ Extension layer for [AG Grid Community](https://www.ag-grid.com/) 31.x in Django
 | `GridView.AgGrid`, `django_grid_view.ag_grid` | Package |
 | `GridPreference` (named presets, saved searches) | Package model; host mounts save URL |
 
+## CDN pins (`conf.py`)
+
+AG-Grid and SortableJS load from CDN on AG-Grid pages. Versions are **pinned in Django settings**, not hardcoded in templates — host apps can override for self-hosting or semver bumps without forking JS.
+
+| Setting | Default | Purpose |
+|---------|---------|---------|
+| `DJANGO_GRID_VIEW_AG_GRID_VERSION` | `31.3.2` | AG-Grid Community semver (jsDelivr URL built automatically) |
+| `DJANGO_GRID_VIEW_AG_GRID_CDN_URL` | *(built from version)* | Full script URL override (self-hosted mirror) |
+| `DJANGO_GRID_VIEW_SORTABLE_VERSION` | `1.15.2` | SortableJS for column-settings drag-reorder |
+| `DJANGO_GRID_VIEW_SORTABLE_CDN_URL` | *(built from version)* | Full Sortable script URL override |
+| `DJANGO_GRID_VIEW_ECHARTS_VERSION` | `5.5.1` | ECharts semver (host base template) |
+| `DJANGO_GRID_VIEW_ECHARTS_CDN_URL` | *(built from version)* | Full ECharts script URL override |
+
+```python
+# settings.py — optional overrides
+DJANGO_GRID_VIEW_AG_GRID_VERSION = "31.3.2"
+# DJANGO_GRID_VIEW_AG_GRID_CDN_URL = "https://static.myapp.example/vendor/ag-grid-community.min.js"
+DJANGO_GRID_VIEW_SORTABLE_VERSION = "1.15.2"
+DJANGO_GRID_VIEW_ECHARTS_VERSION = "5.5.1"
+```
+
+Host base template (charts):
+
+```django
+<script src="{{ echarts_cdn_url }}"></script>
+{# or in view context: from django_grid_view.conf import echarts_cdn_url #}
+```
+
+Python helpers: `django_grid_view.conf.ag_grid_cdn_url()`, `sortable_cdn_url()`, `echarts_cdn_url()`.
+
 ## Architecture
 
 ```mermaid
@@ -306,7 +336,7 @@ register_xlsx_builder("products", build_products_xlsx_report, filename_fn=…)
 
 ## Persistence
 
-Column settings UI (`modal.html`, presets, drag/pin) is implemented once in `grid-view.js` as `GridView.ColumnSettings`. `AgGridHost` delegates to it after `gridApi` init; Simple Table uses the DOM table adapter. See [Simple Table — column settings](simple-table.md#column-settings).
+Column settings UI (`modal.html`, presets, drag/pin) lives in `column-settings.min.js` (`GridView.createColumnSettings`). `AgGridHost` delegates to it after `gridApi` init; Simple Table uses the DOM table adapter. Both ship via `{% grid_view_bundle %}`. See [Simple Table — column settings](simple-table.md#shared-column-settings-with-ag-grid).
 
 Three storage layers:
 

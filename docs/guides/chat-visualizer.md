@@ -86,7 +86,7 @@ Register a `grid_view` widget that mounts KPI/chart/table DOM from `artifact` an
 GridView.init({ root: wrap, artifact: c.artifact });
 ```
 
-Load `grid-view.js` and ECharts on the chat page (same bundle as dashboards).
+Load `{% grid_view_styles %}` + `{% grid_view_bundle %}` and ECharts (`{% echarts_cdn_url %}`) on the chat page — same asset contract as dashboards.
 
 ### Package API
 

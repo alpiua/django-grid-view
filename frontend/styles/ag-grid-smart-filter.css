@@ -1,0 +1,8 @@
+/* AG-Grid SmartFilter — header chrome only; panel styles live in table.css */
+.ag-theme-quartz .ag-header-cell-filtered .ag-header-icon,
+.ag-theme-quartz .ag-header-cell-filtered .ag-icon-filter,
+.ag-theme-alpine .ag-header-cell-filtered .ag-header-icon,
+.ag-header-cell-filtered .ag-icon-filter {
+  color: #6366f1 !important;
+  opacity: 1 !important;
+}

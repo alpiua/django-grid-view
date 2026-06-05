@@ -9,7 +9,7 @@ from django.test import RequestFactory
 from django.utils.safestring import mark_safe
 
 from django_grid_view.models import GridPreference
-from django_grid_view.templatetags.django_grid_view import get_grid_state
+from django_grid_view.render.grid_preferences import get_grid_state
 
 
 @pytest.mark.django_db

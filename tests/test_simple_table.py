@@ -3,12 +3,9 @@ from django.template import RequestContext
 from django.test import RequestFactory
 from django.utils.safestring import SafeString
 
+from django_grid_view.render.simple_table_context import build_footer_cells, build_header_rows
 from django_grid_view.tables import Column, ColumnGroup, SimpleTableConfig
-from django_grid_view.templatetags.django_grid_view import (
-    build_footer_cells,
-    build_header_rows,
-    render_simple_table,
-)
+from django_grid_view.templatetags.django_grid_view import render_simple_table
 from django_grid_view.types.json import RowDict
 from django_grid_view.types.table import CellValue
 from tests.row_helpers import row

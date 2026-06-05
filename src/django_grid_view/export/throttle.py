@@ -11,6 +11,8 @@ from django.core.cache import cache
 from django.http import HttpRequest, HttpResponse, HttpResponseBase
 from django.views import View
 
+from django_grid_view.types.json import as_str_object_dict
+
 DecoratedView = Callable[..., HttpResponseBase]
 
 
@@ -21,12 +23,11 @@ class _ThrottleBucket(TypedDict):
 
 def _bucket_from_cache(bucket_key: str) -> _ThrottleBucket:
     raw = cache.get(bucket_key)
-    if (
-        isinstance(raw, dict)
-        and isinstance(raw.get("count"), int)
-        and isinstance(raw.get("start"), (int, float))
-    ):
-        return _ThrottleBucket(count=raw["count"], start=float(raw["start"]))
+    mapped = as_str_object_dict(raw) if raw is not None else {}
+    count = mapped.get("count")
+    start = mapped.get("start")
+    if isinstance(count, int) and isinstance(start, (int, float)):
+        return _ThrottleBucket(count=count, start=float(start))
     return _ThrottleBucket(count=0, start=time.time())
 
 

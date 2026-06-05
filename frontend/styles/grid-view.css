@@ -1,0 +1,3 @@
+/** django-grid-view styles — rebuild with `npm run build --prefix frontend`. */
+@import "./table.css";
+@import "./ag-grid-smart-filter.css";

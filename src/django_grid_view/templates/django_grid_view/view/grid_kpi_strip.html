@@ -7,7 +7,6 @@
 >
   <div data-cm-kpi-root></div>
 </div>
-{% if load_assets %}
-<link rel="stylesheet" href="{% static 'django_grid_view/table.css' %}">
-{% grid_view_bundle %}
+{% if load_styles or load_scripts %}
+{% include "django_grid_view/assets.html" %}
 {% endif %}

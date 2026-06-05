@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
+import weasyprint
+
 
 @dataclass(frozen=True, slots=True)
 class PdfOptions:
@@ -20,11 +22,15 @@ class WeasyPrintBackend:
         import weasyprint
 
         _ = options
-        pdf_bytes = weasyprint.HTML(string=html).write_pdf()
-        if pdf_bytes is None:
-            msg = "WeasyPrint write_pdf() returned no bytes"
-            raise RuntimeError(msg)
-        return pdf_bytes
+        return _weasy_html_to_pdf(weasyprint.HTML(string=html))
+
+
+def _weasy_html_to_pdf(document: weasyprint.HTML) -> bytes:
+    pdf_bytes = document.write_pdf()
+    if pdf_bytes is None:
+        msg = "WeasyPrint write_pdf() returned no bytes"
+        raise RuntimeError(msg)
+    return pdf_bytes
 
 
 _BACKENDS: dict[str, type[WeasyPrintBackend]] = {

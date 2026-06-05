@@ -3,21 +3,17 @@
 from __future__ import annotations
 
 import io
-from typing import TYPE_CHECKING
+
+import xlsxwriter
+from xlsxwriter.format import Format
 
 from django_grid_view.export.xlsx.layout import XlsxReport, XlsxSheet
-
-if TYPE_CHECKING:
-    from xlsxwriter.format import Format
-    from xlsxwriter.workbook import Workbook
 
 
 class XlsxWriterBackend:
     """Write ``XlsxReport`` with xlsxwriter."""
 
     def render(self, report: XlsxReport) -> bytes:
-        import xlsxwriter
-
         buffer = io.BytesIO()
         workbook = xlsxwriter.Workbook(buffer, {"in_memory": True})
         header_fmt = workbook.add_format({"bold": True, "bg_color": "#E8EEF4", "border": 1})
@@ -30,7 +26,7 @@ class XlsxWriterBackend:
 
     def _write_sheet(
         self,
-        workbook: Workbook,
+        workbook: xlsxwriter.Workbook,
         sheet_def: XlsxSheet,
         header_fmt: Format,
         title_fmt: Format,

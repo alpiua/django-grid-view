@@ -28,6 +28,21 @@ def test_chart_to_png_base64_donut_returns_data_uri_payload():
     assert len(png) > 100
 
 
+def test_chart_to_png_base64_line_chart():
+    spec = ChartSpec(
+        id="profit-trend",
+        chart_type=ChartType.LINE,
+        x_key="region",
+        series=(SeriesSpec(key="profit", label="Profit", color="#3b82f6"),),
+    )
+    chart_rows = rows(
+        row(region="Central", profit=1200),
+        row(region="East", profit=800),
+    )
+    png = chart_to_png_base64(spec, chart_rows)
+    assert png
+
+
 def test_chart_to_png_base64_bar_finance():
     spec = ChartSpec(
         id="finance",

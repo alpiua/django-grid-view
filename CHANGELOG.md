@@ -6,6 +6,57 @@ All notable changes to this project are documented here.
 
 No unreleased changes.
 
+## [1.2.0] — 2026-06-05
+
+### Added
+
+- TypeScript frontend (`frontend/src/`) built with esbuild → committed `.min.js` / `.min.css` in `static/django_grid_view/`.
+- `{% grid_view_styles %}` — CSS bundle (`grid-view.min.css`: table + smart-filter chrome).
+- `{% ag_grid_cdn_url %}`, `{% sortable_cdn_url %}`, `{% echarts_cdn_url %}` template tags; `conf.py` CDN pin settings.
+- Python↔JS conformance fixtures for filters, smart search, KPI aggregates, and chart `resolveChartData`.
+- `resolve_chart_data()` / `ResolvedChartData` (Python) and `resolveChartData()` (JS) shared semantic layer.
+- Unified search/filter contract modules for Python and TypeScript (`toolbar q`, `col_q`, column scope, and set/list filters).
+- SimpleTable column filter popovers with expression filters, list/checklist filters, syntax help, and export URL sync.
+- Shared `SetFilterPanel` used by SimpleTable list columns and AG-Grid SmartFilter.
+
+### Changed
+
+- **Breaking:** removed `{% grid_view_column_settings_assets %}` and `CmGridView` / `CmSimpleTable` globals — use `{% grid_view_bundle %}` and `GridView.SimpleTable.initAll()`.
+- `{% grid_view_bundle %}` and inclusion tags dedupe assets once per render context.
+- AG-Grid page scripts split into focused modules (`ag-grid-host`, `ag-grid-boot`, plugins).
+- Smart-filter CSS ships inside `grid-view.min.css` (no separate stylesheet tag).
+- Search, column filter, and set/list matching now share one conformance-tested engine across Python and JavaScript.
+- Frontend filter code now uses typed runtime guards instead of unsafe assertions in the search/list-filter path.
+
+### Fixed
+
+- `django_grid_view.__version__` now matches the package release version.
+- AG-Grid SmartFilter focuses the actual list-search input when the popup opens.
+
+### Documentation
+
+- Added the Filter Semantics Contract guide.
+- Rewrote the Server Filtering Contract guide around one request-driven server pipeline for tables, KPIs, charts, PDF, and XLSX.
+
+### Removed
+
+- Legacy `column_settings_assets.html` template.
+
+### Performance (Simple Table page — browser transfer)
+
+Typical load: `grid-view.min.js` + `column-settings.min.js` + `grid-view.min.css`.
+
+| Stage | Transfer |
+|-------|----------|
+| **1.1.2 shipped** (unminified JS + CSS) | **152 KiB** (155 738 B) |
+| 1.1.2 hypothetically minified | 87 KiB (89 518 B) |
+| **1.2.0 shipped** (minified) | **92 KiB** (94 008 B) |
+| **Win vs 1.1.2 as published** | **−40%** (−62 KiB) |
+
+Maintainer source: ~171 KiB TypeScript (`frontend/src/`) → ~92 KiB minified page bundle after esbuild (main bundle JS −46% vs 1.1.2 unmin `grid-view.js`).
+
+[1.2.0]: https://github.com/alpiua/django-grid-view/releases/tag/v1.2.0
+
 ## [1.1.2] — 2026-06-03
 
 ### Changed

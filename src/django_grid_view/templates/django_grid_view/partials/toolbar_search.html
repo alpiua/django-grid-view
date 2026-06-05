@@ -10,7 +10,7 @@
   {% if table_grid_id %}data-cm-table-grid-id="{{ table_grid_id }}"{% endif %}
   {% if saved %}data-cm-saved-searches='{{ saved_searches }}'{% endif %}
 >
-  <div class="cm-toolbar-search-field" title="{% translate 'search.smart_tooltip' %}">
+  <div class="cm-toolbar-search-field">
     <svg class="cm-toolbar-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input
       type="search"
@@ -19,7 +19,6 @@
       value="{{ value }}"
       autocomplete="off"
       class="cm-toolbar-search-input"
-      title="{% translate 'search.smart_tooltip' %}"
       {% if backend == "ag_grid" %}
       data-cm-grid-search
       data-cm-grid-id="{{ scope_id }}"
@@ -30,6 +29,7 @@
       data-cm-search-mode="{{ mode|default:'smart' }}"
       placeholder="{% if placeholder %}{{ placeholder }}{% else %}{% translate 'search.smart_placeholder' %}{% endif %}"
     >
+    {% include "django_grid_view/partials/search_syntax_help_btn.html" %}
     <button
       type="button"
       class="cm-toolbar-search-clear"

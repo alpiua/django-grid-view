@@ -5,14 +5,12 @@ from __future__ import annotations
 import base64
 import io
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+
+from matplotlib.figure import Figure
 
 from django_grid_view.types.charts import ChartSpec
 from django_grid_view.types.enums import ChartType
 from django_grid_view.types.json import RowDict
-
-if TYPE_CHECKING:
-    from matplotlib.figure import Figure
 
 __all__ = ["ChartExportOptions", "chart_to_png_base64", "fig_to_base64"]
 
@@ -31,15 +29,18 @@ def chart_to_png_base64(
     options: ChartExportOptions | None = None,
 ) -> str:
     """Render ``ChartSpec`` + static rows to a base64 PNG string."""
+    from django_grid_view.render.charts import resolve_chart_data
+
     opts = options or ChartExportOptions()
+    resolved = resolve_chart_data(spec, rows)
     if spec.chart_type in (ChartType.PIE, ChartType.DONUT):
-        from django_grid_view.export._matplotlib_donut import render_donut_png
+        from django_grid_view.export._matplotlib_donut import render_donut_png_from_resolved
 
-        return render_donut_png(spec, rows, opts)
-    if spec.chart_type == ChartType.BAR:
-        from django_grid_view.export._matplotlib_bar import render_bar_png
+        return render_donut_png_from_resolved(resolved, options=opts)
+    if spec.chart_type in (ChartType.BAR, ChartType.LINE):
+        from django_grid_view.export._matplotlib_bar import render_bar_png_from_resolved
 
-        return render_bar_png(spec, rows, opts)
+        return render_bar_png_from_resolved(resolved, spec, options=opts)
     return ""
 
 

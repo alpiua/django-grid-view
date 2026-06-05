@@ -20,6 +20,9 @@ class TableHeaderCell(TypedDict):
     width: NotRequired[str]
     css_class: NotRequired[str]
     hide: NotRequired[bool]
+    wrap: NotRequired[bool]
+    column_filter: NotRequired[str]
+    filter_match: NotRequired[str]
     group_keys: NotRequired[str]
     group_id: NotRequired[str]
 
@@ -69,6 +72,8 @@ class SimpleTableRenderContext(TypedDict):
     footer_cells: list[TableFooterCell] | None
     rows: list[PreparedTableRow]
     count: int
+    load_styles: bool
+    load_scripts: bool
     load_assets: bool
     column_settings: bool
     column_meta_json: NotRequired[str]

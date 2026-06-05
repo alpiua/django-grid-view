@@ -3,35 +3,28 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
 
-from django_grid_view.export._helpers import as_float
+from matplotlib.axes._axes import Axes
+from matplotlib.pyplot import subplots
+from matplotlib.text import Text
+
 from django_grid_view.export._matplotlib_backend import configure_matplotlib_agg
 from django_grid_view.export.static_charts import ChartExportOptions, fig_to_base64
+from django_grid_view.types.chart_bind import ChartSliceDict, ResolvedChartData
 from django_grid_view.types.charts import ChartSpec
+from django_grid_view.types.enums import ChartPaletteColor
 from django_grid_view.types.json import RowDict
-
-if TYPE_CHECKING:
-    from matplotlib.axes import Axes
-    from matplotlib.text import Text
-
-GREEN = "#22c55e"
-AMBER = "#f59e0b"
-RED = "#ef4444"
-
-
-def _row_color(row: RowDict, index: int) -> str:
-    color = row.get("color")
-    if isinstance(color, str) and color:
-        return color
-    return (GREEN, AMBER, RED)[index % 3]
 
 
 def _pie_autopct(pct: float) -> str:
     return f"{pct:.0f}%"
 
 
-def _style_autopct_labels(autotexts: list[Text], values: tuple[float, ...], total: float) -> None:
+def _style_autopct_labels(
+    autotexts: list[Text],
+    values: tuple[float, ...],
+    total: float,
+) -> None:
     for idx, autotext in enumerate(autotexts):
         real_pct = values[idx] / total * 100
         autotext.set_text("" if real_pct < 2 else f"{real_pct:.0f}%")
@@ -40,26 +33,16 @@ def _style_autopct_labels(autotexts: list[Text], values: tuple[float, ...], tota
         autotext.set_color("white")
 
 
-def render_donut_png(
-    spec: ChartSpec,
-    rows: Sequence[RowDict],
+def render_donut_png_from_resolved(
+    resolved: ResolvedChartData,
+    *,
     options: ChartExportOptions,
 ) -> str:
+    """Render pie/donut PNG from :class:`ResolvedChartData` (matplotlib only)."""
     configure_matplotlib_agg()
-    from matplotlib.pyplot import subplots
 
-    label_key = spec.label_key or "name"
-    value_key = spec.value_key or "value"
-
-    filtered: list[tuple[float, str, str]] = []
-    for index, row in enumerate(rows):
-        value = as_float(row.get(value_key, 0))
-        if value <= 0:
-            continue
-        label = str(row.get(label_key, ""))
-        filtered.append((value, _row_color(row, index), label))
-
-    if not filtered:
+    slices: list[ChartSliceDict] = list(resolved.get("slices") or [])
+    if not slices:
         return ""
 
     dpi = options.dpi
@@ -78,7 +61,8 @@ def render_donut_png(
     fig.set_facecolor("none")
     ax.set_facecolor("none")
 
-    values, colors, _labels = zip(*filtered)
+    values = tuple(float(slice_.get("value") or 0) for slice_ in slices)
+    colors = tuple(slice_.get("color") or ChartPaletteColor.GREEN.value for slice_ in slices)
     total = sum(values)
 
     min_pct = 1.5
@@ -98,12 +82,13 @@ def render_donut_png(
     )
     _style_autopct_labels(autotexts, values, total)
 
-    if spec.overlay is not None:
+    overlay = resolved.get("overlay")
+    if overlay is not None:
         _draw_overlay(
             ax,
-            spec.overlay.title,
-            spec.overlay.value,
-            positive=spec.overlay.tone == "green",
+            overlay["title"],
+            overlay["value"],
+            positive=overlay.get("tone") == "green",
         )
 
     ax_w = 0.9
@@ -120,8 +105,20 @@ def render_donut_png(
     )
 
 
+def render_donut_png(
+    spec: ChartSpec,
+    rows: Sequence[RowDict],
+    options: ChartExportOptions,
+) -> str:
+    """Backward-compatible entry — resolves rows then renders."""
+    from django_grid_view.render.charts import resolve_chart_data
+
+    resolved = resolve_chart_data(spec, rows)
+    return render_donut_png_from_resolved(resolved, options=options)
+
+
 def _draw_overlay(ax: Axes, title: str, value: str, *, positive: bool) -> None:
-    center_color = GREEN if positive else RED
+    center_color = ChartPaletteColor.GREEN.value if positive else ChartPaletteColor.RED.value
     ax.text(
         0,
         0.12,
@@ -130,7 +127,7 @@ def _draw_overlay(ax: Axes, title: str, value: str, *, positive: bool) -> None:
         va="center",
         fontsize=9,
         fontweight="normal",
-        color="#475569",
+        color=ChartPaletteColor.OVERLAY_MUTED.value,
     )
     ax.text(
         0,

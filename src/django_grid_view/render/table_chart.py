@@ -3,17 +3,9 @@
 from __future__ import annotations
 
 from django_grid_view.types.json import RowDict
+from django_grid_view.types.numbers import coerce_float
 
 __all__ = ["chart_rows_from_table_data", "table_row_chart_payload"]
-
-
-def _as_float(value: object) -> float:
-    if value in (None, ""):
-        return 0.0
-    try:
-        return float(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return 0.0
 
 
 def table_row_chart_payload(row: RowDict) -> RowDict | None:
@@ -27,10 +19,10 @@ def table_row_chart_payload(row: RowDict) -> RowDict | None:
         return None
     return {
         "name": str(name),
-        "revenue": _as_float(row.get("revenue", row.get("tariff"))),
-        "expenses": _as_float(row.get("expenses")),
-        "rejected_tariff": _as_float(row.get("rejected_tariff")),
-        "profitability": _as_float(row.get("profitability")),
+        "revenue": coerce_float(row.get("revenue", row.get("tariff"))),
+        "expenses": coerce_float(row.get("expenses")),
+        "rejected_tariff": coerce_float(row.get("rejected_tariff")),
+        "profitability": coerce_float(row.get("profitability")),
     }
 
 

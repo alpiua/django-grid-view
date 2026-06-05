@@ -14,8 +14,8 @@ from django_grid_view.render.section_totals import (
     grand_total_footer_row,
     inject_group_section_totals,
 )
+from django_grid_view.render.simple_table_context import build_footer_cells, build_header_rows
 from django_grid_view.tables import Column, SimpleTableConfig
-from django_grid_view.templatetags.django_grid_view import build_footer_cells, build_header_rows
 from django_grid_view.types.json import RowDict
 from django_grid_view.types.table import LabelText
 from django_grid_view.types.template_cells import TableHeaderCell
@@ -43,6 +43,14 @@ class SimpleTablePrintContext(TypedDict):
 def _cell_text(html: str | SafeString | LabelText) -> str:
     text = strip_tags(force_str(html)).strip()
     return text if text else "—"
+
+
+def _print_cell_text(col: Column, row: RowDict) -> str:
+    value = col.get_value(row)
+    export_raw = col.get_export_raw(value, row).strip()
+    if export_raw:
+        return export_raw
+    return _cell_text(col.render(value, row))
 
 
 def _print_row(cells: list[str], *, section: bool = False) -> PrintTableRow:
@@ -103,9 +111,7 @@ def simple_table_print_context(config: SimpleTableConfig) -> SimpleTablePrintCon
                     )
                 )
             continue
-        body.append(
-            _print_row([_cell_text(col.render(col.get_value(row), row)) for col in config.columns])
-        )
+        body.append(_print_row([_print_cell_text(col, row) for col in config.columns]))
 
     footer_cells: list[PrintFooterCell] | None = None
     if grouped_mode:

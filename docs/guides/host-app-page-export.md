@@ -136,6 +136,10 @@ One `SimpleTableConfig` in the page dataclass → `report_from_simple_table`.
 
 Export builder **replays the JSON data API** with the same filters/sort/`q`, plus optional `export_cols` from `GridView.AgGrid.syncExportHref`. Column labels from `AgGridPageSpec`.
 
+### Simple Table XLSX and browser filters
+
+For server-rendered tables, XLSX builders typically call `report_from_simple_table` on a `SimpleTableConfig` rebuilt in the page loader. When the HTML page applies client-side search or column filters, export must **replay the same filter params** from `request.GET` (`q`, `col_q`, etc.) — `export/table_columns.py` imports `filter_table_for_request` from `django_grid_view.search` intentionally so PDF/XLSX match what the user sees. Keep one loader that reads those params; do not maintain a separate export filter path.
+
 ## Invariants
 
 1. **Never put numbers in URLs** — rebuild from ORM in the loader (security).

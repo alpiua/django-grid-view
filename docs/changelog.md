@@ -34,6 +34,50 @@ No unreleased changes.
 
 ---
 
+## 1.2.0
+
+**2026-06-05** — TypeScript frontend, minified static assets, CSS bundle, and unified filter/search contracts.
+
+### Added
+
+- TypeScript sources in `frontend/src/`; CI builds `.min.js` / `.min.css` with esbuild.
+- `{% grid_view_styles %}` → `grid-view.min.css` (table + AG-Grid smart-filter chrome).
+- CDN helpers: `ag_grid_cdn_url()`, `sortable_cdn_url()`, `echarts_cdn_url()` + matching template tags.
+- Shared chart/KPI semantic layer and JSON conformance fixtures (pytest + `npm run test:conformance`).
+- Unified Python and TypeScript filter engines for toolbar `q`, `col_q`, column scope, and set/list filters.
+- SimpleTable column filter popovers with expression filters, list/checklist filters, syntax help, and export URL sync.
+
+### Changed
+
+- **Breaking:** dropped `{% grid_view_column_settings_assets %}`, `CmGridView`, `CmSimpleTable` — use `{% grid_view_bundle %}` / `GridView.*`.
+- Asset tags dedupe CSS/JS once per Django render context.
+- AG-Grid boot split into focused static modules.
+- Filter matching is conformance-tested across Python and JavaScript.
+
+### Fixed
+
+- `django_grid_view.__version__` now matches `pyproject.toml`.
+- AG-Grid SmartFilter focuses the correct list-search input when opened.
+
+### Documentation
+
+- Added the Filter Semantics Contract guide.
+- Rewrote the Server Filtering Contract guide around one request-driven pipeline for HTML, KPIs, charts, PDF, and XLSX.
+
+### Performance
+
+Simple Table page transfer (JS + CSS):
+
+| | Size |
+|--|------|
+| 1.1.2 as shipped (unminified) | 152 KiB |
+| 1.2.0 as shipped (minified) | 92 KiB |
+| **Gain** | **−40%** |
+
+See root `CHANGELOG.md` for maintainer TS → min pipeline notes.
+
+---
+
 ## 1.1.2
 
 **2026-06-03** — Toolbar search backend rename (`ag_grid`) and clear-button fixes.

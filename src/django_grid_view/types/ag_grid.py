@@ -14,6 +14,8 @@ class AgGridColumnSpec:
     label: str
     hide: bool = False
     exportable: bool = True
+    # Mirrors SimpleTable ``column_filter`` for docs/tooling (AG-Grid filters are host-defined).
+    column_filter: str = "default"
 
 
 @dataclass(frozen=True)

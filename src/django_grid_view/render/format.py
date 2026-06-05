@@ -1,21 +1,10 @@
 from __future__ import annotations
 
-from decimal import Decimal
-
 from django_grid_view.types.enums import ColumnFormat
+from django_grid_view.types.numbers import parse_number
 
-
-def to_float(value: object) -> float | None:
-    if value is None or value == "":
-        return None
-    if isinstance(value, bool):
-        return float(value)
-    if isinstance(value, (int, float, Decimal)):
-        return float(value)
-    try:
-        return float(str(value).replace(" ", "").replace(",", "."))
-    except (TypeError, ValueError):
-        return None
+# Backward-compatible alias; prefer ``parse_number`` from ``django_grid_view.types.numbers``.
+to_float = parse_number
 
 
 def format_value(value: float | int, fmt: ColumnFormat | str) -> str:

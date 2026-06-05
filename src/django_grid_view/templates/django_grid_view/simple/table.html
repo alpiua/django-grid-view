@@ -1,10 +1,6 @@
 {% load i18n static django_grid_view %}
-{% if load_assets %}
-<link rel="stylesheet" href="{% static 'django_grid_view/table.css' %}">
-{% grid_view_bundle %}
-{% endif %}
-{% if column_settings %}
-{% grid_view_column_settings_assets %}
+{% if load_styles or load_scripts %}
+{% include "django_grid_view/assets.html" %}
 {% endif %}
 {% if config.wrapper == "full" %}
 <div class="cm-simple-wrapper cm-layout-{{ config.layout }}" id="cm-table-{{ config.grid_id }}" data-grid-id="{{ config.grid_id }}" data-search-mode="{{ config.search_mode }}"{% if column_settings %} data-cm-column-settings="1" data-cm-columns="{{ column_meta_json|force_escape }}" data-cm-groups-order="{{ column_groups_order_json|force_escape }}" data-cm-presets="{{ ag_grid_presets|force_escape }}" data-cm-preferences-url="{{ preferences_url }}"{% endif %}>
@@ -25,7 +21,7 @@
     <div class="cm-toolbar-slot cm-toolbar-center">{{ config.toolbar_center }}</div>
     {% endif %}
     {% if config.show_counter %}
-    <span class="cm-counter"><span data-cm-count>{{ count }}</span> {% translate 'tables.records' %}</span>
+    <span class="cm-counter"><span data-cm-count data-cm-count-for="{{ config.grid_id }}">{{ count }}</span> {% translate 'tables.records' %}</span>
     {% endif %}
 
     <div class="cm-export-group{% if config.export_xlsx_url and config.export_pdf %} cm-export-group--paired{% endif %}">
@@ -43,7 +39,8 @@
   {% endif %}
   {% endif %}
 
-  <table class="cm-table{% if config.striped %} cm-striped{% endif %}" data-cm-table data-cm-col-filters="1"{% if config.wrapper == "inner" %} id="cm-table-inner-{{ config.grid_id }}"{% endif %}{% if config.column_groups %} data-cm-grouped-headers="1"{% endif %}>
+  <div class="cm-table-viewport">
+  <table class="cm-table{% if config.striped %} cm-striped{% endif %}{% if config.th_header_actions == "stack-hover" %} cm-table--th-stack-hover{% endif %}" data-cm-table data-cm-col-filters="1"{% if config.wrapper == "inner" %} id="cm-table-inner-{{ config.grid_id }}"{% endif %}{% if config.column_groups %} data-cm-grouped-headers="1"{% endif %}{% if config.th_header_actions != "inline" %} data-cm-th-actions="{{ config.th_header_actions }}"{% endif %}>
     <thead>
       {% for hrow in header_rows %}
       <tr>
@@ -51,9 +48,12 @@
         <th
           data-cm-align="{{ h.align }}"
           {% if h.key %}data-cm-sort="{{ h.key }}" data-cm-col-key="{{ h.key }}"{% endif %}
+          {% if h.column_filter %}data-cm-column-filter="{{ h.column_filter }}"{% endif %}
+          {% if h.filter_match %}data-cm-filter-match="{{ h.filter_match }}"{% endif %}
           {% if h.group_keys %}data-cm-col-group="1" data-cm-col-group-keys="{{ h.group_keys }}"{% endif %}
           {% if h.group_id %}data-cm-col-group-id="{{ h.group_id }}"{% endif %}
           {% if h.col_index != None %}data-cm-col="{{ h.col_index }}"{% endif %}
+          {% if h.wrap %}data-cm-wrap="1"{% endif %}
           {% if h.hide %}data-cm-default-hide="1"{% endif %}
           {% if h.colspan > 1 %}colspan="{{ h.colspan }}"{% endif %}
           {% if h.rowspan > 1 %}rowspan="{{ h.rowspan }}"{% endif %}
@@ -62,18 +62,33 @@
           {% if h.key %}
           <div class="cm-th-inner">
             <span class="cm-th-label">{{ h.label }}</span>
-            {% if h.sortable %}<span class="cm-sort-arrow">&#8679;</span>{% endif %}
-            <span class="cm-col-filter-actions">
-              <button type="button" class="cm-col-filter-btn" data-cm-col-filter-trigger aria-label="{% translate 'column_filter.open' %}" title="{% translate 'column_filter.tooltip' %}">
-                <svg class="cm-col-filter-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-              </button>
-              <button type="button" class="cm-col-filter-clear" data-cm-col-filter-clear aria-label="{% translate 'column_filter.clear' %}" title="{% translate 'column_filter.clear' %}">
-                <svg class="cm-col-filter-clear-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
-              </button>
-            </span>
+            <div class="cm-th-rails cm-th-actions-row">
+              <span class="cm-th-rail cm-th-rail--left">
+                <span class="cm-th-icon-slot cm-th-header-tools" data-cm-th-tools aria-hidden="true"></span>
+                {% if h.sortable %}
+                <span class="cm-th-icon-slot">
+                  <button type="button" class="cm-sort-trigger" aria-label="{% translate 'column_filter.sort' %}">
+                    <span class="cm-sort-arrow">&#8679;</span>
+                  </button>
+                </span>
+                {% endif %}
+              </span>
+              <span class="cm-th-rail cm-th-rail--right">
+                {% if h.column_filter != "nosearch" %}
+                <span class="cm-th-icon-slot cm-th-icon-slot--filter">
+                  <button type="button" class="cm-col-filter-btn" data-cm-col-filter-trigger aria-label="{% translate 'column_filter.open' %}" title="{% translate 'column_filter.tooltip' %}">
+                    <svg class="cm-col-filter-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                  </button>
+                  <button type="button" class="cm-col-filter-clear" data-cm-col-filter-clear aria-label="{% translate 'column_filter.clear' %}" title="{% translate 'column_filter.clear' %}">
+                    <svg class="cm-col-filter-clear-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                  </button>
+                </span>
+                {% endif %}
+              </span>
+            </div>
           </div>
           {% else %}
-          {{ h.label }}{% if h.sortable %} <span class="cm-sort-arrow">&#8679;</span>{% endif %}
+          <span class="cm-th-group-label">{{ h.label }}</span>{% if h.sortable %} <span class="cm-sort-arrow">&#8679;</span>{% endif %}
           {% endif %}
         </th>
         {% endfor %}
@@ -143,14 +158,19 @@
     </tfoot>
     {% endif %}
   </table>
-  <div class="cm-col-filter-portal is-hidden" data-cm-col-filter-portal aria-hidden="true">
-    <input
-      type="search"
-      class="cm-col-filter-input"
-      data-cm-col-filter-input
-      autocomplete="off"
-      placeholder="{% translate 'column_filter.placeholder' %}"
-    >
+  </div>
+  <div class="cm-col-filter-portal is-hidden" data-cm-col-filter-portal data-cm-col-filter-table="{{ config.grid_id }}" aria-hidden="true">
+    <div class="cm-col-filter-set-host" data-cm-col-filter-set-host hidden></div>
+    <div class="cm-col-filter-expr-row">
+      <input
+        type="search"
+        class="cm-col-filter-input"
+        data-cm-col-filter-input
+        autocomplete="off"
+        placeholder="{% translate 'column_filter.placeholder' %}"
+      >
+      {% include "django_grid_view/partials/search_syntax_help_btn.html" %}
+    </div>
   </div>
 {% if column_settings %}
 {% render_django_grid_view_modal config.grid_id %}

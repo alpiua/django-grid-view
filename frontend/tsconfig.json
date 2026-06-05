@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2018",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "lib": ["ES2018", "DOM"],
+    "types": []
+  },
+  "include": [
+    "src/globals.d.ts",
+    "src/types/**/*.ts",
+    "src/grid-view/types.ts",
+    "src/grid-view/dom-utils.ts",
+    "src/grid-view/registry.ts",
+    "src/grid-view/i18n.ts",
+    "src/grid-view/search/**/*.ts",
+    "src/grid-view/resolve-chart.ts"
+  ],
+  "exclude": ["node_modules"]
+}

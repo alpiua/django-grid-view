@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from typing import Literal
@@ -21,6 +22,10 @@ Align = Literal["left", "center", "right"]
 SearchMode = Literal["global", "per_column", "disabled"]
 TableLayout = Literal["default", "text-left"]
 TableWrapper = Literal["full", "inner", "shell"]
+ThHeaderActions = Literal["inline", "stack-hover"]
+ColumnFilter = Literal["default", "text", "numeric", "nosearch", "list"]
+ColumnFilterWire = Literal["auto", "default", "text", "numeric", "nosearch", "list"]
+FilterMatch = Literal["exact", "any_token"]
 
 
 def _escape_cell(value: CellValue) -> str | SafeString:
@@ -51,6 +56,9 @@ class Column:
     hide: bool = False
     menu_group: str = ""
     exportable: bool = True
+    wrap: bool = False
+    column_filter: ColumnFilterWire = "default"
+    filter_match: FilterMatch = "exact"
 
     sort_value: SortValueFn | None = None
     export_raw: ExportRawFn | None = None
@@ -66,6 +74,8 @@ class Column:
             "hide": self.hide,
             "menuGroup": self.menu_group,
             "exportable": self.exportable,
+            "columnFilter": self.column_filter,
+            "filterMatch": self.filter_match,
         }
 
     def get_value(self, row: RowDict) -> CellValue:
@@ -86,10 +96,27 @@ class Column:
             return self.export_raw(value, row)
         return "" if value is None else str(value)
 
+    def get_filter_tokens(self, value: CellValue, row: RowDict) -> list[str]:
+        if self.column_filter != "list":
+            return []
+        if value in (None, ""):
+            return []
+        text = str(value).strip()
+        return [text] if text and text != "-" else []
+
     def get_cell_attrs(self, value: CellValue, row: RowDict) -> CellAttrs:
+        attrs: CellAttrs = {}
         if self.cell_attrs is not None:
-            return self.cell_attrs(value, row)
-        return {}
+            attrs.update(self.cell_attrs(value, row))
+        if self.wrap:
+            attrs["data-cm-wrap"] = "1"
+        if self.column_filter == "list":
+            attrs["data-cm-filter-match"] = self.filter_match
+            tokens = self.get_filter_tokens(value, row)
+            attrs["data-cm-filter-tokens"] = json.dumps(tokens, ensure_ascii=False)
+            if not tokens:
+                attrs["data-cm-filter-empty"] = "1"
+        return attrs
 
 
 @dataclass
@@ -139,6 +166,7 @@ class SimpleTableConfig:
 
     column_settings: bool = False
     column_groups_order: tuple[str, ...] = ()
+    th_header_actions: ThHeaderActions = "inline"
 
     def resolve_row_url(self, row: RowDict) -> str:
         if not self.row_url:
@@ -231,12 +259,16 @@ __all__ = [
     "CellAttrsFn",
     "CellValue",
     "Column",
+    "ColumnFilter",
+    "ColumnFilterWire",
     "ColumnGroup",
     "ExportRawFn",
+    "FilterMatch",
     "LabelText",
     "SearchMode",
     "SimpleTableConfig",
     "SortValueFn",
     "TableLayout",
     "TableWrapper",
+    "ThHeaderActions",
 ]

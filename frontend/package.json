@@ -1,0 +1,21 @@
+{
+  "name": "django-grid-view-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "build:conformance": "node scripts/build-conformance.mjs",
+    "test:conformance": "npm run build:conformance && node scripts/run-conformance.mjs",
+    "build:chart-conformance": "node scripts/build-chart-conformance.mjs",
+    "test:chart-conformance": "npm run build:chart-conformance && node scripts/run-chart-conformance.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "esbuild": "^0.25.5",
+    "eslint": "^9.28.0",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.33.0"
+  }
+}

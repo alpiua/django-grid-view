@@ -1,0 +1,126 @@
+[
+  {
+    "id": "scoped_range_hit",
+    "query": "лікарів:10..20",
+    "columns": [
+      {"key": "doctors", "label": "Лікарів"},
+      {"key": "records", "label": "Записів"}
+    ],
+    "cells_by_key": {"doctors": "15", "records": "5"},
+    "expect": true
+  },
+  {
+    "id": "scoped_range_miss_wrong_column",
+    "query": "лікарів:10..20",
+    "columns": [
+      {"key": "doctors", "label": "Лікарів"},
+      {"key": "records", "label": "Записів"}
+    ],
+    "cells_by_key": {"doctors": "25", "records": "15"},
+    "expect": false
+  },
+  {
+    "id": "scoped_range_ignores_other_column",
+    "query": "лікарів:10..20",
+    "columns": [
+      {"key": "doctors", "label": "Лікарів"},
+      {"key": "records", "label": "Записів"}
+    ],
+    "cells_by_key": {"doctors": "5", "records": "15"},
+    "expect": false
+  },
+  {
+    "id": "scoped_gt_second_column",
+    "query": "записів:>100",
+    "columns": [
+      {"key": "doctors", "label": "Лікарів"},
+      {"key": "records", "label": "Записів"}
+    ],
+    "cells_by_key": {"doctors": "200", "records": "150"},
+    "expect": true
+  },
+  {
+    "id": "scoped_gt_miss_doctors_only",
+    "query": "записів:>100",
+    "columns": [
+      {"key": "doctors", "label": "Лікарів"},
+      {"key": "records", "label": "Записів"}
+    ],
+    "cells_by_key": {"doctors": "200", "records": "50"},
+    "expect": false
+  },
+  {
+    "id": "scoped_text_exclude",
+    "query": "відділення:хірург -терап",
+    "columns": [
+      {"key": "dept", "label": "Відділення"},
+      {"key": "name", "label": "Лікар"}
+    ],
+    "cells_by_key": {"dept": "Хірург-реаніматолог", "name": "Іван"},
+    "expect": true
+  },
+  {
+    "id": "scoped_text_exclude_hit",
+    "query": "відділення:хірург -терап",
+    "columns": [
+      {"key": "dept", "label": "Відділення"},
+      {"key": "name", "label": "Лікар"}
+    ],
+    "cells_by_key": {"dept": "Хірург-терапевт", "name": "Іван"},
+    "expect": false
+  },
+  {
+    "id": "and_scoped_terms",
+    "query": "лікарів:10..20+записів:>100",
+    "columns": [
+      {"key": "doctors", "label": "Лікарів"},
+      {"key": "records", "label": "Записів"}
+    ],
+    "cells_by_key": {"doctors": "15", "records": "150"},
+    "expect": true
+  },
+  {
+    "id": "and_scoped_terms_miss",
+    "query": "лікарів:10..20+записів:>100",
+    "columns": [
+      {"key": "doctors", "label": "Лікарів"},
+      {"key": "records", "label": "Записів"}
+    ],
+    "cells_by_key": {"doctors": "15", "records": "50"},
+    "expect": false
+  },
+  {
+    "id": "or_scoped_groups",
+    "query": "лікарів:10..20, записів:>100",
+    "columns": [
+      {"key": "doctors", "label": "Лікарів"},
+      {"key": "records", "label": "Записів"}
+    ],
+    "cells_by_key": {"doctors": "5", "records": "150"},
+    "expect": true
+  },
+  {
+    "id": "unscoped_numeric_all_columns",
+    "query": ">100",
+    "columns": [
+      {"key": "doctors", "label": "Лікарів"},
+      {"key": "records", "label": "Записів"}
+    ],
+    "cells_by_key": {"doctors": "5", "records": "150"},
+    "expect": true
+  },
+  {
+    "id": "unknown_scope_fallback_literal",
+    "query": "missing:foo",
+    "columns": [{"key": "name", "label": "Name"}],
+    "cells_by_key": {"name": "text with missing:foo inside"},
+    "expect": true
+  },
+  {
+    "id": "partial_label_match",
+    "query": "лікар:>5",
+    "columns": [{"key": "doctors", "label": "Кількість лікарів"}],
+    "cells_by_key": {"doctors": "10"},
+    "expect": true
+  }
+]

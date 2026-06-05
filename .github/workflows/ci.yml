@@ -44,10 +44,29 @@ jobs:
       - name: Verify downloadable bundle in site output
         run: test -f site/llm/django-grid-view-llm-context.md
 
+  build-js:
+    name: Build frontend (TypeScript → static)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --prefix frontend
+      - run: npm run build --prefix frontend
+      - run: npm run typecheck --prefix frontend
+      - run: npm run lint --prefix frontend
+      - run: npm run test:conformance --prefix frontend
+      - run: npm run test:chart-conformance --prefix frontend
+      - name: Verify committed static artifacts match build
+        run: git diff --exit-code src/django_grid_view/static/
+
   build:
     name: Build package
     runs-on: ubuntu-latest
-    needs: [test, docs]
+    needs: [test, docs, build-js]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
