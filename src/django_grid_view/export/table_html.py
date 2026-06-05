@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 from django.utils.encoding import force_str
 from django.utils.html import strip_tags
 from django.utils.safestring import SafeString
-from typing_extensions import NotRequired
 
 from django_grid_view.render.section_totals import (
     grand_total_footer_row,

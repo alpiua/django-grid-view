@@ -22,6 +22,7 @@ No unreleased changes.
 ### Changed
 
 - **Breaking:** removed `{% grid_view_column_settings_assets %}` and `CmGridView` / `CmSimpleTable` globals — use `{% grid_view_bundle %}` and `GridView.SimpleTable.initAll()`.
+- **Breaking:** Python 3.11 is now the minimum supported runtime; Python 3.10 is no longer tested or supported.
 - `{% grid_view_bundle %}` and inclusion tags dedupe assets once per render context.
 - AG-Grid page scripts split into focused modules (`ag-grid-host`, `ag-grid-boot`, plugins).
 - Smart-filter CSS ships inside `grid-view.min.css` (no separate stylesheet tag).
@@ -80,7 +81,7 @@ Maintainer source: ~171 KiB TypeScript (`frontend/src/`) → ~92 KiB minified pa
 
 ### Fixed
 
-- Python 3.10 compatibility: import `Self` from `typing_extensions` in search helpers.
+- Legacy Python compatibility for the 1.1.x line: import `Self` from `typing_extensions` in search helpers.
 
 [1.1.1]: https://github.com/alpiua/django-grid-view/releases/tag/v1.1.1
 

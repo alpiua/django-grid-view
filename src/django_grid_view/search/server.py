@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Protocol, TypeVar
+from typing import Protocol, Self, TypeVar
 
 from django.db.models import Q
 from django.http import HttpRequest
-from typing_extensions import Self
 
 from django_grid_view.export.table_columns import (
     EXPORT_COLS_PARAM,

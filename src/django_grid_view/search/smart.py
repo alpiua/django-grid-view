@@ -5,10 +5,9 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from collections.abc import Callable, Mapping, Sequence
-from typing import Protocol, TypedDict, TypeVar
+from typing import Protocol, Self, TypedDict, TypeVar
 
 from django.db.models import Q
-from typing_extensions import Self
 
 from django_grid_view.search.column_scope import (
     ColumnSearchMeta,

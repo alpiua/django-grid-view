@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "Oleksii Pylypchuk", email = "alpi@keemail.me" }
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 classifiers = [
@@ -17,7 +17,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -111,7 +110,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py311"
 line-length = 100
 exclude = ["*/migrations/*"]
 
@@ -122,7 +121,7 @@ django_settings_module = "tests.settings"
 include = ["src/django_grid_view", "tests"]
 exclude = ["**/migrations/**", "**/__pycache__/**", "hooks/**"]
 typeCheckingMode = "strict"
-pythonVersion = "3.12"
+pythonVersion = "3.11"
 reportMissingTypeStubs = false
 stubPath = "typings"
 

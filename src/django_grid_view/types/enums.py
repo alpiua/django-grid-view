@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 
-class ColumnFormat(str, Enum):
+class ColumnFormat(StrEnum):
     TEXT = "text"
     NUMBER = "number"
     CURRENCY = "currency"
     PERCENT = "percent"
 
 
-class KpiAggregate(str, Enum):
+class KpiAggregate(StrEnum):
     COUNT = "count"
     SUM = "sum"
     AVG = "avg"
@@ -18,26 +18,26 @@ class KpiAggregate(str, Enum):
     MAX = "max"
 
 
-class ChartType(str, Enum):
+class ChartType(StrEnum):
     BAR = "bar"
     LINE = "line"
     PIE = "pie"
     DONUT = "donut"
 
 
-class ChartDataSource(str, Enum):
+class ChartDataSource(StrEnum):
     STATIC = "static"
     GRID_FILTERED = "grid_filtered"
 
 
-class KpiTone(str, Enum):
+class KpiTone(StrEnum):
     DEFAULT = "default"
     GREEN = "green"
     RED = "red"
     AMBER = "amber"
 
 
-class ChartPaletteColor(str, Enum):
+class ChartPaletteColor(StrEnum):
     """Hex colors for static chart export (matplotlib / PDF)."""
 
     GREEN = "#22c55e"
@@ -54,7 +54,7 @@ class ChartPaletteColor(str, Enum):
         return (cls.GREEN, cls.AMBER, cls.RED)[index % 3]
 
 
-class BlockType(str, Enum):
+class BlockType(StrEnum):
     TITLE = "title"
     KPIS = "kpis"
     CHART = "chart"

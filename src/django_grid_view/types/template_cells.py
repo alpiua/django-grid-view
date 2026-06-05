@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 from django.utils.safestring import SafeString
-from typing_extensions import NotRequired
 
 from django_grid_view.tables import SimpleTableConfig
 from django_grid_view.types.table import CellAttrs, LabelText

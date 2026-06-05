@@ -3286,6 +3286,7 @@ No unreleased changes.
 ### Changed
 
 - **Breaking:** dropped `{% grid_view_column_settings_assets %}`, `CmGridView`, `CmSimpleTable` — use `{% grid_view_bundle %}` / `GridView.*`.
+- **Breaking:** Python 3.11 is now the minimum supported runtime; Python 3.10 is no longer tested or supported.
 - Asset tags dedupe CSS/JS once per Django render context.
 - AG-Grid boot split into focused static modules.
 - Filter matching is conformance-tested across Python and JavaScript.
@@ -3338,12 +3339,12 @@ See root `CHANGELOG.md` for maintainer TS → min pipeline notes.
 
 ## 1.1.1
 
-**2026-06-03** — Python 3.10 compatibility fix.
+**2026-06-03** — Legacy Python compatibility fix for the 1.1.x line.
 
 ### Fixed
 
-- Search helpers now import `Self` from `typing_extensions`, keeping the package
-  importable on Python 3.10 as declared by `requires-python >=3.10`.
+- Search helpers now import `Self` from `typing_extensions`, keeping the 1.1.x line
+  importable on older supported runtimes.
 
 ---
 
