@@ -1,0 +1,17 @@
+{% macro render_area(area) -%}
+<section class="cm-area cm-area-{{ area.type | e }}" data-area-id="{{ area.id | e }}">
+  {% for block_id in area.blocks %}
+    {% set resolved = ctx.blocks.get(block_id) %}
+    {% if resolved %}
+      {% set block = resolved.block %}
+      {% include "block.html" %}
+    {% endif %}
+  {% endfor %}
+  {% for child in area.areas %}
+    {{ render_area(child) }}
+  {% endfor %}
+</section>
+{%- endmacro %}
+<div class="cm-grid-view-spec" data-spec-id="{{ spec.id | e }}" data-cm-grid-view-spec>
+  {{ render_area(spec.layout.root) }}
+</div>

@@ -1,8 +1,13 @@
 # Charts and KPIs
 
-Grid View 1.0 resolves KPI values and chart bindings in Python from `rows`, then renders ECharts in the browser.
+> **Legacy API.** On new pages, use `GridViewKpi` and chart blocks inside a
+> [GridViewSpec](reference/grid-view-spec.md). This page covers KPI and chart helpers on the flat
+> `GridViewSpec` used with `{% render_grid_view %}`.
 
-## KPI strip (Python-resolved)
+KPI values and chart series are always computed in Python from `rows`. The spec carries labels and
+wiring only.
+
+## KPI strip (server-resolved)
 
 ```python
 from django_grid_view.types import ColumnFormat, KpiAggregate, KpiSpec, RowDict
@@ -25,18 +30,20 @@ kpis = resolve_kpis(specs, rows)
 
 ## Charts (static rows)
 
-Requires `window.echarts` on the page. Pin the CDN in settings or load explicitly:
+Charts need `window.echarts` on the page:
 
 ```django
 {% load django_grid_view %}
-<script src="{{ echarts_cdn_url }}"></script>
+<script src="{% echarts_cdn_url %}"></script>
 ```
 
+Optional setting for the CDN version:
+
 ```python
-# settings.py (optional)
 DJANGO_GRID_VIEW_ECHARTS_VERSION = "5.5.1"
-# from django_grid_view.conf import echarts_cdn_url  # in view context
 ```
+
+Build runtime config from rows:
 
 ```python
 from django_grid_view.types import ChartSpec, ChartType, RowDict, SeriesSpec
@@ -57,28 +64,36 @@ runtime = build_chart_runtime(chart, rows)
 
 ## AG-Grid–filtered KPIs and charts
 
-When KPIs or charts must reflect **visible** AG-Grid rows after filter/sort:
+When KPIs or charts must follow **visible** AG-Grid rows after filter or sort:
 
-- Python: `{% render_grid_kpi_strip specs %}` (unresolved specs)
-- JS: `GridView.createAgGridAdapter(gridApi)` + `bindGridKpis` / `bindGridFilteredCharts`
+```django
+{% render_grid_kpi_strip specs %}
+```
 
-`ChartSpec.data_source` can be `static` (artifact rows) or `grid_filtered` (adapter rows).
+In JavaScript:
 
-## Unified layout
+```javascript
+var adapter = GridView.createAgGridAdapter(gridApi);
+GridView.bindGridKpis({ root: document, gridAdapter: adapter });
+GridView.bindGridFilteredCharts(document, adapter);
+```
 
-Prefer one artifact when KPI, chart, and table share the same `rows`:
+`ChartSpec.data_source` is `static` (artifact rows) or `grid_filtered` (adapter rows).
+
+## Unified layout on one page
+
+When KPI, chart, and table share the same `rows`, build one artifact:
 
 ```python
-from django_grid_view.types import GridViewSpec, RowDict
 from django_grid_view.render import GridRenderer
 
 artifact = GridRenderer.build(spec, rows)
 ```
 
-Types: [Python types](reference/python-types.md).
-
 ```django
 {% render_grid_view artifact %}
 ```
 
-See [Grid View artifacts](grid-view-artifacts.md).
+Types: [Python types — legacy](reference/python-types.md#legacy-flat-spec).
+
+See [Grid View artifacts](grid-view-artifacts.md) for the full render flow.

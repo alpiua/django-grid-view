@@ -1,0 +1,5 @@
+<div class="cm-tabs cm-tabs-{{ block.presentation | e }}">
+  {% for tab in block.tabs %}
+  <button type="button" class="cm-tab{% if tab.active %} is-active{% endif %}" data-tab-id="{{ tab.id | e }}">{{ tab.label | e }}</button>
+  {% endfor %}
+</div>

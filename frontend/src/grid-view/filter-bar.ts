@@ -645,24 +645,8 @@ export function initFilterBars(scope) {
   initToolbarSearch(root);
 }
 
-/** Re-bind grid-view widgets after HTMX swaps. */
-export function bootGridViewScope(scope) {
-  const root = scope && scope.querySelectorAll ? scope : document;
-  if (!root.querySelector) return;
-  const hasWidgets =
-    root.querySelector("[data-cm-table]") ||
-    root.querySelector("[data-cm-filter-bar]") ||
-    root.querySelector("[data-cm-chart-config]") ||
-    root.querySelector("[data-cm-kpi-root]") ||
-    root.querySelector("[data-cm-tab-group]");
-  if (!hasWidgets) return;
-  initAllSimpleTables(root);
-  initFilterBars(root);
-  initButtonEllipsisTips(root);
-  initTabGroups(root);
-  Kpi.initAllKpi(root);
-  Charts.initAllCharts(root);
-}
+/** Re-bind grid-view widgets after HTMX swaps (Phase 7: unified runtime boot). */
+export { bootGridViewScope } from "../runtime/boot";
 
 export function initTabGroups(scope) {
   const root = scope && scope.querySelectorAll ? scope : document;

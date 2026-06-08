@@ -1,0 +1,25 @@
+/* Page header and titles. */
+
+.cm-dashboard-page__header {
+    flex-shrink: 0;
+}
+
+/* Entity title in page toolbar (doctor name, department name, …) */
+.cm-page-entity-name {
+    margin: 0;
+    font-size: 1.25rem;
+    line-height: 1.35;
+    font-weight: 700;
+    color: var(--cm-text);
+    text-align: center;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+.cm-grid-view-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0 0 12px;
+    color: var(--cm-text);
+}
+

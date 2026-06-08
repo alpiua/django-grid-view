@@ -1,0 +1,5 @@
+<div class="cm-charts cm-charts-{{ block.presentation | e }}">
+  {% for chart in block.charts %}
+  <div class="cm-chart cm-chart-{{ chart.type | e }}" data-chart-id="{{ chart.id | e }}">{{ chart.title | e }}</div>
+  {% endfor %}
+</div>

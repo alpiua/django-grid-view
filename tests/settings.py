@@ -16,7 +16,7 @@ DATABASES = {
     }
 }
 
-MIDDLEWARE = []
+ROOT_URLCONF = "tests.urls"
 
 TEMPLATES = [
     {

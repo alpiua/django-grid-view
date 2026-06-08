@@ -1,4 +1,4 @@
-"""XLSX builder registry — host apps register domain report factories."""
+"""XLSX builder registry — legacy shim over canonical ``grid_view_spec.export`` registry."""
 
 from __future__ import annotations
 
@@ -8,6 +8,13 @@ from dataclasses import dataclass
 from django.http import Http404, HttpRequest
 
 from django_grid_view.export.xlsx.layout import XlsxReport
+from grid_view_spec.export.compat import legacy_xlsx_direct_adapter, legacy_xlsx_filename_adapter
+from grid_view_spec.export.registry import (
+    ExportBuilderNotFoundError,
+    clear_xlsx_exports,
+    get_xlsx_export,
+    register_xlsx_export,
+)
 
 XlsxBuilderFn = Callable[[HttpRequest], XlsxReport]
 FilenameFn = Callable[[HttpRequest, XlsxReport], str]
@@ -19,7 +26,7 @@ class XlsxBuilderEntry:
     filename_fn: FilenameFn | None = None
 
 
-_REGISTRY: dict[str, XlsxBuilderEntry] = {}
+_LEGACY: dict[str, XlsxBuilderEntry] = {}
 
 
 def register_xlsx_builder(
@@ -29,14 +36,29 @@ def register_xlsx_builder(
     filename_fn: FilenameFn | None = None,
 ) -> None:
     """Register ``export/xlsx/?builder=<name>`` handler."""
-    _REGISTRY[name] = XlsxBuilderEntry(builder=builder, filename_fn=filename_fn)
+    entry = XlsxBuilderEntry(builder=builder, filename_fn=filename_fn)
+    _LEGACY[name] = entry
+    register_xlsx_export(
+        name,
+        direct_builder=legacy_xlsx_direct_adapter(builder),
+        legacy_filename_fn=legacy_xlsx_filename_adapter(filename_fn),
+    )
 
 
 def get_xlsx_builder(name: str) -> XlsxBuilderEntry:
-    if name not in _REGISTRY:
+    if name not in _LEGACY:
         raise Http404(f"Unknown XLSX builder: {name!r}")
-    return _REGISTRY[name]
+    return _LEGACY[name]
+
+
+def get_xlsx_export_entry(name: str):
+    """Canonical export entry for vNext XLSX pipeline."""
+    try:
+        return get_xlsx_export(name)
+    except ExportBuilderNotFoundError as exc:
+        raise Http404(str(exc)) from exc
 
 
 def clear_xlsx_builders() -> None:
-    _REGISTRY.clear()
+    _LEGACY.clear()
+    clear_xlsx_exports()

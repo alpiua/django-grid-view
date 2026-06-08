@@ -25,7 +25,7 @@ jobs:
       - run: uv sync --frozen --group dev
       - run: uv run ruff check .
       - run: uv run ruff format --check .
-      - run: uv run basedpyright --warnings src/django_grid_view tests
+      - run: uv run basedpyright --warnings src/django_grid_view src/grid_view_spec tests
       - run: uv run python -m pytest
 
   docs:

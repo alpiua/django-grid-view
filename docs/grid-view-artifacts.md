@@ -1,6 +1,12 @@
 # Grid View artifacts
 
-`GridViewSpec + rows → GridArtifact` is the core render contract for unified KPI, chart, and table blocks.
+> **Legacy API.** New pages should use [GridViewSpec v2](reference/grid-view-spec.md) with blocks and
+> layout. This page documents the flat spec that produces a `GridArtifact` for
+> `{% render_grid_view %}`.
+
+A **GridArtifact** is resolved HTML context: KPI numbers, chart bindings, and table columns computed
+from Python `rows`. The wire spec describes structure only — it must not contain row data or KPI
+values.
 
 ## Quick start
 
@@ -29,27 +35,18 @@ view: JsonObject = {
 }
 
 artifact = build_artifact_from_view(view, rows)
-payload = artifact.to_json()  # wire shape for GridView.init
+payload = artifact.to_json()
 ```
 
-Typed builders (recommended for dashboards):
+Typed builders:
 
 ```python
-from django_grid_view.types import (
-    ChartSpec,
-    ChartType,
-    ColumnSpec,
-    GridViewSpec,
-    KpiSpec,
-    RowDict,
-    SeriesSpec,
-)
+from django_grid_view.types import ChartSpec, ChartType, ColumnSpec, GridViewSpec, SeriesSpec
 from django_grid_view.render import GridRenderer
 
 spec = GridViewSpec(
     grid_id="demo",
     columns=(ColumnSpec(key="name", label="Name"),),
-    kpis=(),
     charts=(
         ChartSpec(
             id="main",
@@ -62,25 +59,21 @@ spec = GridViewSpec(
 artifact = GridRenderer.build(spec, rows)
 ```
 
-Import map: [Python types](reference/python-types.md).
+Import map: [Python types](reference/python-types.md) (legacy section).
 
 ## API
 
 | Function | Input | Output |
 |----------|-------|--------|
-| `parse_grid_view_spec_json(raw)` | dict | `GridViewSpec` |
+| `parse_grid_view_spec_json(raw)` | dict | flat `GridViewSpec` |
 | `GridRenderer.build(spec, rows)` | validated spec + rows | `GridArtifact` |
-| `build_artifact_from_view(view, rows)` | raw dict or spec + rows | `GridArtifact` |
-| `build_artifact_json_from_view(view, rows)` | raw dict or spec + rows | `GridArtifactJson` |
+| `build_artifact_from_view(view, rows)` | dict or spec + rows | `GridArtifact` |
+| `build_artifact_json_from_view(view, rows)` | dict or spec + rows | JSON payload |
 
-Use `build_artifact_from_view` when the spec comes from JSON (LLM or Python dict).
-Use `GridRenderer.build` when you already have a validated `GridViewSpec`.
+Use `build_artifact_from_view` when the spec comes from JSON (chat or planner output).
+Use `GridRenderer.build` when you already hold a validated spec object.
 
-## Invariants
-
-- KPI and chart **numbers** are computed from `rows` inside `GridRenderer.build`.
-- The spec must not contain row data or numeric KPI values.
-- Schema: [GridViewSpec reference](reference/grid-view-spec.md) and `schema/grid-view-spec.v1.json` in the repository.
+Wire schema: `schema/grid-view-spec.v1.json` in the repository.
 
 ## Template rendering
 
@@ -89,12 +82,26 @@ Use `GridRenderer.build` when you already have a validated `GridViewSpec`.
 {% render_grid_view artifact %}
 ```
 
-## Client-side init (SPA / chat)
+## Client init (chat panels)
 
 ```javascript
 GridView.init({ root: document.getElementById("chat-panel"), artifact: payload });
 ```
 
-## Consumer integration
+Load `{% grid_view_bundle %}` and ECharts on the host page first.
 
-Router state lookup, chat SSE wrapping, and visualizer prompts are **not** part of this package. See [Chat visualizer](guides/chat-visualizer.md) for a generic wire contract.
+## Moving to GridViewSpec v2
+
+| Legacy | v2 replacement |
+|--------|----------------|
+| Flat `columns` / `kpis` / `charts` on one dict | `blocks` + `layout` tree |
+| `{% render_grid_view %}` | `{% render_grid_view_spec spec rows %}` |
+| `GridRenderer.build` | `validate_spec` + `render_grid_view_spec` |
+
+Use MCP tool `gridview_migration_hints` or see [Getting started](getting-started.md).
+
+## Related
+
+- [Charts and KPIs](charts-and-kpis.md) — KPI and chart blocks on this path  
+- [Chat visualizer](guides/chat-visualizer.md) — streaming a grid into chat UI  
+- [GridViewSpec reference](reference/grid-view-spec.md) — current contract

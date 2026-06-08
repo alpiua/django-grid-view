@@ -1,43 +1,27 @@
 import esbuild from "esbuild";
 import path from "node:path";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.resolve(__dirname, "../src/django_grid_view/static/django_grid_view");
 
-/** Standalone IIFE modules — transpile TS → JS (and .min.js). Source of truth: frontend/src/. */
-const ENTRIES = [
-  "grid-view",
-  "column-settings",
-  "ag-grid-cdn",
-  "ag-grid-host",
-  "ag-grid-boot",
-  "ag-grid-smart-filter",
-  "ag-grid-advanced-search",
-  "ag-grid-tooltip",
-  "chart-static-boot",
-  "grid-artifact-boot",
-  "kpi-static-boot",
-];
+/** @typedef {{ id: string, source: string, bundle?: boolean, banner?: boolean }} ManifestBundle */
+/** @typedef {{ id: string, source: string }} ManifestStylesheet */
 
-/** Entries that bundle shared search modules (filter-engine). */
-const BUNDLED = new Set(["grid-view", "ag-grid-advanced-search", "ag-grid-smart-filter"]);
+const manifest = JSON.parse(readFileSync(path.join(__dirname, "asset-manifest.json"), "utf8"));
+const bundles = /** @type {ManifestBundle[]} */ (manifest.bundles);
+const stylesheets = /** @type {ManifestStylesheet[]} */ (manifest.stylesheets ?? []);
 
-async function buildEntry(name, minify) {
+async function buildEntry(entry, minify) {
+  const { id: name, source, bundle: isBundle = false, banner: withBanner = false } = entry;
   const suffix = minify ? ".min.js" : ".js";
-  const banner =
-    name === "grid-view" || name === "column-settings"
-      ? `/** django-grid-view — built from frontend/src/${name === "grid-view" ? "grid-view/" : name}.ts */\n`
-      : undefined;
-
-  const isBundle = BUNDLED.has(name);
-  const entry =
-    name === "grid-view"
-      ? path.join(__dirname, "src/grid-view-entry.ts")
-      : path.join(__dirname, "src", `${name}.ts`);
+  const banner = withBanner
+    ? `/** django-grid-view — built from frontend/${source} */\n`
+    : undefined;
 
   await esbuild.build({
-    entryPoints: [entry],
+    entryPoints: [path.join(__dirname, source)],
     outfile: path.join(OUT_DIR, `${name}${suffix}`),
     bundle: isBundle,
     format: isBundle ? "iife" : undefined,
@@ -49,23 +33,26 @@ async function buildEntry(name, minify) {
   });
 }
 
-for (const name of ENTRIES) {
-  await buildEntry(name, false);
-  await buildEntry(name, true);
+for (const entry of bundles) {
+  await buildEntry(entry, false);
+  await buildEntry(entry, true);
 }
 
-async function buildCss(minify) {
+async function buildCss(entry, minify) {
+  const { id: name, source } = entry;
   const suffix = minify ? ".min.css" : ".css";
   await esbuild.build({
-    entryPoints: [path.join(__dirname, "styles/grid-view.css")],
-    outfile: path.join(OUT_DIR, `grid-view${suffix}`),
+    entryPoints: [path.join(__dirname, source)],
+    outfile: path.join(OUT_DIR, `${name}${suffix}`),
     bundle: true,
     minify,
     legalComments: "none",
   });
 }
 
-await buildCss(false);
-await buildCss(true);
+for (const entry of stylesheets) {
+  await buildCss(entry, false);
+  await buildCss(entry, true);
+}
 
-console.log(`Built ${ENTRIES.length * 2} JS + 2 CSS files → ${OUT_DIR}`);
+console.log(`Built ${bundles.length * 2} JS + ${stylesheets.length * 2} CSS files → ${OUT_DIR}`);

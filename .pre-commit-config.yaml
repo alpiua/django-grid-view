@@ -31,7 +31,7 @@ repos:
 
       - id: basedpyright
         name: basedpyright (strict, warnings fail)
-        entry: uv run basedpyright --warnings src/django_grid_view tests
+        entry: uv run basedpyright --warnings src/django_grid_view src/grid_view_spec tests
         language: system
         pass_filenames: false
         always_run: true

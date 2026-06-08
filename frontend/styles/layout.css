@@ -1,0 +1,120 @@
+/* Page and shell layout. */
+
+.cm-dashboard-page {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: var(--cm-page-gap);
+    padding-top: var(--cm-page-padding-y);
+    padding-bottom: var(--cm-page-padding-y);
+}
+.cm-dashboard-page--viewport {
+    height: calc(100vh - 64px);
+}
+.cm-dashboard-page--fill {
+    flex: 1;
+    min-height: 0;
+}
+
+
+/* Page layout: centered block — grows to viewport when table needs horizontal scroll */
+.cm-page-table-layout {
+    display: flex;
+    flex-direction: column;
+    width: fit-content;
+    min-width: min(100%, var(--cm-page-layout-width));
+    max-width: 100%;
+    margin-inline: auto;
+    align-self: center;
+    gap: var(--cm-page-gap);
+    flex: 0 1 auto;
+    min-height: 0;
+}
+@media (min-width: 1280px) {
+    :root {
+        --cm-page-layout-width: 1080px;
+    }
+}
+@media (min-width: 1536px) {
+    :root {
+        --cm-page-layout-width: 1240px;
+    }
+}
+@media (min-width: 1920px) {
+    :root {
+        --cm-page-layout-width: 1480px;
+    }
+}
+@media (min-width: 2560px) {
+    :root {
+        --cm-page-layout-width: 1760px;
+    }
+}
+@media (min-width: 3840px) {
+    :root {
+        --cm-page-layout-width: 2200px;
+    }
+}
+.cm-dashboard-page.cm-page-table-layout {
+    flex: 0 1 auto;
+}
+.cm-dashboard-page--fill.cm-page-table-layout {
+    flex: 1 1 auto;
+}
+.cm-page-table-layout > .cm-toolbar-unified {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: clamp(20px, 3.5vw, 56px);
+    overflow: visible;
+    width: 100%;
+    flex-shrink: 0;
+}
+.cm-page-table-layout > .cm-toolbar-unified:has(.cm-toolbar-left--filters) {
+    grid-template-columns: auto minmax(160px, 1fr) auto;
+}
+.cm-page-table-layout > .cm-toolbar-unified:has(.cm-toolbar-search--compact) .cm-toolbar-center {
+    justify-self: stretch;
+    min-width: 0;
+}
+.cm-page-table-layout .cm-table-shell {
+    border-top: none;
+}
+.cm-page-table-layout > .cm-toolbar-unified {
+    width: 100%;
+    min-width: min(100%, var(--cm-page-layout-width));
+    max-width: 100%;
+    box-sizing: border-box;
+}
+.cm-page-table-layout > .cm-table-shell,
+.cm-page-table-layout > .cm-simple-wrapper,
+.cm-page-table-layout > .cm-grid-view {
+    width: 100%;
+    min-width: min(100%, var(--cm-page-layout-width));
+    max-width: 100%;
+    box-sizing: border-box;
+}
+/* ── Wrapper ──────────────────────────────────────────────────────────── */
+.cm-simple-wrapper,
+.cm-table-shell {
+    background: var(--cm-table-shell-bg, var(--cm-surface));
+    border: 1px solid var(--cm-table-shell-border, var(--cm-border));
+    border-radius: 12px;
+    box-shadow: var(--cm-table-shell-shadow, none);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* Horizontal scroll host — squeeze cells first (ellipsis), then scroll when min-width exceeded */
+.cm-table-viewport {
+    overflow-x: auto;
+    overflow-y: visible;
+    width: 100%;
+    min-width: 0;
+    -webkit-overflow-scrolling: touch;
+}
+
+

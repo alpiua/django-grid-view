@@ -1,0 +1,7 @@
+<div class="cm-toolbar cm-toolbar-{{ block.presentation | e }}" data-target="{{ block.target or '' | e }}">
+  {% if block.search %}
+  <div class="cm-search" data-param="{{ block.search.param | e }}">
+    <input type="search" name="{{ block.search.param | e }}" value="{{ block.search.value | e }}" placeholder="{{ block.search.placeholder | e }}" />
+  </div>
+  {% endif %}
+</div>

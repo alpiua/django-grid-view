@@ -1,0 +1,5 @@
+<div class="cm-filters cm-filters-{{ block.presentation | e }}" data-target="{{ block.target or '' | e }}">
+  {% for item in block.schema %}
+  <label class="cm-filter" data-filter-id="{{ item.id | e }}">{{ item.label | e }}</label>
+  {% endfor %}
+</div>

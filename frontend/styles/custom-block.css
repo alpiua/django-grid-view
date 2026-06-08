@@ -1,0 +1,11 @@
+/* GridViewTemplate block styles (GridViewSpec). */
+
+/* GridViewSpec / GridViewTemplate block shell (vNext). */
+.cm-grid-view-spec {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cm-block-gap, 8px);
+}
+.cm-block {
+    min-width: 0;
+}

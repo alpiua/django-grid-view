@@ -1,0 +1,357 @@
+/* Tooltips, floating panels, and overlay tips. */
+
+.cm-ellipsis-tip--search-help {
+    top: calc(100% + 6px);
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    z-index: 100001;
+    box-sizing: border-box;
+    width: min(66rem, calc(100vw - 24px));
+    min-width: min(42rem, calc(100vw - 24px));
+    max-width: min(66rem, calc(100vw - 24px));
+    padding: 10px 12px;
+    white-space: normal;
+    text-align: left;
+}
+.cm-search-help-btn:hover > .cm-ellipsis-tip--search-help,
+.cm-search-help-btn:focus-within > .cm-ellipsis-tip--search-help {
+    display: block;
+}
+.cm-col-filter-portal .cm-ellipsis-tip--search-help {
+    z-index: 1300;
+}
+.cm-ellipsis-tip--search-help .cm-search-syntax-tip {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+}
+.cm-ellipsis-tip--search-help .cm-search-syntax-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.6875rem;
+    line-height: 1.45;
+    table-layout: fixed;
+}
+.cm-ellipsis-tip--search-help .cm-search-syntax-col--mod {
+    width: 15%;
+}
+.cm-ellipsis-tip--search-help .cm-search-syntax-col--ex {
+    width: 35%;
+}
+.cm-ellipsis-tip--search-help .cm-search-syntax-col--mean {
+    width: 50%;
+}
+.cm-ellipsis-tip--search-help .cm-search-syntax-table thead th,
+.cm-ellipsis-tip--search-help .cm-search-syntax-table tbody td {
+    box-sizing: border-box;
+    padding: 6px 10px;
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+.cm-ellipsis-tip--search-help .cm-search-syntax-table thead th {
+    color: var(--cm-muted);
+    font-weight: 600;
+    font-size: 0.6875rem;
+    white-space: normal;
+    background: var(--cm-table-head-bg, var(--cm-bg));
+    border-bottom: 1px solid var(--cm-border);
+}
+.cm-ellipsis-tip--search-help .cm-search-syntax-table tbody td {
+    color: var(--cm-muted);
+    border-top: 1px solid color-mix(in srgb, var(--cm-border) 70%, transparent);
+}
+.cm-ellipsis-tip--search-help .cm-search-syntax-table tbody tr:first-child td {
+    border-top: none;
+}
+.cm-ellipsis-tip--search-help .cm-search-syntax-table tbody td:nth-child(1),
+.cm-ellipsis-tip--search-help .cm-search-syntax-table tbody td:nth-child(2) {
+    color: var(--cm-text);
+}
+.cm-ellipsis-tip--search-help .cm-search-syntax-table tbody td:nth-child(1) code {
+    white-space: nowrap;
+}
+.cm-ellipsis-tip--search-help .cm-search-syntax-table tbody td:nth-child(2) code {
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    display: inline;
+}
+.cm-ellipsis-tip--search-help .cm-search-syntax-table code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.65rem;
+    color: color-mix(in srgb, var(--cm-primary, #818cf8) 75%, var(--cm-text));
+}
+.cm-ellipsis-tip--search-help .cm-search-syntax-footnote {
+    margin: 0;
+    color: var(--cm-muted);
+}
+.cm-ellipsis-tip--search-help .cm-search-syntax-example {
+    margin: 0;
+}
+.cm-ellipsis-tip--search-help .cm-search-syntax-example code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.65rem;
+    color: var(--cm-text);
+    white-space: normal;
+    word-break: break-word;
+}
+.cm-col-filter-expr-row {
+    position: relative;
+}
+.cm-col-filter-expr-row .cm-col-filter-input {
+    padding-right: 28px;
+}
+.cm-col-filter-expr-row .cm-search-help-btn {
+    position: absolute;
+    top: 50%;
+    right: 4px;
+    transform: translateY(-50%);
+}
+/* Save / load saved searches — paired icon controls (not export buttons). */
+.cm-toolbar-search-saved-actions {
+    display: inline-flex;
+    align-items: stretch;
+    flex: 0 0 auto;
+    height: 28px;
+    border: 1px solid var(--cm-border);
+    border-radius: 10px;
+    background: var(--cm-surface);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+}
+.cm-toolbar-search-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    min-width: 32px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-right: 1px solid var(--cm-border);
+    border-radius: 0;
+    background: transparent;
+    color: var(--cm-muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.cm-toolbar-search-action:last-child {
+    border-right: none;
+}
+.cm-toolbar-search-action svg {
+    display: block;
+    flex-shrink: 0;
+}
+.cm-toolbar-search-action:hover {
+    color: var(--cm-text);
+    background: var(--cm-hover);
+}
+.cm-toolbar-search-action.is-active,
+.cm-toolbar-search-action--load[aria-expanded="true"] {
+    color: var(--cm-primary);
+    background: color-mix(in srgb, var(--cm-primary) 14%, var(--cm-surface));
+}
+.cm-multiselect-apply-wrap {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--cm-border);
+}
+.cm-multiselect-apply {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    height: 28px;
+    padding: 0 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--cm-text);
+    background: var(--cm-bg);
+    border: 1px solid var(--cm-border);
+    border-radius: 8px;
+    cursor: pointer;
+}
+.cm-multiselect-apply:hover {
+    border-color: var(--cm-primary);
+    color: var(--cm-primary);
+}
+.cm-toolbar-search-saved-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 500;
+    width: 18rem;
+    max-height: 200px;
+    overflow-y: auto;
+    background: var(--cm-surface);
+    border: 1px solid var(--cm-border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+.cm-toolbar-search-saved-panel.is-open {
+    display: block;
+}
+.cm-toolbar-search-saved-panel.is-hidden,
+.cm-toolbar-search-saved-panel.hidden {
+    display: none !important;
+}
+.cm-ellipsis-tip {
+    display: none;
+    position: absolute;
+    top: calc(100% + 2px);
+    z-index: 50;
+    box-sizing: border-box;
+    width: max-content;
+    max-width: min(360px, 90vw);
+    padding: 6px 10px;
+    font-size: 0.6875rem;
+    line-height: 1.45;
+    color: var(--cm-text);
+    white-space: pre-line;
+    word-break: normal;
+    overflow-wrap: break-word;
+    border: 1px solid color-mix(in srgb, var(--cm-primary, #6366f1) 45%, var(--cm-border));
+    border-radius: 6px;
+    background: var(--cm-bg, var(--cm-surface, #1e293b));
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+}
+/* Tip host + position modifiers (one skin: .cm-ellipsis-tip) */
+.cm-tip-host {
+    position: relative;
+}
+.cm-tip-host:hover > .cm-ellipsis-tip,
+.cm-tip-host:focus-within > .cm-ellipsis-tip {
+    display: block;
+}
+.cm-ellipsis-tip--start {
+    left: 0;
+}
+.cm-ellipsis-tip--center {
+    left: 50%;
+    transform: translateX(-50%);
+}
+.cm-cell-value-wrap.cm-cell-is-truncated:hover .cm-ellipsis-tip,
+.cm-cell-value-wrap.cm-cell-is-truncated:focus-within .cm-ellipsis-tip {
+    display: block;
+}
+.cm-th-label.cm-th-label--truncated:hover > .cm-ellipsis-tip {
+    display: block;
+}
+.cm-table thead th:has(.cm-tip-host:hover),
+.cm-table thead th:has(.cm-tip-host:focus-within) {
+    overflow: visible;
+    z-index: 31;
+}
+.cm-ellipsis-tip--floating {
+    display: block;
+    position: fixed;
+    pointer-events: auto;
+    z-index: 99999;
+    min-width: 250px;
+    max-width: min(32rem, 90vw);
+    max-height: 24rem;
+    overflow: auto;
+    white-space: pre-wrap;
+}
+.cm-ellipsis-tip--panel {
+    display: block;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    pointer-events: none;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: break-word;
+    width: max-content;
+    min-width: 220px;
+    max-width: min(420px, 90vw);
+    border-radius: 12px;
+}
+.cm-ellipsis-tip--copyable {
+    display: block;
+    position: relative;
+    pointer-events: auto;
+    z-index: 9999;
+    min-width: 300px;
+    max-width: min(32rem, 90vw);
+    padding: 12px;
+    padding-top: 40px;
+    font-size: 0.75rem;
+    line-height: 1.625;
+    white-space: pre-wrap;
+}
+.cm-ellipsis-tip--copyable .tooltip-content {
+    max-height: 400px;
+    overflow: auto;
+    user-select: text;
+}
+.cm-ellipsis-tip--copyable .copy-btn {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    color: #9ca3af;
+    background: var(--cm-surface);
+    border: 1px solid var(--cm-border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: color 0.15s;
+}
+.cm-ellipsis-tip--copyable .copy-btn:hover {
+    color: #6366f1;
+}
+.cm-ellipsis-tip--copyable .copy-btn svg {
+    width: 16px;
+    height: 16px;
+}
+.cm-ellipsis-tip--copyable .check-icon {
+    display: none;
+    color: #22c55e;
+}
+.cm-ellipsis-tip--copyable .check-icon.visible {
+    display: block;
+}
+.cm-ellipsis-tip--copyable .copy-icon.hidden {
+    display: none;
+}
+
+.cm-col-filter-portal {
+    position: fixed;
+    z-index: 1200;
+    min-width: 168px;
+    max-width: 220px;
+    padding: 7px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--cm-text) 24%, var(--cm-border));
+    background: var(--cm-surface);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+.cm-col-filter-portal.is-hidden {
+    display: none !important;
+}
+.cm-col-filter-set-host:not([hidden]) {
+    display: block;
+}
+.cm-col-filter-input {
+    width: 100%;
+    height: 28px;
+    padding: 0 8px;
+    font-size: 0.72rem;
+    border-radius: 6px;
+    border: 1px solid var(--cm-border);
+    background: var(--cm-bg, var(--cm-surface));
+    color: var(--cm-text);
+}
+.cm-col-filter-input:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--cm-text) 32%, var(--cm-border));
+    box-shadow: none;
+}
+

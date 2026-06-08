@@ -1,0 +1,5 @@
+<div class="cm-gallery cm-gallery-{{ block.presentation | e }}">
+  {% for image in block.images %}
+  <figure class="cm-gallery-item" data-image-id="{{ image.id | e }}"><img src="{{ image.url | e }}" alt="{{ image.alt | e }}" /></figure>
+  {% endfor %}
+</div>

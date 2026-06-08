@@ -12,6 +12,3 @@
 {% if load_styles or load_scripts %}
 {% include "django_grid_view/assets.html" %}
 {% endif %}
-{% if not interactive %}
-<script src="{% static 'django_grid_view/chart-static-boot.js' %}"></script>
-{% endif %}

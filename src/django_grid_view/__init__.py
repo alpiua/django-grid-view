@@ -1,4 +1,8 @@
-"""Public API for django-grid-view."""
+"""Public API for django-grid-view.
+
+New pages and libraries should import from :mod:`grid_view_spec` (vNext). This package keeps 1.x
+symbols during the Phase 11 migration window — see ``docs/vnext/phase-11-prep.md``.
+"""
 
 from django_grid_view.render import (
     GridRenderer,

@@ -11,67 +11,90 @@ Package: **django-grid-view** (PyPI) · Module: **django_grid_view** · Docs: ht
 
 <!-- source: index.md -->
 
-# Django Grid View
+# Grid View Spec
 
-**django-grid-view** is a reusable Django app for declarative data views in dashboards and chat UIs.
+**grid-view-spec** describes dashboard pages as a tree of blocks: tables, filters, KPIs, charts,
+actions, and layout areas. The Python package `grid_view_spec` validates specs, renders HTML, and
+exposes export hooks. Host applications supply **rows and business logic**; the spec describes
+**structure only**.
 
-Install from PyPI:
+The PyPI distribution is still named **`django-grid-view`** (it ships templates, static assets, and
+an optional Django backend). The core library imports as `grid_view_spec`.
 
 ```bash
 pip install django-grid-view
 ```
 
-## Three ways to render data
+## What you build
 
-### Simple Table
+A typical page loads data in Python, builds a `GridViewSpec`, and renders it:
 
-Server-rendered lists with sort, search, and export.
+```python
+from grid_view_spec import GridViewSpec, validate_spec
+from grid_view_spec.render import render_grid_view_spec
 
-- **Python:** `SimpleTableConfig`
-- **Template:** `{% render_simple_table %}`
+spec = GridViewSpec(id="orders", blocks=(...), layout=...)
+validate_spec(spec)  # raises on invalid structure
+html = render_grid_view_spec(spec, rows, host=host)
+```
 
-### AG-Grid pages
+In templates (Django backend):
 
-Extension on [AG Grid Community](https://www.ag-grid.com/) 31.x — infinite model, toolbar, persistence.
+```django
+{% load django_grid_view %}
+{% render_grid_view_spec page.grid %}
+```
 
-- **Python:** `AgGridPageSpec`, `django_grid_view.ag_grid`, host JSON data API
-- **Template:** `{% include "django_grid_view/scripts.html" %}`, `GridView.AgGrid`
+One bundle boots the page in the browser: `{% grid_view_bundle %}` loads `grid-view.min.js`, which
+calls `GridView.bootScope()` for tables, filters, KPIs, charts, and spec roots.
 
-See AG-Grid integration (see section: ag-grid.md).
+![Layer model: rows + GridViewSpec → HTML](assets/layer-model.svg)
 
-### Grid View
+**Important:** KPI and chart **numbers** always come from Python `rows` (or server-side
+resolution). The spec never carries row data or computed aggregates from untrusted input.
 
-KPI strip, ECharts, table, optional filter bar and card grids — one spec.
+## Documentation map
 
-- **Python:** `GridRenderer` / `build_artifact_from_view`
-- **Template:** `{% render_grid_view %}`, `{% render_filter_bar %}`, `{% render_card_grid %}`
+| Topic | Document |
+|-------|----------|
+| Install and first page | Getting started (see section: getting-started.md) |
+| Spec contract (v2) | GridViewSpec reference (see section: reference/grid-view-spec.md) |
+| System overview | Architecture (see section: architecture.md) |
+| JavaScript runtime | JavaScript API (see section: reference/javascript.md) |
+| Template tags | Template tags (see section: reference/template-tags.md) |
+| AG-Grid tables | AG-Grid integration (see section: ag-grid.md) |
+| PDF / XLSX export | PDF export (see section: guides/pdf-export.md), XLSX export (see section: guides/xlsx-export.md) |
+| MCP server (IDE) | MCP server (see section: guides/mcp-server.md) |
+| JSON Schema | `schema/grid-view-spec.v2.json` in the repository |
 
-![Layer model: rows + GridViewSpec → GridArtifact](assets/layer-model.svg)
+## Backends
 
-**Core rule:** numeric KPI and chart values always come from Python `rows`. Specs and LLM output describe structure only.
+| Backend | Use when |
+|---------|----------|
+| **Django** | Templates, `GridPreference` ORM, export views, `INSTALLED_APPS` |
+| **Jinja2 / Starlette / FastAPI** | Headless HTML or API-only hosts (`grid_view_spec.backends.*`) |
+| **JSON** | Wire format, MCP, chat pipelines (`spec_to_wire`, `spec_from_wire`) |
 
-See Architecture (see section: architecture.md) for how a host project wires domain queries, artifacts, chat, and PDF export.
+Django is one integration path, not a requirement for the spec itself.
 
-## Quick links
+## Optional extras
 
-- Getting started (see section: getting-started.md) — install, Django setup, first table
-- Architecture (see section: architecture.md) — integration diagram and responsibility split
-- Grid View artifacts (see section: grid-view-artifacts.md) — `GridViewSpec` → `GridArtifact`
-- Server filtering contract (see section: guides/server-filtering-contract.md) — one queryset path for table/chart/export
-- Changelog (see section: changelog.md) — release notes
-- LLM context bundle (see section: llm/django-grid-view-llm-context.md) — single file for agents (about the bundle (see section: llm/context.md))
-- GridViewSpec reference (see section: reference/grid-view-spec.md) — JSON Schema contract
-- Python types (see section: reference/python-types.md) — imports for host apps (pyright/mypy)
-
-## Publishing this documentation
-
-The docs site is built with [MkDocs Material](https://squidfunk.github.io/mkdocs-material/) and deployed to GitHub Pages via the `Docs` workflow. Repository maintainers: enable **Settings → Pages → Build and deployment → GitHub Actions**, then set the repository **Website** to `https://alpiua.github.io/django-grid-view/`.
+| Extra | Install | Purpose |
+|-------|---------|---------|
+| `[pdf]` | `pip install django-grid-view[pdf]` | WeasyPrint PDF export |
+| `[mcp]` | `pip install "django-grid-view[mcp]"` | CLI **`gridviewspec-mcp`** (installed with the package) |
+| `[starlette]` / `[fastapi]` | respective extra | ASGI page routes |
 
 ## Links
 
 - [PyPI](https://pypi.org/project/django-grid-view/)
 - [GitHub](https://github.com/alpiua/django-grid-view)
-- [Issue tracker](https://github.com/alpiua/django-grid-view/issues)
+- Changelog (see section: changelog.md)
+
+## Publishing this site
+
+Maintainers build docs with MkDocs Material; GitHub Actions deploys to
+[https://alpiua.github.io/django-grid-view/](https://alpiua.github.io/django-grid-view/).
 
 
 ---
@@ -81,323 +104,359 @@ The docs site is built with [MkDocs Material](https://squidfunk.github.io/mkdocs
 
 # Getting started
 
+This guide walks through a minimal **GridViewSpec** page. It assumes a Django host because that is
+the most common setup (templates, static files, optional ORM preferences). The same spec API works
+with other backends — see Architecture (see section: architecture.md).
+
 ## Install
 
 ```bash
 pip install django-grid-view
 ```
 
-Editable install for local development:
+Local development:
 
 ```bash
 pip install -e /path/to/django-grid-view
+# optional: MCP CLI (`pip install -e ".[mcp]"` or `./scripts/install-mcp-cli.sh`)
 ```
 
-With **uv**, override PyPI in your project:
+## Django backend (optional)
 
-```toml
-[project]
-dependencies = ["django-grid-view>=1.0.0"]
-
-[tool.uv.sources]
-django-grid-view = { path = "../django-grid-view", editable = true }
-```
-
-## Django setup
+Add the app and migrate once for saved column presets:
 
 ```python
-# settings.py
-INSTALLED_APPS = [
-    # ...
-    "django_grid_view",
-]
+INSTALLED_APPS = ["django_grid_view"]
 ```
-
-```python
-# settings.py (export + grid prefs URL names used by templatetags and scripts.html)
-DJANGO_GRID_VIEW_EXPORT_PDF_URL = "api_export_pdf"
-DJANGO_GRID_VIEW_EXPORT_XLSX_URL = "api_export_xlsx"
-
-# Optional: pin third-party CDN scripts (see docs/ag-grid.md#cdn-pins-confpy)
-# DJANGO_GRID_VIEW_AG_GRID_VERSION = "31.3.2"
-# DJANGO_GRID_VIEW_SORTABLE_VERSION = "1.15.2"
-# DJANGO_GRID_VIEW_ECHARTS_VERSION = "5.5.1"
-```
-
-Mount HTTP routes in **your** API `urls.py` (the package ships an empty `django_grid_view.urls` — do not `include()` it):
-
-```python
-# myapp/api/urls.py — example; mount as path("api/", include("myapp.api.urls"))
-from django.urls import path
-from django_grid_view.export.pdf_view import export_pdf
-from django_grid_view.export.xlsx_view import export_xlsx
-from django_grid_view.views import save_grid_settings
-
-urlpatterns = [
-    path("grid/preferences/", save_grid_settings, name="api_grid_preferences"),
-    path("export/pdf/", export_pdf, name="api_export_pdf"),
-    path("export/xlsx/", export_xlsx, name="api_export_xlsx"),
-]
-```
-
-| Endpoint | URL name | Purpose |
-|----------|----------|---------|
-| `POST …/grid/preferences/` | `api_grid_preferences` | Save `GridPreference` (required for `scripts.html`) |
-| `GET …/export/pdf/?builder=…` | `api_export_pdf` | Server PDF (`{% export_pdf_href %}`) |
-| `GET …/export/xlsx/?builder=…` | `api_export_xlsx` | Server XLSX (`{% export_xlsx_href %}`) |
-
-Register PDF/XLSX **builders** in `AppConfig.ready()` — see Host app page export (see section: guides/host-app-page-export.md), PDF export (see section: guides/pdf-export.md), and XLSX export (see section: guides/xlsx-export.md).
 
 ```bash
 python manage.py migrate django_grid_view
 ```
 
-This creates the `GridPreference` model used for per-user column presets and saved searches.
+Mount export and preference routes in **your** URLconf (the package does not ship a root
+`urls.py` to include):
 
-## Load assets once per page
+```python
+from django.urls import path
+from grid_view_spec.backends.django.views import export_pdf, export_xlsx, save_grid_prefs
 
-Host base template (recommended):
+urlpatterns = [
+    path("grid/prefs/", save_grid_prefs, name="api_grid_preferences"),
+    path("export/pdf/", export_pdf, name="api_export_pdf"),
+    path("export/xlsx/", export_xlsx, name="api_export_xlsx"),
+]
+```
+
+Register PDF/XLSX builders in `AppConfig.ready()` — PDF export (see section: guides/pdf-export.md),
+XLSX export (see section: guides/xlsx-export.md).
+
+Optional settings for URL names used by templates:
+
+```python
+DJANGO_GRID_VIEW_EXPORT_PDF_URL = "api_export_pdf"
+DJANGO_GRID_VIEW_EXPORT_XLSX_URL = "api_export_xlsx"
+```
+
+## Page assets
+
+In the site base template, once per page:
 
 ```django
 {% load django_grid_view %}
-{% grid_view_styles %}   {# <head> — grid-view.min.css #}
+{% grid_view_styles %}   {# in <head> #}
 …
-{% grid_view_bundle %}   {# before </body> — grid-view.min.js + column-settings.min.js #}
+{% grid_view_bundle %}   {# before </body> — grid-view.min.js + boot config #}
 ```
 
-Optional CDN pins in `<head>` before the bundle — see [AG-Grid integration](ag-grid.md#cdn-pins-confpy):
+Charts need ECharts in the host template; column drag-reorder needs Sortable. AG-Grid pages load
+additional scripts — AG-Grid integration (see section: ag-grid.md).
 
-```django
-<script src="{% ag_grid_cdn_url %}"></script>
-<script src="{% sortable_cdn_url %}"></script>
-<script src="{% echarts_cdn_url %}"></script>
-```
+## First spec page
 
-Inclusion tags (`{% render_simple_table %}`, `{% render_grid_view %}`, …) auto-load CSS/JS on first use when the host did not call the tags above.
-
-## First Simple Table
-
-**View** — build rows in Python:
+**1. Build a spec and rows in the view**
 
 ```python
 from django.shortcuts import render
-from django_grid_view.tables import Column, SimpleTableConfig
+from grid_view_spec import GridViewSpec, validate_spec
+from grid_view_spec.types.layout import GridViewArea, GridViewLayout
+from grid_view_spec.types.table_v2 import GridViewColumn, GridViewTable
 
 def orders_list(request):
-    rows = [
-        {"name": "Ada", "visits": 12},
-        {"name": "Bob", "visits": 8},
-    ]
-    config = SimpleTableConfig(
-        grid_id="orders",
-        columns=[
-            Column(key="name", label="Customer"),
-            Column(key="visits", label="Visits", align="right"),
-        ],
-        data=rows,
+    rows = [{"name": "Ada", "amount": 120}, {"name": "Bob", "amount": 85}]
+    spec = GridViewSpec(
+        id="orders",
+        blocks=(
+            GridViewTable(
+                id="orders_table",
+                backend="simple",
+                columns=(
+                    GridViewColumn(id="name", label="Customer", field="name"),
+                    GridViewColumn(id="amount", label="Amount", field="amount", format="currency"),
+                ),
+            ),
+        ),
+        layout=GridViewLayout(root=GridViewArea(id="root", blocks=("orders_table",))),
     )
-    return render(request, "orders.html", {"table": config})
+    validate_spec(spec)
+    return render(request, "orders.html", {"spec": spec, "rows": rows})
 ```
 
-**Template:**
+**2. Render in the template**
 
 ```django
 {% load django_grid_view %}
-{% render_simple_table table %}
+{% render_grid_view_spec spec rows %}
 ```
 
-Open the page — client-side sort and search work without extra JavaScript.
+Open the page — client sort, search, and column settings work through the unified
+`grid-view.min.js` runtime.
 
-## Typing in host projects
-
-The package includes **`py.typed`**. Import contracts instead of copying TypedDicts:
+## Validate before render
 
 ```python
-from django_grid_view.types import GridViewSpec, GridViewSpecWire, JsonObject, RowDict
-from django_grid_view.tables import Column, SimpleTableConfig
-from django_grid_view.render import build_artifact_from_view, parse_grid_view_spec
+from grid_view_spec import validate_spec
+
+validate_spec(spec)  # raises GridViewValidationError on structural errors
 ```
 
-See Python types (see section: reference/python-types.md) for wire types, `GridArtifactJson`, enums, and pyright setup.
+For IDE workflows, run the MCP server (see section: guides/mcp-server.md) (`gridview_validate` on wire JSON).
+
+## Python imports
+
+| Need | Import |
+|------|--------|
+| Spec types | `from grid_view_spec import GridViewSpec` |
+| Render | `from grid_view_spec.render import render_grid_view_spec` |
+| Wire JSON | `from grid_view_spec.validate import spec_to_wire, spec_from_wire` |
+| Django host | `from grid_view_spec.backends.django.host import DjangoGridViewHost` |
+
+Public type reference: Python types (see section: reference/python-types.md).
 
 ## Next steps
 
-- Simple Table (see section: simple-table.md) — columns, export, footers
-- AG-Grid integration (see section: ag-grid.md) — infinite API contract, persistence, wiring
-- Charts and KPIs (see section: charts-and-kpis.md) — ECharts and KPI strips
-- Grid View artifacts (see section: grid-view-artifacts.md) — unified `GridViewSpec` rendering
+- GridViewSpec reference (see section: reference/grid-view-spec.md) — blocks, layout, schema
+- Architecture (see section: architecture.md) — responsibilities and bundle layout
+- Host app page export (see section: guides/host-app-page-export.md) — one loader for HTML and export
+- Simple Table (previous API) (see section: simple-table.md) — if you maintain older pages
 
 
 ---
 
 
-<!-- source: simple-table.md -->
+<!-- source: architecture.md -->
 
-# Simple Table
+# Architecture
 
-Server-rendered HTML tables with client-side sort, search, column settings, and server XLSX/PDF export links.
+## Overview
 
-## Configuration
+**grid-view-spec** separates three concerns:
 
-```python
-from django_grid_view.tables import Column, ColumnGroup, SimpleTableConfig
-from django_grid_view.types import RowDict
+1. **Data** — rows, querysets, and aggregates computed in the host application
+2. **Spec** — declarative page structure (`GridViewSpec`: blocks + layout)
+3. **Render** — HTML, static assets, export pipelines, and browser runtime
 
-rows: list[RowDict] = [{"sku": "A1", "name": "Widget", "price": 9.99}]
-
-config = SimpleTableConfig(
-    grid_id="products",
-    columns=[
-        Column(key="sku", label="SKU", width="120px"),
-        Column(key="name", label="Name"),
-        Column(key="price", label="Price", align="right", hide=True),
-    ],
-    data=rows,
-    search_mode="global",  # global | per_column | disabled
-    striped=True,
-    column_settings=True,
-    column_groups_order=("Main", "Finance"),
-)
+```
+Host rows + GridViewSpec  →  render_grid_view_spec  →  HTML + asset plan
+                                                      →  export builders (optional)
+Browser: grid-view.min.js → GridView.bootScope()     →  tables, filters, KPI, charts
 ```
 
-### Column options
+Numeric KPI and chart values always originate from Python row data (or server-side resolution).
+Specs describe shape, labels, and wiring — not untrusted numbers.
 
-| Field | Purpose |
-|-------|---------|
-| `key` | Row dict key |
-| `label` | Header text |
-| `sortable` | Enable column sort (default `True`) |
-| `searchable` | Include in client search (default `True`) |
-| `align` | `left`, `center`, `right` |
-| `hide` | Hidden by default (Standard preset restores this) |
-| `menu_group` | Group label in column settings modal |
-| `exportable` | Include in XLSX when visible (default `True`) |
-| `sort_value` | Callable for custom sort key |
-| `export_raw` | Callable for XLSX raw value |
-| `render` | Override cell HTML (subclass `Column`) |
+## Core modules (`grid_view_spec`)
 
-### Column settings
+| Area | Role |
+|------|------|
+| `types/` | Block dataclasses (`GridViewTable`, `GridViewFilters`, …) |
+| `validate/` | Structural validation, wire encode/decode |
+| `render/` | Jinja templates under `templates/grid_view/spec/`, block registry |
+| `export/` | PDF/XLSX registry, payload builders, HTML reports |
+| `backends/django/` | Django host, views, ORM preferences |
+| `backends/jinja2/`, `starlette/`, `fastapi/` | Non-Django HTML routes |
+| `mcp/` | MCP tools (`gridview_validate`, …) — no framework imports |
 
-Enable with `column_settings=True` on `SimpleTableConfig` or `GridViewSpec`.
+JSON Schema for wire interchange: `schema/grid-view-spec.v2.json`.
 
-| Feature | Behaviour |
-|---------|-----------|
-| Gear button | Included in table toolbar; use `{% render_django_grid_view_gear grid_id %}` for external toolbars |
-| Modal | Drag order, show/hide, L/R pin, named presets |
-| Persistence | `localStorage` session state + `GridPreference.col_presets` via `api_grid_preferences` |
-| Export sync | Export links with `data-cm-export-sync data-cm-grid-id="…"` receive `export_cols` query param |
+## Host responsibilities
+
+| Host owns | Package owns |
+|-----------|--------------|
+| SQL/ORM, filters, authorization | Block templates and `cm-*` CSS |
+| Building `GridViewSpec` in page loaders | `grid-view.min.js` runtime |
+| Export builder functions (domain rows) | Export HTML assembly, throttle helpers |
+| Domain labels, URLs, i18n of data | Package chrome i18n (`GridViewI18n`) |
+| AG-Grid `columnDefs` and data API (when used) | `AgGridHost`, toolbar, persistence helpers |
+
+## Backends
+
+### Django
+
+Templates (`{% render_grid_view_spec %}`), static files, `GridPreference` model, and HTTP views for
+export and saved searches. Install `django_grid_view` in `INSTALLED_APPS`.
+
+### Jinja2 / Starlette / FastAPI
+
+`render_html(spec, rows, host=…)` and optional `page_route()` — no Django settings required.
+
+### Wire / MCP
+
+`spec_to_wire` / `spec_from_wire` for JSON storage and the `gridviewspec-mcp` server.
+
+## Front-end bundle
+
+Production wheels ship pre-built assets under `django_grid_view/static/`. Host pages load:
 
 ```django
-{% render_django_grid_view_gear "products" %}
-{% include "django_grid_view/partials/export_xlsx_link.html" with href=export_url grid_id="products" %}
-{% render_simple_table config %}
+{% grid_view_bundle %}
 ```
 
-Server XLSX export respects visible columns:
+which injects i18n boot config and **`grid-view.min.js`**. That single bundle includes column
+settings, KPI, charts, filter bar, and spec boot (`GridView.bootScope` on load and HTMX swap).
+
+Additional bundles exist for AG-Grid (`ag-grid-cdn.js`, `ag-grid-host.js`, …) — see
+JavaScript API (see section: reference/javascript.md).
+
+Maintainers rebuild assets from `frontend/` with Node (esbuild); application projects do not need
+Node at runtime.
+
+## Export flow
+
+1. Page registers a builder key in `grid_view_spec.export.registry`
+2. Browser links include `?builder=<key>` and current filter query params
+3. Host view resolves the builder → `GridViewExportJob` → PDF or XLSX response
+
+Details: PDF export (see section: guides/pdf-export.md), XLSX export (see section: guides/xlsx-export.md).
+
+## AG-Grid mode
+
+Large interactive grids use AG-Grid on the client. The host provides JSON data APIs and column
+definitions; the package provides toolbar integration, preference sync, and server-side filter/sort
+parsing helpers. See AG-Grid integration (see section: ag-grid.md).
+
+## Related reading
+
+- GridViewSpec reference (see section: reference/grid-view-spec.md)
+- Template tags (see section: reference/template-tags.md)
+- Maintainer architecture spec (see section: gridviewspec-architecture.md) — full v2 design document
+- Documentation inventory (see section: maintainers/doc-inventory.md) — legacy pages and sunset plan
+
+
+---
+
+
+<!-- source: reference/grid-view-spec.md -->
+
+# GridViewSpec
+
+**GridViewSpec** is the page contract for grid-view-spec v2: a flat list of **blocks** plus a **layout**
+tree that places block ids into areas (page root, toolbars, cards, tabs, …).
+
+Wire format: [`schema/grid-view-spec.v2.json`](https://github.com/alpiua/django-grid-view/blob/main/schema/grid-view-spec.v2.json)
+
+## Rules
+
+- Row data lives **outside** the spec. Pass rows to `render_grid_view_spec(spec, rows, host=…)`.
+- Block ids are unique within a spec. Layout references only existing block ids.
+- One search field per table (toolbar XOR table search — enforced by validation).
+- Export actions use `GridViewExportAction` with `params.builder` or default to `spec.id`.
+
+## Python
 
 ```python
-from django_grid_view.export.table_columns import resolve_simple_table_for_export
+from grid_view_spec import GridViewSpec, validate_spec
+from grid_view_spec.render import render_grid_view_spec
+from grid_view_spec.types.layout import GridViewArea, GridViewLayout
+from grid_view_spec.types.table_v2 import GridViewColumn, GridViewTable
 
-def build_products_xlsx(request):
-    page = load_products_page(request)
-    table = resolve_simple_table_for_export(page.table, request)
-    return report_from_simple_table(table, sheet_name="Products")
-```
-
-### Column groups
-
-Multi-level headers:
-
-```python
-ColumnGroup(label="Q1", column_keys=["jan", "feb", "mar"])
-```
-
-With `column_groups`, the settings modal operates on **units**: each `ColumnGroup` is one chip (show/hide/reorder moves the whole group + its leaf columns together). Standalone columns outside groups remain individual units. Pin (L/R) is available for standalone columns only. Export expands visible groups to their leaf column keys.
-
-### Row actions
-
-```python
-SimpleTableConfig(
-    grid_id="orders",
-    columns=[...],
-    data=rows,
-    row_url="/orders/{id}/",  # placeholders from row keys
-    # or row_onclick="openOrder({id})"
+spec = GridViewSpec(
+    id="orders",
+    blocks=(
+        GridViewTable(
+            id="orders_table",
+            backend="simple",
+            columns=(GridViewColumn(id="name", label="Name", field="name"),),
+        ),
+    ),
+    layout=GridViewLayout(root=GridViewArea(id="root", blocks=("orders_table",))),
 )
+validate_spec(spec)
+html = render_grid_view_spec(spec, rows, host=host)
 ```
 
-### Footer row
+Wire JSON:
 
 ```python
-footer_row={"name": "Total", "amount": 1000},
-footer_label="Summary",
-footer_label_span=2,
+from grid_view_spec.validate import spec_from_wire, spec_to_wire
+
+wire = spec_to_wire(spec)
+restored = spec_from_wire(wire)
 ```
 
-## Table layout (overflow)
+## Block types (overview)
 
-DOM contract rendered by `simple/table.html`:
+| Block | Purpose |
+|-------|---------|
+| `GridViewHeader` | Title, subtitle, optional template content |
+| `GridViewToolbar` | Search, actions slot, filter wiring |
+| `GridViewFilters` | Filter bar state |
+| `GridViewActions` | Export, links, buttons |
+| `GridViewTable` | Simple table or AG-Grid backend |
+| `GridViewKpi` / charts blocks | KPI strip and ECharts (data from rows) |
+| `GridViewCards`, `GridViewGallery`, `GridViewForm`, … | Structured content |
+| `GridViewTemplate` | Host template fragment by reference |
+| `GridViewOverlay` | Modal / drawer host |
 
-```
-.cm-table-shell
-  .cm-table-viewport     ← horizontal scroll when columns exceed width
-    table.cm-table
-  .cm-col-filter-portal   ← fixed popover; data-cm-col-filter-table = grid_id
-```
+Full catalog: MCP tool `gridview_catalog` or Maintainer spec (see section: gridviewspec-architecture.md).
 
-CSS behaviour:
+## Layout
 
-1. **Squeeze** — `th`/`td` use `text-overflow: ellipsis` and `white-space: nowrap` inside a `width: 100%` table.
-2. **Scroll** — when intrinsic column minimums exceed the viewport, `table { min-width: max-content }` expands the table and `.cm-table-viewport { overflow-x: auto }` shows a horizontal scrollbar.
+`GridViewLayout` roots an area tree. Areas have `type` (`root`, `toolbar`, `table-card`, …) and
+ordered `blocks` id list. Toolbars reference filters and tables through block ids, not embedded
+fields.
 
-Shell (`.cm-table-shell`) clips border-radius; scrolling happens only in the viewport, not the page.
-
-Column filter UI is documented in Filter Semantics Contract (see section: guides/filter-semantics-contract.md) (UI layer vs `SimpleTable.applyAllFilters`).
-
-## Template tag
+## Templates (Django)
 
 ```django
 {% load django_grid_view %}
-{% render_simple_table config %}
+{% render_grid_view_spec page.grid rows %}
 ```
 
-The tag delegates to `render.simple_table_context` (header/footer/body prep) and injects `data-cm-*` attributes consumed by `grid-view.min.js` (`GridView.SimpleTable` + column settings).
+Lazy blocks and HTMX fragments use `load_lazy_block` — see Architecture (see section: architecture.md).
 
-## Export
+## Validation
 
-Server export via registered builders:
+```python
+from grid_view_spec import validate_spec
 
-- XLSX: `{% export_xlsx_href 'my_table' … %}` — XLSX export (see section: guides/xlsx-export.md)
-- PDF: `{% export_pdf_href 'my_table' … %}` — PDF export (see section: guides/pdf-export.md)
-
-Host mounts `/api/export/xlsx/` and `/api/export/pdf/`; set `DJANGO_GRID_VIEW_EXPORT_*_URL` in settings.
-Optional: `export_xlsx_url` / `export_pdf_url` on `SimpleTableConfig` for toolbar links.
-
-Sync export columns from the browser:
-
-```html
-<a href="{% export_xlsx_href 'products' %}"
-   data-cm-export-sync="1"
-   data-cm-grid-id="products">XLSX</a>
+validate_spec(spec)
 ```
 
-`GridView.AgGrid.syncExportHref` is intentionally shared with Simple Table column settings:
-when the grid id resolves to a column-settings adapter instead of an AG-Grid host, it writes
-`export_cols` from the displayed Simple Table columns.
+IDE / MCP: run `gridview_validate` on wire JSON (MCP server (see section: guides/mcp-server.md)).
 
-## When to use Simple Table vs Grid View 1.0
+## MCP and schema tools
 
-| Use Simple Table | Use Grid View artifact |
-|------------------|------------------------|
-| Custom `Column.render()` HTML | Declarative `GridViewSpec` + KPI + charts |
-| Legacy dashboard tables | Chat / LLM-driven views |
-| No KPI/chart on same block | One `{% render_grid_view %}` block |
+| Tool | Returns |
+|------|---------|
+| `gridview_catalog` | Block types, registries, authoring rules |
+| `gridview_schema` | JSON Schema fragment |
+| `gridview_examples` | Fixture specs by case id |
+| `gridview_migration_hints` | Maps old template/API names to blocks |
+| `gridview_validate` / `gridview_normalize` | Diagnostics + normalized spec |
+| `gridview_apply_patch` | Atomic spec edits (A2UI ops) |
 
-See Grid View artifacts (see section: grid-view-artifacts.md) for the unified spec path.
+Contract reference: [grid-view-spec.mcp](../grid-view-spec.mcp) (repository file).
 
-## Shared column settings with AG-Grid
+## Chat and LLM output
 
-Column settings UI (`modal.html`, presets, drag/pin) is implemented in `column-settings.min.js` as `GridView.createColumnSettings`. It ships with `{% grid_view_bundle %}` alongside `grid-view.min.js`. `AgGridHost` delegates after `gridApi` init; Simple Table uses the DOM table adapter. Same modal: `django_grid_view/modal.html`.
+Structured output should be a **spec object** matching the schema — not row arrays or numeric KPI
+values. See Chat visualizer (see section: guides/chat-visualizer.md).
+
+## Previous wire format (v1)
+
+The v1 schema (`schema/grid-view-spec.v1.json`) used a flat `grid_id` + `columns` list consumed by
+`GridRenderer`. That path remains in the Django package for older pages. New work should use v2
+blocks and layout described above. Mapping table: Legacy API index (see section: legacy/index.md).
 
 
 ---
@@ -860,204 +919,6 @@ Typical config: `grid_id="items"`, `storageScope="items-grid"`, data endpoint `G
 ---
 
 
-<!-- source: charts-and-kpis.md -->
-
-# Charts and KPIs
-
-Grid View 1.0 resolves KPI values and chart bindings in Python from `rows`, then renders ECharts in the browser.
-
-## KPI strip (Python-resolved)
-
-```python
-from django_grid_view.types import ColumnFormat, KpiAggregate, KpiSpec, RowDict
-from django_grid_view.render.kpi import resolve_kpis
-
-specs = [
-    KpiSpec(
-        label="Total",
-        column_key="amount",
-        aggregate=KpiAggregate.SUM,
-        format=ColumnFormat.NUMBER,
-    ),
-]
-kpis = resolve_kpis(specs, rows)
-```
-
-```django
-{% render_kpi_strip kpis columns=4 %}
-```
-
-## Charts (static rows)
-
-Requires `window.echarts` on the page. Pin the CDN in settings or load explicitly:
-
-```django
-{% load django_grid_view %}
-<script src="{{ echarts_cdn_url }}"></script>
-```
-
-```python
-# settings.py (optional)
-DJANGO_GRID_VIEW_ECHARTS_VERSION = "5.5.1"
-# from django_grid_view.conf import echarts_cdn_url  # in view context
-```
-
-```python
-from django_grid_view.types import ChartSpec, ChartType, RowDict, SeriesSpec
-from django_grid_view.render.charts import build_chart_runtime
-
-chart = ChartSpec(
-    id="main",
-    chart_type=ChartType.BAR,
-    x_key="name",
-    series=(SeriesSpec(key="amount", label="Amount"),),
-)
-runtime = build_chart_runtime(chart, rows)
-```
-
-```django
-{% render_chart chart rows %}
-```
-
-## AG-Grid–filtered KPIs and charts
-
-When KPIs or charts must reflect **visible** AG-Grid rows after filter/sort:
-
-- Python: `{% render_grid_kpi_strip specs %}` (unresolved specs)
-- JS: `GridView.createAgGridAdapter(gridApi)` + `bindGridKpis` / `bindGridFilteredCharts`
-
-`ChartSpec.data_source` can be `static` (artifact rows) or `grid_filtered` (adapter rows).
-
-## Unified layout
-
-Prefer one artifact when KPI, chart, and table share the same `rows`:
-
-```python
-from django_grid_view.types import GridViewSpec, RowDict
-from django_grid_view.render import GridRenderer
-
-artifact = GridRenderer.build(spec, rows)
-```
-
-Types: Python types (see section: reference/python-types.md).
-
-```django
-{% render_grid_view artifact %}
-```
-
-See Grid View artifacts (see section: grid-view-artifacts.md).
-
-
----
-
-
-<!-- source: grid-view-artifacts.md -->
-
-# Grid View artifacts
-
-`GridViewSpec + rows → GridArtifact` is the core render contract for unified KPI, chart, and table blocks.
-
-## Quick start
-
-```python
-from django_grid_view.types import JsonObject, RowDict
-from django_grid_view.render import build_artifact_from_view
-
-rows: list[RowDict] = [{"name": "A", "amount": 10}, {"name": "B", "amount": 20}]
-view: JsonObject = {
-    "grid_id": "demo",
-    "title": "Demo",
-    "columns": [
-        {"key": "name", "label": "Name", "format": "text"},
-        {"key": "amount", "label": "Amount", "format": "number"},
-    ],
-    "kpis": [
-        {"label": "Total", "column_key": "amount", "aggregate": "sum", "format": "number"}
-    ],
-    "charts": [{
-        "id": "main",
-        "chart_type": "bar",
-        "x_key": "name",
-        "series": [{"key": "amount", "label": "Amount"}],
-    }],
-    "layout": {"blocks": ["title", "kpis", "chart", "table"]},
-}
-
-artifact = build_artifact_from_view(view, rows)
-payload = artifact.to_json()  # wire shape for GridView.init
-```
-
-Typed builders (recommended for dashboards):
-
-```python
-from django_grid_view.types import (
-    ChartSpec,
-    ChartType,
-    ColumnSpec,
-    GridViewSpec,
-    KpiSpec,
-    RowDict,
-    SeriesSpec,
-)
-from django_grid_view.render import GridRenderer
-
-spec = GridViewSpec(
-    grid_id="demo",
-    columns=(ColumnSpec(key="name", label="Name"),),
-    kpis=(),
-    charts=(
-        ChartSpec(
-            id="main",
-            chart_type=ChartType.BAR,
-            x_key="name",
-            series=(SeriesSpec(key="amount", label="Amount"),),
-        ),
-    ),
-)
-artifact = GridRenderer.build(spec, rows)
-```
-
-Import map: Python types (see section: reference/python-types.md).
-
-## API
-
-| Function | Input | Output |
-|----------|-------|--------|
-| `parse_grid_view_spec_json(raw)` | dict | `GridViewSpec` |
-| `GridRenderer.build(spec, rows)` | validated spec + rows | `GridArtifact` |
-| `build_artifact_from_view(view, rows)` | raw dict or spec + rows | `GridArtifact` |
-| `build_artifact_json_from_view(view, rows)` | raw dict or spec + rows | `GridArtifactJson` |
-
-Use `build_artifact_from_view` when the spec comes from JSON (LLM or Python dict).
-Use `GridRenderer.build` when you already have a validated `GridViewSpec`.
-
-## Invariants
-
-- KPI and chart **numbers** are computed from `rows` inside `GridRenderer.build`.
-- The spec must not contain row data or numeric KPI values.
-- Schema: GridViewSpec reference (see section: reference/grid-view-spec.md) and `schema/grid-view-spec.v1.json` in the repository.
-
-## Template rendering
-
-```django
-{% load django_grid_view %}
-{% render_grid_view artifact %}
-```
-
-## Client-side init (SPA / chat)
-
-```javascript
-GridView.init({ root: document.getElementById("chat-panel"), artifact: payload });
-```
-
-## Consumer integration
-
-Router state lookup, chat SSE wrapping, and visualizer prompts are **not** part of this package. See Chat visualizer (see section: guides/chat-visualizer.md) for a generic wire contract.
-
-
----
-
-
 <!-- source: preferences.md -->
 
 # Saved preferences
@@ -1167,1615 +1028,6 @@ Anonymous users: session state in `localStorage` only; save API returns login re
 | Write scope | Authenticated user; row keyed by `(user, grid_id)` |
 | Read scope | View loads prefs for `request.user` only |
 | Row-level data | Package stores layout JSON only; host validates sensitive grids |
-
-
----
-
-
-<!-- source: architecture.md -->
-
-# Architecture
-
-This document summarizes how **django-grid-view** is structured and how a host Django
-project integrates with it.
-
-## Purpose
-
-`django-grid-view` provides reusable **grid view** rendering for Django applications:
-
-1. **Simple Table** — server-rendered HTML tables (sort, search, export)
-2. **AG-Grid** — HTMX-safe lifecycle, preferences, infinite row model helpers
-3. **Grid View** — unified KPI cards, ECharts charts, tabular data, optional filter bar and card grids
-4. **Export** (optional extras) — artifact → HTML (Jinja2) → PDF (WeasyPrint), static chart PNG, throttle helpers
-
-![Layer model](assets/layer-model.svg)
-
-## Target integration (example project)
-
-A typical dashboard keeps **domain data and queries** in the host app and passes
-**structure + rows** into the package renderer. Chat, HTML pages, and PDF export are
-three consumers of the same `GridArtifact`, not three parallel render paths.
-
-```mermaid
-flowchart TB
-  subgraph host [example project — domain]
-    ORM[ORM / queryset layer]
-    Filters["parse filter params → apply filters"]
-    Builders["artifacts / table configs / view builders"]
-    Views[dashboard views]
-  end
-
-  subgraph pkg [django-grid-view — render]
-    Spec[GridViewSpec]
-    Renderer[GridRenderer.build]
-    Artifact[GridArtifact]
-    HTML["render_grid_view / render_simple_table"]
-    PDF["export: Artifact → HTML → PDF backend"]
-    Throttle[export throttle mixin]
-    Cards[cards + filter bar blocks]
-  end
-
-  subgraph out [outputs]
-    Page[Django pages]
-    Chat[chat / SSE grid_view]
-    Export[PDF / XLSX server]
-  end
-
-  ORM --> Filters
-  Filters --> Views
-  Views --> Builders
-  Builders --> Spec
-  Spec --> Renderer
-  Renderer --> Artifact
-  Artifact --> HTML --> Page
-  Artifact --> Chat
-  Artifact --> PDF --> Export
-  Throttle --> PDF
-  Cards --> HTML
-```
-
-**Single contract:** `GridViewSpec + rows[] → build_artifact_from_view()` (or
-`GridRenderer.build`). The host owns labels, URLs, filter options, and ORM filters; the
-package owns widgets, templates, `grid-view.min.js`, and export adapters.
-
-### Responsibility split
-
-| Layer | django-grid-view | example project (host) |
-|-------|------------------|----------------------|
-| CSS, toolbar, KPI, chips, cards | `grid-view.css`, partials, `CardGridSpec`, `FilterBarSpec` | domain labels, tones, layout blocks |
-| Tables | `Column`, `SimpleTableConfig`, `ColumnSpec` | domain columns, row serializers |
-| Charts / KPI | `ChartSpec`, `KpiSpec`, ECharts bind | builders from aggregated querysets |
-| Server XLSX | declarative `XlsxReport` + xlsxwriter (openpyxl optional) | register host `…/export/xlsx/?builder=` builders |
-| Server PDF | artifact → HTML + PDF backend plugins | rows + thin view wrappers |
-| Inline edit (hook) | `EditActionSpec` + JS callback | PATCH endpoints, validation, policy |
-| Rate limit | `ExportThrottleMixin` / decorator | URL wiring, limits per endpoint |
-| Filter / search UI | `FilterBarSpec`, widgets, URL/DOM sync, `AgGridHost` session state | options + `FilterState` → ORM |
-| Filter / search data | — | models, care-type lists, period helpers |
-| AG-Grid infinite API | `parse_infinite_params`, `apply_grid_filters`, `apply_grid_sort` | ORM queryset, field maps, row serializer |
-| AG-Grid export columns | `AgGridPageSpec`, `resolve_export_columns` | XLSX builder replays data API |
-| AG-Grid client wiring | `GridView.AgGrid`, `AgGridHost`, `scripts.html` | `columnDefs`, data API URL, page hooks |
-
-## AG-Grid mode
-
-Large interactive grids: host supplies `columnDefs` and JSON data API; package supplies
-toolbar, `AgGridHost`, `GridView.AgGrid`, and `django_grid_view.ag_grid` server helpers.
-
-Contract and diagrams: AG-Grid integration (see section: ag-grid.md).
-
-## Layer model
-
-```
-Data (Python)          Spec (declarative)        Render (adapters)
-─────────────────────────────────────────────────────────────────
-rows: list[dict]   +   GridViewSpec          →   GridArtifact
-                                               ├─ SimpleTableConfig
-                                               ├─ AgGridColumnDefs
-                                               ├─ ResolvedKpi[]
-                                               ├─ ChartRuntimeConfig[]
-                                               ├─ CardGridSpec / FilterBarSpec (optional)
-                                               └─ export HTML / PDF (optional)
-```
-
-**Rule:** Numbers always come from Python `rows`. The LLM (chat visualizer) supplies structure only.
-
-### Ownership boundaries
-
-| Layer | Responsibility |
-|-------|----------------|
-| **Package** | Types, parser, `GridRenderer`, adapters, static JS bundles, CSS, i18n, export/throttle |
-| **Consumer app** | `rows` (SQL/ORM), domain labels/URLs, AG-Grid instance, filter → queryset |
-| **Chat / LLM** | `GridViewSpec` JSON only; no row data or KPI numbers |
-
-The package **does not** instantiate AG-Grid. KPI numbers come from Python `rows` only.
-
-## ChartSpec and AG-Grid
-
-| `data_source` | Behavior |
-|---------------|----------|
-| `static` | Use `rows` from `GridArtifact` |
-| `grid_filtered` | Visible rows from AG-Grid via `GridView.createAgGridAdapter` |
-
-See JavaScript API (see section: reference/javascript.md).
-
-## Front-end bundle
-
-### PyPI vs Node
-
-| Who | Node required? | Why |
-|-----|----------------|-----|
-| **Production host** (`pip install`) | No | Wheel ships pre-built `.min.js` under `static/` |
-| **Host-app developer** | No | Django `{% static %}` / `collectstatic` only |
-| **django-grid-view maintainer** | Yes (local or CI) | `frontend/` → esbuild → committed artifacts |
-
-Node is **not** in `[project.dependencies]`. Consumers never run `npm install`.
-
-### What ships in the wheel
-
-| File | Role |
-|------|------|
-| `grid-view.min.js` | Main IIFE — Simple Table, KPI, charts, filter bar, search (`GridView`) |
-| `column-settings.min.js` | Column presets modal (Sortable); loaded with `{% grid_view_bundle %}` |
-| `ag-grid-cdn.js` | Loads AG-Grid community CDN (pinned version) |
-| `ag-grid-host.js` | `AgGridHost` class (toolbar, persistence, export sync) |
-| `ag-grid-boot.js` | Reads `.cm-ag-grid-boot-config` JSON; HTMX `registerBoot` |
-| `ag-grid-smart-filter.js` | Optional AG-Grid filter plugin (styles in `grid-view.css`) |
-| `ag-grid-advanced-search.js` | Smart quick-filter factory |
-| `ag-grid-tooltip.js` | Custom tooltip component |
-| `chart-static-boot.js` | ECharts poll + HTMX `afterSwap` for static charts |
-| `grid-artifact-boot.js` | Boot `[data-cm-grid-artifact-boot]` → `GridView.init` |
-| `kpi-static-boot.js` | Static KPI strip initializer |
-| `grid-view.css` / `.min.css` | Table, toolbar, KPI, smart-filter chrome (built from `frontend/styles/`) |
-
-Source lives in `frontend/src/` (TypeScript + esbuild). CI runs `npm run build`, `typecheck`, `lint`, and `npm run test:conformance` (Python↔JS filter/search/KPI parity via shared JSON fixtures).
-
-Python types in `types/chart_bind.py` and `types/kpi_bind.py` define wire contracts mirrored in `frontend/src/types/`.
-
-Host apps import public types from `django_grid_view.types` (Python types (see section: reference/python-types.md)); `py.typed` is shipped in the wheel.
-
-### Load order (Simple Table / Grid View pages)
-
-```django
-{% grid_view_bundle %}   {# once per page #}
-```
-
-`bundle.html` injects, in order:
-
-1. Inline boot — `window.GridView.preferencesUrl`, `window.GridViewI18n`
-2. `grid-view.min.js`
-3. `column-settings.min.js`
-
-Inclusion tags (`render_simple_table`, `render_grid_view`, …) set `load_assets=True` on first use and include `bundle.html` when the host did not call `{% grid_view_bundle %}` already.
-
-Optional globals the host may define **before** the bundle:
-
-| Global | Purpose |
-|--------|---------|
-| `window.echarts` | Required for charts (CDN in host base template) |
-| `window.agGrid` | Loaded by `ag-grid-cdn.js` on AG-Grid pages |
-| `window.Sortable` | Column drag-reorder (host base template) |
-| `window.CMPeriodFilter` | Optional period widget hook for filter bar |
-
-Page-specific boot scripts (`chart-static-boot.js`, `grid-artifact-boot.js`) are included by chart/grid templates — no inline business logic in HTML.
-
-### AG-Grid page load order
-
-Via `{% include "django_grid_view/scripts.html" … %}`:
-
-1. Inline `window.__djangoGridViewCdn.agGridUrl` (pinned AG-Grid CDN)
-2. `ag-grid-cdn.js`
-3. `ag-grid-host.js`
-4. JSON boot config (`.cm-ag-grid-boot-config`)
-5. `ag-grid-boot.js`
-
-Plugin partials add their static JS/CSS (`smart_filter.html`, etc.).
-
-See JavaScript API (see section: reference/javascript.md) for runtime APIs and AG-Grid integration (see section: ag-grid.md) for host wiring.
-
-### Python↔JS parity (maintainers)
-
-Filter and smart-search semantics are locked by shared fixtures:
-
-- `tests/fixtures/filter_conformance.json`
-- `tests/fixtures/smart_search_conformance.json`
-
-pytest (`tests/test_filter_conformance.py`) and `npm run test:conformance` in `frontend/` must agree.
-
-KPI **aggregates** (compare `rawValue` only — formatting differs by locale):
-
-- `tests/fixtures/kpi_conformance.json`
-- Python: `resolve_kpis()` in `render/kpi.py`
-- JS: `resolveKpis()` in `frontend/src/grid-view/kpi.ts`
-- Included in `npm run test:conformance`
-
-Chart **semantic** data (categories, series values, pie slices) uses:
-
-- `tests/fixtures/chart_resolve_conformance.json`
-- Python: `resolve_chart_data()` in `render/charts.py`
-- JS: `resolveChartData()` in `frontend/src/grid-view/resolve-chart.ts`
-- `npm run test:chart-conformance`
-
-Matplotlib PDF export reads `ResolvedChartData` only — no direct row parsing in renderers.
-
-## Internationalization
-
-Package chrome uses Django `locale/` (en + uk) and `window.GridViewI18n` injected before the bundle.
-
-## Package modules
-
-| Module | Responsibility |
-|--------|----------------|
-| `types/` | Enums, specs, JSON parsing (`filters`, `cards`, wire types, `AgGridPageSpec`) |
-| `ag_grid/` | Infinite API param parsing, filter/sort helpers, export column resolution |
-| `render/` | `GridRenderer`, KPI/chart resolution, `simple_table_context`, `grid_preferences` |
-| `tables.py` | `Column`, `SimpleTableConfig` |
-| `export/` | HTML report, PDF/XLSX backends, static charts, throttle, `hrefs` |
-| `templatetags/` | Inclusion tags only (`render_grid_view`, `render_simple_table`, …) |
-| `models.py` | `GridPreference` |
-| `templates/django_grid_view/` | Thin templates + JSON boot configs + `{% static %}` script tags |
-| `static/django_grid_view/` | Pre-built `.min.js`, `grid-view.min.css` (non-min artifacts for debug) |
-
-## Server PDF export
-
-One HTTP entry for all host apps — **no per-page PDF views in the consumer**:
-
-```
-GET /api/export/pdf/?builder=<key>&<same query as the HTML page>
-  → register_pdf_builder(key)(request) → GridArtifact
-  → artifact_to_html(artifact)  # layout.blocks + artifact.table + chart PNGs
-  → PdfBackend (WeasyPrint) → bytes
-```
-
-Host projects mount `export_pdf` / `export_xlsx` and set `DJANGO_GRID_VIEW_EXPORT_*_URL` — see Getting started (see section: getting-started.md).
-
-| Layer | Owner |
-|-------|--------|
-| ORM → rows, `SimpleTableConfig`, `GridArtifact` | Host (`register_pdf_builder`) |
-| HTML assembly, throttle, WeasyPrint | Package |
-
-**Customize layout:** optional Jinja `template` on `register_pdf_builder` — not `GridViewSpec` in the URL (numbers must be rebuilt server-side).
-
-See PDF export guide (see section: guides/pdf-export.md) for registration, `export_pdf_href`, block types, and troubleshooting.
-
-## Optional dependencies
-
-| Extra | Install | Use |
-|-------|---------|-----|
-| `[pdf]` | `pip install django-grid-view[pdf]` | WeasyPrint PDF export |
-| `[static-charts]` | `pip install django-grid-view[static-charts]` | Matplotlib PNG for PDF/embed |
-
-Dev environments often pin the same packages so type checkers resolve imports; production hosts install only the extras they need.
-
-## Related documents
-
-- Grid View artifacts (see section: grid-view-artifacts.md)
-- AG-Grid integration (see section: ag-grid.md)
-- GridViewSpec reference (see section: reference/grid-view-spec.md)
-- Charts and KPIs (see section: charts-and-kpis.md)
-- Chat visualizer (see section: guides/chat-visualizer.md)
-
-
----
-
-
-<!-- source: reference/template-tags.md -->
-
-# Template tags
-
-Load tags with `{% load django_grid_view %}`.
-
-## Asset bundle
-
-| Tag | Template | Purpose |
-|-----|----------|---------|
-| `{% grid_view_styles %}` | `styles.html` | `grid-view.min.css` (table + smart-filter; once per render) |
-| `{% grid_view_bundle %}` | `bundle.html` | i18n boot + `grid-view.min.js` + `column-settings.min.js` (once per page) |
-
-Host base template: call `{% grid_view_styles %}` in `<head>`, `{% grid_view_bundle %}` before `</body>`.
-Inclusion tags below auto-load both on first use unless the host already rendered them.
-
-## Simple Table
-
-| Tag | Arguments | Purpose |
-|-----|-----------|---------|
-| `{% render_simple_table config %}` | `SimpleTableConfig` | Full server-rendered table |
-
-## Grid View 1.0
-
-| Tag | Arguments | Purpose |
-|-----|-----------|---------|
-| `{% render_grid_view artifact %}` | `GridArtifact`, optional `interactive=True` | Unified KPI + charts + table |
-| `{% render_kpi_strip kpis %}` | resolved KPIs, `columns=4` | Static KPI strip |
-| `{% render_chart chart rows %}` | `ChartSpec` or runtime config, rows | ECharts block |
-| `{% render_grid_kpi_strip specs %}` | `KpiSpec` sequence, `columns=4` | AG-Grid KPI (client aggregates) |
-
-## AG-Grid helpers
-
-| Tag | Arguments | Purpose |
-|-----|-----------|---------|
-| `{% django_grid_view_scripts %}` | see below | Mount grid + `ContextGridManager` |
-| `{% render_django_grid_view_toolbar %}` | `grid_id` (context) | Toolbar + gear |
-| `{% render_django_grid_view_search %}` | `grid_id` | Search bar |
-| `{% render_django_grid_view_gear %}` | `grid_id` | Gear button only |
-| `{% render_django_grid_view_modal %}` | `grid_id` | Column/search modal |
-| `{% render_filter_bar %}` | `filter_specs`, selected values | Declarative filter bar (`FilterSpec`) |
-| `{% render_search_unified %}` | `SearchSpec`, value | Unified search input |
-| `{% render_toolbar_search %}` | `scope_id`, backend/mode/value, `apply_on_enter` | Toolbar search for Simple Table or AG-Grid |
-
-### `django_grid_view_scripts`
-
-Include (do not use as inclusion tag — needs `options_var` global):
-
-```django
-{% include "django_grid_view/scripts.html" with grid_id="products" container_id="products-grid" options_var="gridOptions" %}
-```
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `grid_id` | yes | Preference key / DOM id prefix; must match `context.gridId` |
-| `options_var` | yes | Global JS variable name (e.g. `"gridOptions"`) |
-| `container_id` | yes | Element id for the grid div |
-| `toolbar` | no | Include toolbar partial (default true) |
-| `modal` | no | Include modal partial (default true) |
-
-**Template context (from host view):**
-
-| Variable | Type | Purpose |
-|----------|------|---------|
-| `ag_grid_presets` | JSON string or `"null"` | Server `GridPreference.col_presets` |
-| `ag_grid_searches` | JSON string or `"null"` | Server `GridPreference.searches` |
-
-**Typical partials:**
-
-```django
-{% render_toolbar_search scope_id="products" backend="ag_grid" saved=True compact=True apply_on_enter=True %}
-{% include "django_grid_view/modal.html" with grid_id="products" %}
-{% include "django_grid_view/plugins/smart_filter.html" %}
-{% include "django_grid_view/plugins/custom_tooltip.html" %}
-```
-
-`apply_on_enter=True` sets `data-cm-grid-search-apply="enter"`; AG-Grid reloads only on
-Enter/clear instead of on every keypress.
-
-See AG-Grid integration (see section: ag-grid.md) for `gridOptions.context` hooks and boot order.
-
-## Server export hrefs
-
-| Tag | Arguments | Purpose |
-|-----|-----------|---------|
-| `{% export_pdf_href builder … %}` | `builder` + optional query kwargs | PDF URL (`DJANGO_GRID_VIEW_EXPORT_PDF_URL`) |
-| `{% export_xlsx_href builder … %}` | same | XLSX URL (`DJANGO_GRID_VIEW_EXPORT_XLSX_URL`) |
-| `{% ag_grid_cdn_url %}` | — | Pinned AG-Grid script URL (host base template) |
-| `{% sortable_cdn_url %}` | — | Pinned Sortable.js script URL (host base template) |
-| `{% echarts_cdn_url %}` | — | Pinned ECharts script URL (host base template) |
-
-`build_export_href` lives in `django_grid_view.export.hrefs` (used by templatetags). Skips empty values. Host must mount export views and register builders — Getting started (see section: getting-started.md), PDF (see section: guides/pdf-export.md), XLSX (see section: guides/xlsx-export.md).
-
-For filterable dashboards, keep query params synchronized between page and export links; see Server filtering contract (see section: guides/server-filtering-contract.md).
-
-## Context helper
-
-`get_grid_state(context, grid_id)` — in `django_grid_view.render.grid_preferences`; returns `(col_presets_json, searches_json)` for toolbar embedding (used internally by inclusion tags).
-
-
----
-
-
-<!-- source: reference/javascript.md -->
-
-# JavaScript API
-
-The package ships pre-built browser bundles under `static/django_grid_view/`. The main entry is **`grid-view.min.js`** (global `GridView`). **PyPI consumers do not need Node** — maintainers build from `frontend/src/` with esbuild (see [Architecture — Front-end bundle](../architecture.md#front-end-bundle)).
-
-## Loading the bundle
-
-### Simple Table / Grid View pages
-
-```django
-{% load django_grid_view %}
-{% grid_view_bundle %}
-```
-
-`bundle.html` order:
-
-1. Inline — `GridView.preferencesUrl`, `GridViewI18n`
-2. `grid-view.min.js` — tables, search, KPI, charts, filter bar
-3. `column-settings.min.js` — column presets modal
-
-First inclusion tag (`render_simple_table`, `render_grid_view`, …) can auto-include the bundle when `{% grid_view_bundle %}` was not rendered yet.
-
-**External globals** (host base template, before bundle):
-
-| Global | Required for |
-|--------|----------------|
-| `echarts` | Charts |
-| `Sortable` | Column drag-reorder in settings modal |
-
-### AG-Grid pages
-
-`scripts.html` loads CDN → `ag-grid-host.js` → JSON boot → `ag-grid-boot.js`. Optional plugin scripts come from template partials. See AG-Grid integration (see section: ag-grid.md).
-
-### Artifact boot
-
-`grid_view.html` and static chart templates include small boot scripts (`grid-artifact-boot.js`, `chart-static-boot.js`) that call `GridView.init` or poll for ECharts — no inline logic in templates.
-
-## GridView.AgGrid (infinite row model)
-
-Host apps own the AG-Grid instance and domain API. The package provides datasource wiring and export href sync:
-
-```javascript
-GridView.AgGrid.createInfiniteDatasource({
-  url: "/api/my-grid-data/",
-  gridId: "my-grid",
-  getExtraParams: function () { return { period: "2024-01" }; },
-  onLastRow: function (count) { /* update toolbar counter */ },
-});
-
-GridView.AgGrid.syncExportHref(document.getElementById("my-xlsx-export"), "my-grid", {
-  getExtraParams: function () { return { period: "2024-01" }; },
-  exportColumns: true,
-});
-GridView.AgGrid.syncExportLinks("my-grid");
-```
-
-| API | Purpose |
-|-----|---------|
-| `createInfiniteDatasource(options)` | AG-Grid infinite `getRows` → fetch JSON `{ data, lastRow }` |
-| `buildInfiniteQueryParams(blockParams, gridId, options)` | Serialize block params + filters/sort; optional `cols` for search scope |
-| `syncExportHref(linkEl, gridIdOrHandle, options)` | Copy period, `q`, `col_q`, AG filters/sort, and `export_cols` into export href |
-| `syncExportLinks(gridId, options)` | Update all `[data-cm-export-sync]` links for a grid |
-| `getQuickSearchText(gridId)` | Read quick-search text for a grid |
-| `GridView.byId.get(gridId)` | Runtime handle (`AgGridHost` or column settings) |
-| `GridView.byId.registerBoot(gridId, fn)` | Register HTMX/re-mount bootstrap (used by `ag-grid-boot.js`) |
-| `GridView.byId.boot(gridId)` | Re-run bootstrap for a grid |
-| `GridView.AgGrid.Host` | AG-Grid toolbar/search/persistence controller class |
-| `GridView.AgGrid.SmartFilter` / `.Tooltip` | Optional AG-Grid component plugins |
-| `GridView.AgGrid.createAdvancedSearch(inputSelector)` | Smart quick-filter parser factory |
-| `GridView.createColumnSettings(...)` | Column settings controller for AG-Grid or Simple Table |
-
-| `createInfiniteDatasource` option | Purpose |
-|-----------------------------------|---------|
-| `gridId` | Must match `grid_id` from `scripts.html` / `data-cm-grid-id` |
-| `manager` | Removed — pass `gridId`; `syncExportHref` can still receive a runtime handle |
-
-UI controls (gear, search, presets) use **declarative markup**, not inline JS:
-
-| Attribute | Example action |
-|-----------|----------------|
-| `data-cm-grid-id` | `"order-26488"` |
-| `data-cm-col-action` | `toggle`, `reset`, `savePreset` |
-| `data-cm-grid-action` | `clearSearch`, `saveSearch`, `toggleSavedSearches` |
-| `data-cm-grid-search` | quick-filter input |
-
-| `syncExportHref` option | Default | Purpose |
-|-------------------------|---------|---------|
-| `exportColumns` | `true` | Write visible column ids to `export_cols` (server resolves via `AgGridPageSpec`) |
-| `includeVisibleCols` | `false` | Also set `cols` on the export URL (rarely needed) |
-
-### AgGridHost persistence
-
-| Method | Purpose |
-|--------|---------|
-| `host._storageKey()` | `localStorage` key for session state |
-| `host.reapplyPersistedState()` | Re-apply filters/columns/search after late-bound `columnDefs`; purges infinite cache |
-| `host.syncBrowserUrl()` | Write `q`, `filters`, `pageState` keys to URL (`replaceState`) |
-| `host.reloadData()` | Sync search text, purge infinite cache, then `context.onDataReload` or `syncExportLinks` |
-
-Grid options `context`:
-
-| Key | Purpose |
-|-----|---------|
-| `gridId` | Must match `grid_id` in `scripts.html` |
-| `storageScope` | Optional suffix for session key (e.g. `'archived-orders'`) |
-| `syncUrlState` | Default `true`; set `false` to disable URL mirroring |
-| `urlPageStateKeys` | Domain params in URL, e.g. `['period']` |
-| `getPageState` / `applyPageState` | Host hooks for filter-bar ↔ `pageState` |
-| `onFilterChanged` | Optional callback after AG filter changes |
-| `onDataReload` | Called after `reloadData()` (search clear/apply, infinite purge) — sync export hrefs, counters |
-| `restoreQuickFilter` | Default `true`; set `false` to skip restoring quick search from `localStorage` |
-
-For infinite grids with manual search apply, set `data-cm-grid-search-apply="enter"` on the toolbar input (`render_toolbar_search` → `apply_on_enter=True`). Enter triggers `reloadData()`; clear uses `clearSearch()` → `reloadData()`.
-
-`GridView.FilterBar.applyFilterValues(bar, state)` restores multiselect/select widgets.
-
-See [AG-Grid — Persistence](../ag-grid.md#persistence).
-
-Python: `AgGridPageSpec`, `resolve_export_columns(spec, request)` — see AG-Grid integration (see section: ag-grid.md).
-
-## GridView.init
-
-```javascript
-var disconnect = GridView.init({
-  root: document,           // scope for queries
-  artifact: artifactJson, // optional GridArtifact payload
-  gridAdapter: adapter,     // optional AG-Grid adapter
-});
-// disconnect() — unsubscribe grid_filtered KPI/chart listeners
-```
-
-Initializes Simple Tables, static KPI strips, charts, and optionally binds AG-Grid KPI/chart refresh.
-
-## AG-Grid adapter
-
-```javascript
-var adapter = GridView.createAgGridAdapter(gridApi);
-GridView.bindGridKpis({ root: document, gridAdapter: adapter });
-GridView.bindGridFilteredCharts(document, adapter);
-```
-
-| Method | Purpose |
-|--------|---------|
-| `getRows()` | Visible row data after filter/sort |
-| `onChange(cb)` | Subscribe to model updates; returns unsubscribe |
-
-Static rows (tests or non-grid pages):
-
-```javascript
-var adapter = GridView.staticRowsAdapter(rowsArray);
-```
-
-## KPI helpers
-
-| API | Purpose |
-|-----|---------|
-| `GridView.resolveKpis(specs, rows)` | Client-side aggregate (mirrors Python) |
-| `GridView.Kpi.initKpiStrip(root, kpis, columns)` | Render resolved KPI cards |
-| `GridView.bindGridKpis({ gridAdapter })` | Wire `[data-cm-grid-kpi]` strips |
-
-## Charts
-
-| API | Purpose |
-|-----|---------|
-| `GridView.initChart(el, config, rows)` | Mount one ECharts instance |
-| `GridView.initAllCharts(scope)` | Scan `[data-cm-chart-config]` |
-| `GridView.buildEchartsOption(config, rows)` | Build option object (presentation adapter) |
-| `GridView.refreshChartWrap(node, config, rows)` | Update chart data |
-| `GridView.bindGridFilteredCharts(scope, adapter)` | `data_source: grid_filtered` |
-
-Data flow: wire `ChartRuntimeDict` + rows → **`resolveChartData`** (semantic: categories, series, slices) → **`buildEchartsOption`** (ECharts layout/theme only). Same resolver as Python PDF export and `npm run test:chart-conformance`.
-
-Requires global `echarts`.
-
-## Simple Table
-
-```javascript
-GridView.SimpleTable.initAll(scope);
-```
-
-## Search / column filters (maintainers)
-
-Client implementations live in `frontend/src/grid-view/search/` (`matchColumnFilter`, `matchSmartHaystackClient`). They must stay aligned with Python `django_grid_view.search.column` and `django_grid_view.search.smart` — verified by `npm run test:conformance` against the same JSON fixtures as pytest.
-
-KPI aggregates use `resolveKpis()` in `frontend/src/grid-view/kpi.ts` vs Python `resolve_kpis()` — compare `rawValue` only (`tests/fixtures/kpi_conformance.json`, same runner).
-
-## i18n
-
-Django injects `window.GridViewI18n` before the bundle:
-
-```javascript
-GridView.i18n.t("search.placeholder", "Search…");
-```
-
-Add translations under `django_grid_view/locale/`.
-
-## Maintainer toolchain
-
-```bash
-cd frontend && npm ci
-npm run build          # → src/django_grid_view/static/django_grid_view/*.min.js
-npm run typecheck      # tsc on typed modules
-npm run lint           # eslint
-npm run test:conformance  # Python↔JS filter/search/KPI fixtures
-```
-
-Commit regenerated static files; CI fails on drift (`git diff --exit-code src/django_grid_view/static/`).
-
-
----
-
-
-<!-- source: reference/grid-view-spec.md -->
-
-# GridViewSpec
-
-Declarative JSON contract for Grid View 1.0. **Rows are never embedded in the spec** — pass them separately to `GridRenderer.build` or `build_artifact_from_view`.
-
-Canonical schema file in the repository:
-
-```
-schema/grid-view-spec.v1.json
-```
-
-## Required fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `grid_id` | string | DOM id prefix (`^[a-z][a-z0-9_-]*$`) |
-| `columns` | array | At least one column spec |
-
-## Top-level optional fields
-
-| Field | Description |
-|-------|-------------|
-| `title` | Heading above the view |
-| `kpis` | Up to 8 KPI specs (structure only) |
-| `charts` | Up to 3 chart specs |
-| `layout` | Block order: `title`, `kpis`, `chart`, `table`, … |
-| `wrapper` | `full`, `inner`, or `shell` |
-| `search_mode` | `global`, `per_column`, `disabled` |
-| `striped` | Table zebra striping |
-| `export_xlsx` | Enable client XLSX export |
-| `export_pdf_url` | Server PDF download URL |
-
-## Column spec
-
-| Field | Default | Notes |
-|-------|---------|-------|
-| `key`, `label` | required | Row dict key and header |
-| `format` | `text` | `text`, `number`, `currency`, `percent` |
-| `align` | `left` | `left`, `center`, `right` |
-| `sortable`, `searchable` | `true` | |
-| `link_template` | — | URL with `{placeholders}` |
-| `width` | — | CSS width |
-
-## KPI spec
-
-| Field | Notes |
-|-------|-------|
-| `label` | required |
-| `column_key` | Column to aggregate (optional for `count`) |
-| `aggregate` | `count`, `sum`, `avg`, `min`, `max`, … |
-| `format` | Display format enum |
-| `icon`, `tone` | Optional card styling |
-
-## Chart spec
-
-| Field | Notes |
-|-------|-------|
-| `id` | Unique within view |
-| `chart_type` | `bar`, `line`, `pie`, … |
-| `x_key` | Category axis field |
-| `series` | `[{ "key", "label" }]` |
-| `data_source` | `static` or `grid_filtered` |
-| `height` | Pixel height |
-
-## Python usage
-
-```python
-from django_grid_view.types import GridViewSpecWire, JsonObject, RowDict
-from django_grid_view.render import GridRenderer, parse_grid_view_spec, parse_grid_view_spec_json
-
-rows: list[RowDict] = [...]
-
-# JSON from LLM / API
-raw: JsonObject = {"grid_id": "demo", "columns": [{"key": "name", "label": "Name"}]}
-spec = parse_grid_view_spec_json(raw)
-
-# Typed wire literal
-wire: GridViewSpecWire = {"grid_id": "demo", "columns": [{"key": "name", "label": "Name"}]}
-spec = parse_grid_view_spec(wire)
-
-artifact = GridRenderer.build(spec, rows)
-```
-
-See Python types (see section: reference/python-types.md) for all public imports.
-
-## LLM / chat output
-
-Allowed: `view` object matching this schema.  
-Forbidden: `rows`, numeric KPI values, raw `echarts_option`, SQL text.
-
-See Chat visualizer (see section: guides/chat-visualizer.md).
-
-
----
-
-
-<!-- source: reference/python-types.md -->
-
-# Python types (for host projects)
-
-django-grid-view ships with **`py.typed`** (PEP 561). In a consuming Django app, enable strict pyright or mypy and **import contracts from this package** — do not copy TypedDict shapes or use `dict[str, Any]` at domain boundaries.
-
-Full API surface: `django_grid_view.types` (see `types.__all__` in source).
-
-## Quick reference
-
-| Use case | Import from |
-|----------|-------------|
-| Table rows | `django_grid_view.types` → `RowDict` |
-| Parsed JSON / filters | `as_str_object_dict`, `json_object_list_from`, `is_object_list`, `coerce_float`, `to_json_number` |
-| Card groups render context | `CardGroupsRenderContext`, `PreparedCardTab`, `PreparedCardGroup` |
-| Chart export colors | `ChartPaletteColor` |
-| Python-built grid | `GridViewSpec`, `ColumnSpec`, `KpiSpec`, `ChartSpec`, `SeriesSpec` |
-| LLM / JSON spec | `GridViewSpecWire`, `ColumnSpecWire`, `JsonObject`, `ViewSpecInput` |
-| Chat / frontend payload | `GridArtifactJson`, `GridLayoutDict` |
-| Simple Table | `django_grid_view.tables` → `Column`, `SimpleTableConfig` |
-| AG-Grid page | `AgGridPageSpec`, `AgGridColumnSpec`, `django_grid_view.ag_grid` |
-| Filter/search toolbar | `FilterSpec`, `FilterOption`, `SearchSpec`, `ToolbarSpec` |
-| XLSX export | `django_grid_view.export.xlsx` → `XlsxReport`, `XlsxSheet`, `XlsxCell` |
-| PDF/XLSX builders | `django_grid_view.export.registry` / `export.xlsx.registry` → `*BuilderFn`, `FilenameFn` |
-| Template render cells | `django_grid_view.types.template_cells` (internal render contract) |
-| Print/PDF table context | `django_grid_view.export.table_html` → `SimpleTablePrintContext` |
-| Column settings id | `SimpleTableConfig.group_settings_id()` |
-| Render | `django_grid_view.render` → `build_artifact_from_view`, `parse_grid_view_spec` |
-
-## Short imports (root package)
-
-Common symbols are re-exported from `django_grid_view`:
-
-```python
-from django_grid_view import (
-    GridViewSpec,
-    GridViewSpecWire,
-    GridArtifactJson,
-    JsonObject,
-    RowDict,
-    ViewSpecInput,
-    build_artifact_from_view,
-    parse_grid_view_spec,
-)
-```
-
-Prefer `django_grid_view.types` when you need enums, wire helpers, or the full list below.
-
-## Domain models (Python builders)
-
-```python
-from django_grid_view.types import (
-    BlockType,
-    ChartPaletteColor,
-    ChartSpec,
-    ChartType,
-    ColumnFormat,
-    ColumnSpec,
-    GridViewSpec,
-    JsonObject,
-    KpiAggregate,
-    KpiSpec,
-    KpiTone,
-    RowDict,
-    SeriesSpec,
-    ViewLayout,
-    as_str_object_dict,
-    coerce_float,
-    json_object_list_from,
-)
-from django_grid_view.render import GridRenderer, build_artifact_from_view
-
-rows: list[RowDict] = [{"name": "Ada", "amount": 10}]
-
-spec = GridViewSpec(
-    grid_id="demo",
-    columns=(ColumnSpec(key="name", label="Name"), ColumnSpec(key="amount", label="Amount")),
-    kpis=(KpiSpec(label="Total", column_key="amount", aggregate=KpiAggregate.SUM),),
-    charts=(
-        ChartSpec(
-            id="main",
-            chart_type=ChartType.BAR,
-            x_key="name",
-            series=(SeriesSpec(key="amount", label="Amount"),),
-        ),
-    ),
-)
-
-artifact = GridRenderer.build(spec, rows)
-```
-
-## LLM / API JSON (snake_case wire)
-
-```python
-from django_grid_view.types import (
-    ChartSpecWire,
-    ColumnSpecWire,
-    GridViewSpecWire,
-    JsonObject,
-    ViewSpecInput,
-)
-from django_grid_view.render import (
-    build_artifact_json_from_view,
-    parse_grid_view_spec,
-    parse_grid_view_spec_json,
-)
-
-# Untyped JSON from json.loads or Router
-def handle_llm_payload(raw: JsonObject, rows: list[RowDict]) -> ...:
-    return build_artifact_json_from_view(raw, rows)
-
-# Typed wire literal (tests, planners, presenters)
-wire: GridViewSpecWire = {
-    "grid_id": "orders",
-    "columns": [{"key": "name", "label": "Name"}],
-    "kpis": [{"label": "Count", "aggregate": "count"}],
-}
-spec = parse_grid_view_spec(wire)
-artifact_json = build_artifact_json_from_view(spec, rows)  # GridViewSpec also works
-```
-
-`parse_grid_view_spec_json(raw)` accepts `JsonObject` only. For `GridViewSpecWire`, use `parse_grid_view_spec`.
-
-## Outbound JSON (frontend / chat UI)
-
-CamelCase keys match `GridView.init` and SSE payloads:
-
-```python
-from django_grid_view.types import GridArtifact, GridArtifactJson, RowDict
-
-artifact: GridArtifact = ...
-payload: GridArtifactJson = artifact.to_json()
-```
-
-## Simple Table (server-rendered)
-
-```python
-from django_grid_view.tables import Align, Column, ColumnGroup, SimpleTableConfig
-from django_grid_view.types import RowDict
-
-rows: list[RowDict] = [{"sku": "A1", "name": "Widget"}]
-config = SimpleTableConfig(
-    grid_id="products",
-    columns=[Column(key="sku", label="SKU"), Column(key="name", label="Name")],
-    data=rows,
-)
-```
-
-## `ViewSpecInput`
-
-Type alias for `build_artifact_from_view` / `build_artifact_json_from_view`:
-
-```text
-GridViewSpec | JsonObject
-```
-
-Import: `from django_grid_view.types import ViewSpecInput`
-
-For `GridViewSpecWire`, call `parse_grid_view_spec(wire)` first, then `GridRenderer.build(spec, rows)`.
-
-## AG-Grid
-
-Large interactive grids use **AG Grid Community** under the hood; django-grid-view adds Django
-toolbar, infinite-model helpers, and export wiring. See AG-Grid integration (see section: ag-grid.md).
-
-```python
-from django_grid_view.types import AgGridColumnSpec, AgGridPageSpec
-from django_grid_view.ag_grid import (
-    apply_grid_filters,
-    apply_grid_sort,
-    parse_infinite_params,
-    resolve_export_columns,
-)
-
-PRODUCTS_SPEC = AgGridPageSpec(
-    grid_id="products",
-    columns=(
-        AgGridColumnSpec("sku", "SKU"),
-        AgGridColumnSpec("name", "Name"),
-        AgGridColumnSpec("cost", "Cost", hide=True),
-    ),
-)
-
-def build_products_xlsx(request):
-    col_ids = resolve_export_columns(PRODUCTS_SPEC, request)
-    labels = [PRODUCTS_SPEC.label_for(c) for c in col_ids]
-    ...
-```
-
-| Symbol | Role |
-|--------|------|
-| `AgGridColumnSpec` | `col_id`, `label`, `hide`, `exportable` |
-| `AgGridPageSpec` | Column order + `resolve_export_columns(active_ids)` |
-| `parse_infinite_params(request)` | `startRow`, `endRow`, `filters`, `sort`, `q`, `cols` |
-| `resolve_export_columns(spec, request)` | Uses `export_cols` param or spec defaults |
-
-## Filter/search toolbar
-
-```python
-from django_grid_view.types import FilterOption, FilterSpec, SearchSpec, ToolbarSpec
-
-toolbar = ToolbarSpec(
-    filters=(
-        FilterSpec(
-            id="period",
-            label="Period",
-            type="multiselect",
-            select_all_option=True,
-            options=(
-                FilterOption("all_future", "All future periods", exclusive_solo=True),
-                FilterOption("2026-01", "2026-01"),
-            ),
-        ),
-    ),
-    search=SearchSpec(param="q", mode="smart", backend="server"),
-)
-```
-
-`FilterSpec.param` defaults to `id`. `FilterOption.exclusive_solo=True` marks an
-option that clears other choices when selected. `SearchSpec.backend="ag_grid"` is for
-AG-Grid quick search; `backend="server"` serializes `q` for server loaders and
-export builders.
-
-## XLSX export (declarative layout)
-
-Host apps build an engine-agnostic workbook description; django-grid-view renders bytes
-(xlsxwriter by default, openpyxl optional).
-
-```python
-from django_grid_view.export.xlsx import (
-    XlsxCell,
-    XlsxReport,
-    XlsxRow,
-    XlsxSheet,
-    report_from_simple_table,
-)
-from django_grid_view.export.xlsx.registry import (
-    FilenameFn as XlsxFilenameFn,
-    XlsxBuilderFn,
-    register_xlsx_builder,
-)
-from django_grid_view.types import RowDict
-
-# Scalar cell values only — no formulas or rich text at the layout layer.
-cell: XlsxCell = "Total"
-row: XlsxRow = ("№", "Name", 42)
-
-report = XlsxReport(
-    sheets=[
-        XlsxSheet(
-            name="Report",
-            title_rows=[("Clinic — Packages",), ("Period: 2025-01",)],
-            header_rows=[("No.", "Name", "Records")],
-            data_rows=[(1, "Package A", 120)],
-            footer_rows=[("Total", "", 120)],
-        )
-    ]
-)
-
-def build_packages_xlsx(request) -> XlsxReport:
-    ...
-
-register_xlsx_builder("packages", build_packages_xlsx, filename_fn=...)
-```
-
-| Symbol | Role |
-|--------|------|
-| `XlsxCell` | `str \| int \| float \| bool \| None` |
-| `XlsxRow` | `Sequence[XlsxCell]` — use tuples for covariant-safe rows |
-| `XlsxSheet` | One worksheet: title/header/data/footer rows, merges, widths |
-| `XlsxReport` | Workbook with one or more `XlsxSheet` |
-| `XlsxBuilderFn` | `(HttpRequest) -> XlsxReport` for registry builders |
-| `FilenameFn` (XLSX) | `(HttpRequest, XlsxReport) -> str` download name |
-| `report_from_simple_table` | `SimpleTableConfig` → `XlsxReport`; pass a pre-resolved table or `request=` for title/meta lines |
-
-Prefer **`title_rows`** as `Sequence[Sequence[XlsxCell]]` (each title line is one row tuple).
-Do not confuse with host helpers named `title_lines` that return plain `tuple[str, ...]` —
-convert those to `title_rows=[(line,) for line in title_lines]` when filling `XlsxSheet`.
-
-Install extras: `django-grid-view[xlsx]` (xlsxwriter) or `[xlsx-all]` (+ openpyxl).
-
-## PDF export registry
-
-```python
-from django_grid_view.export.registry import (
-    FilenameFn as PdfFilenameFn,
-    PdfBuilderFn,
-    register_pdf_builder,
-)
-from django_grid_view.types import GridArtifact
-
-def build_report_pdf(request) -> GridArtifact:
-    ...
-
-register_pdf_builder("report", build_report_pdf, filename_fn=...)
-```
-
-| Symbol | Role |
-|--------|------|
-| `PdfBuilderFn` | `(HttpRequest) -> GridArtifact` |
-| `FilenameFn` (PDF) | `(HttpRequest, GridArtifact) -> str` |
-
-## Simple Table print context (PDF/email)
-
-```python
-from django_grid_view.export.table_html import (
-    PrintTableRow,
-    SimpleTablePrintContext,
-    simple_table_print_context,
-)
-from django_grid_view.tables import SimpleTableConfig
-
-ctx: SimpleTablePrintContext = simple_table_print_context(config)
-# header_rows reuse TableHeaderCell from types.template_cells
-```
-
-## Template render cells (`types.template_cells`)
-
-Used by `{% render_simple_table %}` and export paths — import when extending render
-or writing tests against prepared table rows:
-
-```python
-from django_grid_view.types.template_cells import (
-    PreparedTableRow,
-    SimpleTableRenderContext,
-    TableBodyCell,
-    TableFooterCell,
-    TableHeaderCell,
-)
-```
-
-`SimpleTableRenderContext` is the dict passed to `simple/table.html`. Column settings
-init is page-scoped: call `GridView.bootGridViewScope(document)` once (via
-`{% grid_view_bundle %}`), not per-table inline scripts. Tables with column settings
-expose `[data-cm-column-settings="1"]` on `.cm-page-table-layout` / `.cm-simple-wrapper`.
-
-## Column settings helpers
-
-```python
-from django_grid_view.tables import ColumnSettingsMeta, SimpleTableConfig
-
-meta: list[ColumnSettingsMeta] = config.column_settings_meta()
-group_id = config.group_settings_id(column_group)
-```
-
-## Stability
-
-| Module | Status |
-|--------|--------|
-| `django_grid_view.types` | Public — semver applies to names in `types.__all__` |
-| `django_grid_view.types.spec_wire` | Public wire contract (`schema/grid-view-spec.v1.json`) |
-| `django_grid_view.types.artifact_bind` | Public camelCase artifact JSON |
-| `django_grid_view.tables` | Public Simple Table API |
-| `django_grid_view.ag_grid` | Public AG-Grid server helpers (`parse_infinite_params`, export resolution) |
-| `django_grid_view.render` | Public render/build helpers |
-| `django_grid_view` (root re-exports) | Public convenience imports |
-| `django_grid_view.templatetags` | Public template tags (untyped Django surface) |
-| `django_grid_view.export` | Optional extras `[xlsx]`, `[static-charts]`; registries + layout types |
-| `django_grid_view.export.xlsx` | Public XLSX layout + builder registry |
-| `django_grid_view.types.template_cells` | Render TypedDicts (stable for tests/extensions) |
-
-Internal modules (`render.spec_parser`, `export._matplotlib_*`) may change without notice.
-
-## Host project setup
-
-```toml
-# pyproject.toml
-dependencies = ["django-grid-view>=1.0.0"]
-```
-
-```toml
-# pyproject.toml — strict checking (recommended)
-[tool.basedpyright]
-typeCheckingMode = "strict"
-```
-
-```python
-# settings.py
-INSTALLED_APPS = ["django_grid_view"]
-```
-
-No separate types-stubs package is required.
-
-**Optional engines:** For strict checking of openpyxl-backed code in this repo, dev deps
-include `openpyxl>=3.1` so pyright resolves from source. Do **not** use the published
-`openpyxl-stubs` package — it conflicts with openpyxl 3.x types. Host apps only need
-`django-grid-view[xlsx]` at runtime; typing comes from `django_grid_view` + layout types above.
-
-## See also
-
-- GridViewSpec JSON reference (see section: reference/grid-view-spec.md) — field tables and schema file
-- Grid View artifacts (see section: grid-view-artifacts.md) — render flow
-- Chat visualizer (see section: guides/chat-visualizer.md) — planner-driven presenter
-
-
----
-
-
-<!-- source: guides/chat-visualizer.md -->
-
-# Chat visualizer wire contract
-
-How a Django chat app turns analytics SQL results into a **`grid_view`** UI component using django-grid-view.
-
-Router prompts, graph wiring, and component extraction live in **your application**. This package provides `build_artifact_from_view` and `GridView.init`.
-
----
-
-## End-to-end flow
-
-```
-User question
-  → Router graph: planner → SQL tool → verifier → end
-  → Django: extract_components(graph_state)
-       SQL rows + planner hints → GridViewSpec (Python)
-       → build_artifact_from_view(spec, rows) → GridArtifact
-  → SSE/JSON: { "type": "grid_view", "artifact": …, "rows": … }
-  → Frontend: renderGridView → GridView.init({ root, artifact })
-```
-
-**Invariant:** row data and KPI numbers never come from a dedicated “visualizer” LLM. SQL returns rows; your Django code builds the view spec and resolves aggregates.
-
----
-
-## Recommended: planner-driven presenter (no visualizer LLM)
-
-Use a Router graph with **planning, SQL execution, and verification only** — no extra node whose job is to emit a full grid layout.
-
-Typical graph shape:
-
-1. **Planner** (`llm`, JSON output) — produces the query and how to present results.
-2. **SQL tool** — runs the query; state gets `columns` and `rows`.
-3. **Verifier** (`llm`, optional loop) — checks the result; on success the graph ends.
-
-### Planner output (not `GridViewSpec`)
-
-The planner model returns JSON with SQL and presentation hints only:
-
-```json
-{
-  "sql": "SELECT name AS customer_name, COUNT(*) AS total_orders FROM …",
-  "purpose": "Customers with the most orders",
-  "format": "table"
-}
-```
-
-| `format` | Typical layout (built in your app) |
-|----------|-------------------------------------|
-| `table` | title, kpis, table |
-| `report` | title, kpis, chart, table |
-| `chart` | title, kpis, chart, table |
-| `answer` | title, kpis |
-
-Define a strict JSON schema (`sql`, `purpose`, `format`) in the planner prompt.  
-**Forbidden in planner output:** `rows`, KPI values, a `view` object, `echarts_option`.
-
-After the SQL step, graph state should expose result rows (e.g. under `final_output` or `intermediate_results` for the tool node) plus planner fields for `purpose` and `format`.
-
-### Python presenter
-
-In your app (e.g. `extract_components`):
-
-1. Read SQL result (`columns`, `rows`) from the Router payload.
-2. Read `purpose` and `format` from the planner step.
-3. Build a `GridViewSpec` wire dict in Python — column labels, KPI candidates, chart choice, `layout.blocks` from `format` and column types.
-4. Build a typed wire dict (`GridViewSpecWire`) or `GridViewSpec`, then `build_artifact_from_view(spec, rows)` → resolved `GridArtifact`.
-5. Emit one chat component:
-
-```python
-{
-    "type": "grid_view",
-    "title": "…",
-    "artifact": artifact.to_json(),
-    "columns": [...],
-    "rows": [...],
-}
-```
-
-On the Router `result` event, map graph state → `components` and stream or return JSON to the browser.
-
-### Frontend
-
-Register a `grid_view` widget that mounts KPI/chart/table DOM from `artifact` and calls:
-
-```javascript
-GridView.init({ root: wrap, artifact: c.artifact });
-```
-
-Load `{% grid_view_styles %}` + `{% grid_view_bundle %}` and ECharts (`{% echarts_cdn_url %}`) on the chat page — same asset contract as dashboards.
-
-### Package API
-
-```python
-from django_grid_view.types import GridArtifactJson, GridViewSpecWire, JsonObject, RowDict
-from django_grid_view.render import GridRenderer, build_artifact_from_view, parse_grid_view_spec
-
-sql_rows: list[RowDict] = [...]
-
-# Presenter builds wire spec in Python
-view: GridViewSpecWire = {"grid_id": "analytics", "columns": [...], "kpis": [...]}
-artifact = GridRenderer.build(parse_grid_view_spec(view), sql_rows)
-
-# Or loose JSON / visualizer LLM output
-raw: JsonObject = {"grid_id": "analytics", "columns": [...]}
-artifact = build_artifact_from_view(raw, sql_rows)
-
-payload: GridArtifactJson = artifact.to_json()
-```
-
-Imports: Python types (see section: reference/python-types.md).
-
----
-
-## Alternative: dedicated visualizer LLM node
-
-Some integrations add a **second LLM node** after SQL that emits layout JSON. The model returns structure only:
-
-```json
-{
-  "view": {
-    "grid_id": "analytics-result",
-    "columns": [{ "key": "customer_name", "label": "Customer" }],
-    "kpis": [{ "label": "Orders", "aggregate": "count" }],
-    "charts": [],
-    "layout": { "blocks": ["title", "kpis", "table"] }
-  }
-}
-```
-
-Use a generic LLM node with `output_format: json`. Avoid legacy platform-specific `sql_visualizer` executors unless you still depend on them.
-
-**Forbidden** in visualizer output: `rows`, row data, numeric KPI values, `echarts_option`, SQL text.
-
-You must still call `build_artifact_from_view(view, sql_rows)` in Django so numbers come from SQL rows, not the model.
-
----
-
-## Choosing an approach
-
-| Approach | Graph | LLM emits | Who builds `GridViewSpec` |
-|----------|-------|-----------|---------------------------|
-| **Planner-driven presenter** | planner → SQL tool → verifier | `sql`, `purpose`, `format` | Your Python presenter |
-| **Visualizer LLM** | planner → SQL tool → visualizer → … | `{ "view": … }` | Visualizer LLM, then `build_artifact_from_view` |
-
-Checklist:
-
-1. **Graph** — no visualizer node unless you need model-chosen layouts.
-2. **Planner prompt** — SQL + `format`, not a full grid spec (GridViewSpec reference (see section: reference/grid-view-spec.md) documents the presenter output).
-3. **Adapter** — graph state → `grid_view` component; see Grid View artifacts (see section: grid-view-artifacts.md).
-4. **Frontend** — `GridView.init({ artifact })` in the chat panel.
-
-
----
-
-
-<!-- source: guides/dashboard-builders.md -->
-
-# Dashboard builders
-
-Replace ad hoc `ChartSpec + rows + KpiSpec` tuples with one `GridViewSpec` and `build_artifact_from_view`.
-
-## Before
-
-```python
-chart_spec, chart_rows = build_revenue_chart(tab_id, categories)
-kpi_specs, kpi_rows = build_revenue_kpis(categories)
-# template: render_kpi_strip + render_chart
-```
-
-## After
-
-```python
-from django_grid_view.types import GridViewSpecWire, RowDict
-from django_grid_view.render import GridRenderer, parse_grid_view_spec
-
-def build_revenue_artifact(tab_id: str, categories: list[CategoryStats]):
-    rows: list[RowDict] = revenue_rows(categories)
-    view: GridViewSpecWire = {
-        "grid_id": f"revenue-{tab_id}",
-        "title": "Revenue by category",
-        "columns": [...],
-        "kpis": [...],
-        "charts": [...],
-        "layout": {"blocks": ["title", "kpis", "chart"]},
-    }
-    return GridRenderer.build(parse_grid_view_spec(view), rows)
-```
-
-Template:
-
-```django
-{% render_grid_view artifact %}
-```
-
-## When to migrate
-
-| Pattern | Migrate? |
-|---------|----------|
-| KPI + chart + table on one page | Yes |
-| Single chart, no KPI | Optional |
-| Custom `Column.render()` HTML | Keep `SimpleTableConfig` |
-
-Use `GridViewSpecWire`, `RowDict`, and `parse_grid_view_spec` / `GridRenderer.build` — see Python types (see section: reference/python-types.md). Avoid `dict[str, Any]` at the domain boundary.
-
-
----
-
-
-<!-- source: guides/host-app-page-export.md -->
-
-# Host app: page loader → HTML / PDF / XLSX
-
-django-grid-view owns **rendering and export HTTP views**. Your Django app owns **domain data** and should expose **one loader per screen** so HTML, PDF, and XLSX never diverge.
-
-This guide is the recommended template for dashboard-style host apps.
-
-## Responsibility split
-
-| Layer | Host app | django-grid-view |
-|-------|----------|------------------|
-| ORM / filters / rows | `load_*_page(request)` | — |
-| `SimpleTableConfig` / `GridArtifact` | build in loader or `*_tables.py` | types, render tags |
-| HTTP export routes | mount `export_pdf`, `export_xlsx` under `/api/` | views + registry |
-| Builder registration | `AppConfig.ready()` | `register_pdf_builder`, `register_xlsx_builder` |
-| Template export links | `{% export_pdf_href %}`, shared partials | templatetags + `build_export_href` |
-| AG-Grid XLSX columns | replay data API + `resolve_export_columns` | `AgGridPageSpec`, `syncExportHref` |
-
-## Recommended module layout
-
-```
-myapp/dashboard/entities/
-  page_data.py      # load_entity_page(request, pk) -> EntityPageData
-  list_data.py      # optional second screen in same area
-  entity_tables.py  # SimpleTableConfig factories (plain str labels)
-  export.py         # register_*_exports(); thin build_* wrappers
-  views.py          # render HTML only
-```
-
-Register once in `apps.py`:
-
-```python
-def ready(self):
-    from myapp.dashboard.entities.export import register_entity_exports
-    register_entity_exports()
-```
-
-## Step 1 — Frozen page dataclass
-
-```python
-from dataclasses import dataclass
-from django.http import HttpRequest
-from django_grid_view.tables import SimpleTableConfig
-
-@dataclass(frozen=True, slots=True)
-class EntityListPage:
-    category: str
-    table: SimpleTableConfig
-    export_title: str
-
-def load_entity_list_page(request: HttpRequest) -> EntityListPage:
-    rows, category = query_entities(request)
-    return EntityListPage(
-        category=category,
-        table=build_entity_list_table(rows),
-        export_title=f"Entities — {category}",
-    )
-```
-
-Parse **`request.GET` only here**. Accept alias params (`entity_id` and legacy `pk`) in one helper.
-
-## Step 2 — HTML view
-
-```python
-def entities_list(request):
-    page = load_entity_list_page(request)
-    return render(request, "entities/list.html", {
-        "config": page.table,
-        "category": page.category,
-    })
-```
-
-## Step 3 — Export builders (thin)
-
-```python
-from django_grid_view.export.registry import register_pdf_builder
-from django_grid_view.export.xlsx.registry import register_xlsx_builder
-from django_grid_view.export.xlsx.table import report_from_simple_table
-
-def build_entity_list_xlsx_report(request):
-    page = load_entity_list_page(request)
-    return report_from_simple_table(
-        page.table,
-        sheet_name="Entities",
-        title_rows=[[page.export_title]],
-    )
-
-def register_entity_exports():
-    register_xlsx_builder("entities_list", build_entity_list_xlsx_report, filename_fn=…)
-```
-
-For **PDF + chart + table** pages:
-
-```python
-def build_entity_summary_page_artifact(page: EntitySummaryPage, *, for_export: bool = False) -> GridArtifact:
-    blocks = (BlockType.TITLE, BlockType.CHART, BlockType.TABLE) if for_export else (BlockType.TABLE, BlockType.CHART)
-    spec = GridViewSpec(title=page.export_title if for_export else "", layout=ViewLayout(blocks=blocks), …)
-    return build_artifact_from_view(spec, page.rows, table=page.table)
-
-def load_entity_summary_page(request) -> EntitySummaryPage:
-    …
-    return EntitySummaryPage(..., artifact=build_entity_summary_page_artifact(partial, for_export=False), …)
-
-def build_entity_summary_pdf(request):
-    page = load_entity_summary_page(request)
-    return build_entity_summary_page_artifact(page, for_export=True)
-```
-
-HTML uses `page.artifact`; export calls `build_*_page_artifact(page, for_export=True)` once for PDF and XLSX (`ArtifactXlsxBundle`).
-
-## Step 4 — Template links
-
-```django
-{% load django_grid_view %}
-{% include "dashboard/shared/export_xlsx_link.html" with builder="entities_list" category=category only %}
-```
-
-Tags reverse `DJANGO_GRID_VIEW_EXPORT_XLSX_URL` (default `api_export_xlsx`). Pass the **same GET keys** the loader reads.
-
-Dynamic JS (modals, chat):
-
-```javascript
-window.cmExportHref('xlsx', 'entity_detail', { entity_id: id });
-```
-
-## Three export shapes
-
-### A. Simple table only (entity list, entity detail records)
-
-One `SimpleTableConfig` in the page dataclass → `report_from_simple_table`.
-
-### B. Grid artifact (category summary, detail modal with chart)
-
-`GridArtifact` for PDF → XLSX from `artifact.table` (same columns as PDF table block).
-
-### C. AG-Grid infinite model (large grids)
-
-Export builder **replays the JSON data API** with the same filters/sort/`q`, plus optional `export_cols` from `GridView.AgGrid.syncExportHref`. Column labels from `AgGridPageSpec`.
-
-### Simple Table XLSX and browser filters
-
-For server-rendered tables, XLSX builders typically call `report_from_simple_table` on a `SimpleTableConfig` rebuilt in the page loader. When the HTML page applies client-side search or column filters, export must **replay the same filter params** from `request.GET` (`q`, `col_q`, etc.) — `export/table_columns.py` imports `filter_table_for_request` from `django_grid_view.search` intentionally so PDF/XLSX match what the user sees. Keep one loader that reads those params; do not maintain a separate export filter path.
-
-## Invariants
-
-1. **Never put numbers in URLs** — rebuild from ORM in the loader (security).
-2. **Plain strings for export column labels** — not `gettext_lazy`.
-3. **One builder key per screen** — matches `?builder=` in export URLs.
-4. **One loader, one artifact builder** — `load_*_page` + `build_*_page_artifact(page, for_export=…)`; no parallel export aggregation path.
-5. **Grouped section tables** — `__section__` rows + `footer_row`; PDF/XLSX use the same section totals as HTML (package handles this).
-6. **Empty `django_grid_view.urls`** — mount export + grid preferences in the host API:
-
-```python
-path("grid/preferences/", save_grid_settings, name="api_grid_preferences"),
-path("export/pdf/", export_pdf, name="api_export_pdf"),
-path("export/xlsx/", export_xlsx, name="api_export_xlsx"),
-```
-
-## Related
-
-- PDF export (see section: guides/pdf-export.md)
-- XLSX export (see section: guides/xlsx-export.md)
-- Getting started (see section: getting-started.md) — host HTTP setup
-- AG-Grid integration (see section: ag-grid.md) — `export_cols` / `syncExportHref`
-
-
----
-
-
-<!-- source: guides/server-filtering-contract.md -->
-
-# Server Filtering Contract
-
-Use one server pipeline for every filtered surface: HTML tables, KPIs, charts,
-PDF, and XLSX. If the page and export use different filtering paths, totals,
-rows, and chart values will drift.
-
-Filter syntax and matching rules are defined in
-Filter Semantics Contract (see section: guides/filter-semantics-contract.md). This page focuses on
-where filtering belongs in the server pipeline.
-
-## Contract
-
-The host app should treat URL/request state as the public filter contract.
-
-```text
-request.GET -> load_page_data() -> PageData(table, artifact, export metadata)
-```
-
-The same loader should serve the HTML page and export handlers. Avoid state tokens
-or separate export-only loaders unless they delegate back to the same request
-filtering code.
-
-## Recommended Flow
-
-1. Read URL state: FilterBar params, toolbar `q`, column `col_q`, and export
-   column state.
-2. Build the base queryset.
-3. Apply page-level filters to the queryset.
-4. Apply server-side search/filter parameters that belong to the queryset.
-5. Aggregate rows, KPIs, and charts from the filtered queryset.
-6. Build `SimpleTableConfig` and/or `GridArtifact`.
-7. Build export links with the same GET params.
-
-All numeric KPI and chart values must come from the filtered Python rows or
-queryset. Specs describe structure only.
-
-## Column Filters (`col_q`)
-
-SimpleTable column filters serialize to one GET parameter. String values are
-expression filters; object values are set/list models.
-
-```text
-col_q={"amount": ">1000", "name": "%Alpha%", "status": {"values": ["Open"]}}
-```
-
-Use:
-
-```python
-from django_grid_view.search.server import filter_table_for_request
-
-rows = filter_table_for_request(rows, table, request)
-```
-
-`filter_table_for_request()` applies column filters and toolbar search in the
-same order as the SimpleTable client. Export helpers use the same path, so PDF
-and XLSX can match the visible table.
-
-## Toolbar Search (`q`)
-
-Toolbar search should be applied to the same visible/searchable column set used
-by the rendered table.
-
-For ORM-backed views, map visible table columns to ORM paths and use the search
-helpers from `django_grid_view.search.server`. For in-memory rows, use
-`filter_table_for_request()` after the table config is built.
-
-Do not apply an extra ad hoc row filter after aggregation unless that same rule
-is also used for KPIs, charts, and exports.
-
-## Grouped Tables
-
-Grouped section tables should preserve grouping in the table builder, not in a
-separate export path.
-
-Recommended pattern:
-
-- build rows from the already filtered queryset,
-- use an explicit row policy such as `row_policy="catalog"` when search is empty,
-- switch to `row_policy="strict"` when search is non-empty and zero-total rows
-  should disappear,
-- let `inject_group_section_totals()` prepare HTML/PDF/XLSX section totals.
-
-Do not post-process grouped export rows separately in the host app.
-
-## Export Parity
-
-Export links should carry the same state as the page:
-
-- FilterBar params such as `period` or category/type filters,
-- toolbar `q`,
-- column `col_q`,
-- column order/visibility through `export_cols`.
-
-The browser syncs live column state through `data-cm-export-sync` and
-`data-cm-grid-id`. Export handlers should call:
-
-- `resolve_simple_table_for_export()` for `SimpleTableConfig`,
-- `resolve_artifact_table_for_export()` for artifact tables.
-
-For title/subtitle metadata, pass the request into the export helpers or call:
-
-```python
-from django_grid_view.export.meta_lines import build_export_meta_lines
-
-meta_lines = build_export_meta_lines(request, table=table, filter_specs=filter_specs)
-```
-
-PDF/XLSX subtitle rows can then include active search and filter labels without
-duplicating parsing code.
-
-## FilterBar Integration
-
-`GridView.FilterBar` should serialize UI state to the URL. Data filtering remains
-server-side.
-
-Client-side debounce is fine for input ergonomics, but the backend must still be
-the authority for filtered rows, KPIs, charts, and exports.
-
-## Checklist
-
-- One loader builds both page data and export data.
-- Page-level filters are applied before aggregating rows/KPIs/charts.
-- `q` and `col_q` are replayed for exports.
-- `export_cols` is respected by PDF/XLSX.
-- Grouped totals use `inject_group_section_totals()`.
-- No host-specific export path reimplements table filtering.
 
 
 ---
@@ -2983,7 +1235,7 @@ to the host export route (e.g. `/api/export/pdf/`).
 
 ## Related
 
-- [Architecture — PDF export](../architecture.md#server-pdf-export)
+- [Architecture — export flow](../architecture.md#export-flow)
 - Grid View artifacts (see section: grid-view-artifacts.md)
 - Charts and KPIs (see section: charts-and-kpis.md)
 
@@ -3178,6 +1430,1651 @@ Excel export is server-side only: register a builder per screen; `syncExportHref
 
 See `myapp/dashboard/xlsx_builders.py` — keys can mirror PDF keys:
 `category_tab`, `entity_summary`, `entity_modal`, `record_detail`, `saved_report`.
+
+
+---
+
+
+<!-- source: guides/mcp-server.md -->
+
+# MCP server
+
+The **gridviewspec-mcp** server exposes read-mostly tools for working with GridViewSpec JSON:
+catalog, schema, validation, normalization, examples, migration hints, and A2UI patches.
+
+It runs as a separate process (stdio). It does not render HTML and does not need a web framework.
+
+## Install
+
+Installing the package with the **`[mcp]` extra** registers the **`gridviewspec-mcp`** command
+automatically — same `pip install`, no separate MCP step.
+
+```bash
+pip install "django-grid-view[mcp]"
+gridviewspec-mcp --help
+```
+
+The script is placed in the **same bin directory as pip** for that install:
+
+| Install mode | CLI location |
+|--------------|--------------|
+| virtualenv | `venv/bin/gridviewspec-mcp` |
+| `pip install --user` | `~/.local/bin/gridviewspec-mcp` |
+| system-wide pip | system `bin/` (e.g. `/usr/local/bin`) |
+
+Editable checkout:
+
+```bash
+pip install --user -e "/path/to/django-grid-view[mcp]"
+# or
+./scripts/install-mcp-cli.sh
+```
+
+Alternative entry (same server):
+
+```bash
+python -m grid_view_spec.mcp --help
+```
+
+Deprecated CLI names still work: `grid-view-spec-mcp`, `django-grid-view-mcp`.
+
+## MCP client configuration
+
+Point your MCP client at the installed command. Example `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "gridviewspec-mcp": {
+      "command": "gridviewspec-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+If the client does not inherit your shell `PATH`, use the full path from `which gridviewspec-mcp`.
+Template: [.mcp.json.example](../.mcp.json.example).
+
+Optional policy flags in `args`:
+
+```json
+"args": ["--policy-allow-raw-html", "--policy-strict-unknown-config"]
+```
+
+Fallback when only a venv Python is available:
+
+```json
+{
+  "command": "/path/to/venv/bin/python",
+  "args": ["-m", "grid_view_spec.mcp"]
+}
+```
+
+Tool names are prefixed with `gridview_`.
+
+## Typical workflow
+
+1. `gridview_catalog` — block types and layout rules  
+2. `gridview_migration_hints` — map an old template tag or API name to v2 blocks  
+3. `gridview_examples` — start from a fixture (`minimal_valid_spec`, …)  
+4. Draft or patch a spec  
+5. `gridview_validate` — fix until `ok: true`  
+6. `gridview_normalize` — stable field order before commit  
+
+## Tools
+
+| Tool | Purpose |
+|------|---------|
+| `gridview_catalog` | Supported blocks, area types, registries |
+| `gridview_schema` | JSON Schema for `GridViewSpec` or a `$defs` target |
+| `gridview_validate` | Structural and policy validation |
+| `gridview_normalize` | Defaults and ordering |
+| `gridview_examples` | Fixture specs |
+| `gridview_migration_hints` | Legacy pattern → v2 mapping |
+| `gridview_a2ui_catalog` | A2UI projection catalog |
+| `gridview_apply_patch` | Apply atomic patch operations |
+
+Every tool returns the same envelope: `{ ok, tool, data, diagnostics }`.
+
+Full request/response shapes: [grid-view-spec.mcp](../grid-view-spec.mcp) in the repository.
+
+## Upgrade
+
+```bash
+pip install --upgrade "django-grid-view[mcp]"
+```
+
+Editable installs pick up code changes immediately; re-run `./scripts/install-mcp-cli.sh` only after
+dependency or entry-point changes in `pyproject.toml`.
+
+## Host-specific wrappers
+
+Applications may wrap this server (for example with local page examples). The generic tools stay
+schema-only so they work across different host codebases.
+
+
+---
+
+
+<!-- source: reference/python-types.md -->
+
+# Python types
+
+The package ships **`py.typed`** (PEP 561). Import contracts from the library — do not copy
+TypedDict shapes into host code.
+
+## GridViewSpec v2 (`grid_view_spec`)
+
+Current pages use the agnostic core. Row data stays outside the spec.
+
+| Need | Import |
+|------|--------|
+| Spec root | `from grid_view_spec import GridViewSpec, validate_spec` |
+| Wire JSON | `from grid_view_spec.validate import spec_from_wire, spec_to_wire, normalize_spec` |
+| Render HTML | `from grid_view_spec.render import render_grid_view_spec` |
+| Table block | `from grid_view_spec.types.table_v2 import GridViewTable, GridViewColumn` |
+| Layout | `from grid_view_spec.types.layout import GridViewLayout, GridViewArea` |
+| Other blocks | `from grid_view_spec.types import …` (KPI, filters, actions, charts) |
+| Django host | `from grid_view_spec.backends.django.host import DjangoGridViewHost` |
+| Export registry | `from grid_view_spec.export.registry import register_pdf_builder, register_xlsx_builder` |
+
+Example:
+
+```python
+from grid_view_spec import GridViewSpec, validate_spec
+from grid_view_spec.types.layout import GridViewArea, GridViewLayout
+from grid_view_spec.types.table_v2 import GridViewColumn, GridViewTable
+
+spec = GridViewSpec(
+    id="orders",
+    blocks=(
+        GridViewTable(
+            id="orders_table",
+            backend="simple",
+            columns=(GridViewColumn(id="name", label="Name", field="name"),),
+        ),
+    ),
+    layout=GridViewLayout(root=GridViewArea(id="root", blocks=("orders_table",))),
+)
+validate_spec(spec)
+```
+
+Wire interchange:
+
+```python
+from grid_view_spec.validate import spec_from_wire, spec_to_wire
+
+wire = spec_to_wire(spec)
+restored = spec_from_wire(wire)
+```
+
+Full field reference: GridViewSpec (see section: reference/grid-view-spec.md). JSON Schema: `schema/grid-view-spec.v2.json`.
+
+---
+
+## Legacy flat spec {#legacy-flat-spec}
+
+> **Legacy API.** Flat `GridViewSpec` in `django_grid_view.types` with `GridRenderer` and
+> `GridArtifact`. Use `grid_view_spec` for new work.
+
+| Need | Import |
+|------|--------|
+| Table rows | `RowDict` from `django_grid_view.types` |
+| Python-built grid | `GridViewSpec`, `ColumnSpec`, `KpiSpec`, `ChartSpec`, `SeriesSpec` |
+| Wire / LLM JSON | `GridViewSpecWire`, `ColumnSpecWire`, `JsonObject`, `ViewSpecInput` |
+| Chat payload | `GridArtifact`, `GridArtifactJson` |
+| Build artifact | `GridRenderer`, `build_artifact_from_view`, `parse_grid_view_spec` |
+
+```python
+from django_grid_view.types import ChartSpec, ChartType, ColumnSpec, GridViewSpec, KpiSpec, RowDict, SeriesSpec
+from django_grid_view.render import GridRenderer
+
+rows: list[RowDict] = [{"name": "Ada", "amount": 10}]
+spec = GridViewSpec(
+    grid_id="demo",
+    columns=(ColumnSpec(key="name", label="Name"),),
+    kpis=(KpiSpec(label="Total", column_key="amount", aggregate="sum"),),
+)
+artifact = GridRenderer.build(spec, rows)
+payload = artifact.to_json()
+```
+
+Loose JSON from chat or Router:
+
+```python
+from django_grid_view.render import build_artifact_from_view
+from django_grid_view.types import JsonObject, RowDict
+
+raw: JsonObject = {"grid_id": "x", "columns": [...]}
+artifact = build_artifact_from_view(raw, rows)
+```
+
+Wire schema: `schema/grid-view-spec.v1.json`.
+
+Convenience re-exports from `django_grid_view`:
+
+```python
+from django_grid_view import GridViewSpec, GridViewSpecWire, build_artifact_from_view, parse_grid_view_spec
+```
+
+Prefer `django_grid_view.types` for enums and the full public list (`types.__all__`).
+
+---
+
+## Simple Table
+
+```python
+from django_grid_view.tables import Column, ColumnGroup, SimpleTableConfig
+from django_grid_view.types import RowDict
+```
+
+See Simple Table (see section: simple-table.md).
+
+---
+
+## AG-Grid
+
+```python
+from django_grid_view.types import AgGridColumnSpec, AgGridPageSpec
+from django_grid_view.ag_grid import (
+    apply_grid_filters,
+    parse_infinite_params,
+    resolve_export_columns,
+)
+```
+
+See AG-Grid integration (see section: ag-grid.md).
+
+---
+
+## Filter and search toolbar
+
+```python
+from django_grid_view.types import FilterOption, FilterSpec, SearchSpec, ToolbarSpec
+```
+
+`SearchSpec.backend="server"` serializes `q` for page loaders and export builders.
+`backend="ag_grid"` targets AG-Grid quick search.
+
+See Filter semantics (see section: guides/filter-semantics-contract.md).
+
+---
+
+## XLSX export
+
+Layout types and registry:
+
+```python
+from django_grid_view.export.xlsx import XlsxCell, XlsxReport, XlsxSheet, report_from_simple_table
+from django_grid_view.export.xlsx.registry import register_xlsx_builder
+```
+
+Install `django-grid-view[xlsx]`. See XLSX export (see section: guides/xlsx-export.md).
+
+---
+
+## PDF export
+
+```python
+from django_grid_view.export.registry import register_pdf_builder
+```
+
+Builder returns a `GridArtifact` or v2 export job depending on host setup — see
+PDF export (see section: guides/pdf-export.md).
+
+---
+
+## Type checking in host projects
+
+```toml
+dependencies = ["django-grid-view>=1.0.0"]
+
+[tool.basedpyright]
+typeCheckingMode = "strict"
+```
+
+Optional Django app for templates and preferences:
+
+```python
+INSTALLED_APPS = ["django_grid_view"]
+```
+
+---
+
+## Module stability
+
+| Module | Status |
+|--------|--------|
+| `grid_view_spec` | Public v2 contract |
+| `django_grid_view.types` | Public legacy + shared types |
+| `django_grid_view.tables` | Public Simple Table |
+| `django_grid_view.render` | Public build helpers |
+| `django_grid_view.ag_grid` | Public AG-Grid server helpers |
+| `django_grid_view.export` | Optional extras; registries |
+
+Internal modules (`render.spec_parser`, private export helpers) may change without notice.
+
+## See also
+
+- GridViewSpec reference (see section: reference/grid-view-spec.md)  
+- Grid View artifacts (see section: grid-view-artifacts.md)  
+- Legacy API index (see section: legacy/index.md)
+
+
+---
+
+
+<!-- source: reference/template-tags.md -->
+
+# Template tags
+
+Load tags with `{% load django_grid_view %}`.
+
+## Page assets
+
+| Tag | Purpose |
+|-----|---------|
+| `{% grid_view_styles %}` | CSS bundle in `<head>` (`grid-view.min.css`) |
+| `{% grid_view_bundle %}` | i18n boot config + `grid-view.min.js` before `</body>` |
+
+Call both once per page. Inclusion tags below can auto-load them on first use if the host forgot.
+
+## GridViewSpec (current)
+
+| Tag | Arguments | Purpose |
+|-----|-----------|---------|
+| `{% render_grid_view_spec spec rows %}` | `GridViewSpec`, row sequence | Full v2 page from blocks + layout |
+| `{% load_lazy_block spec block_id rows %}` | spec, block id, rows | HTMX / lazy fragment for one block |
+
+Example:
+
+```django
+{% render_grid_view_spec page.grid rows %}
+```
+
+See Getting started (see section: getting-started.md) and GridViewSpec reference (see section: reference/grid-view-spec.md).
+
+## Simple Table (legacy)
+
+| Tag | Arguments | Purpose |
+|-----|-----------|---------|
+| `{% render_simple_table config %}` | `SimpleTableConfig` | Server-rendered table |
+
+## Grid View artifact (legacy)
+
+| Tag | Arguments | Purpose |
+|-----|-----------|---------|
+| `{% render_grid_view artifact %}` | `GridArtifact`, optional `interactive=True` | KPI + charts + table from flat spec |
+| `{% render_kpi_strip kpis %}` | resolved KPIs, `columns=4` | Static KPI strip |
+| `{% render_chart chart rows %}` | chart spec, rows | ECharts block |
+| `{% render_grid_kpi_strip specs %}` | `KpiSpec` sequence | AG-Grid KPI (client aggregates) |
+
+## AG-Grid helpers
+
+| Tag | Purpose |
+|-----|---------|
+| `{% django_grid_view_scripts %}` | Mount grid + boot scripts (via include — see below) |
+| `{% render_django_grid_view_toolbar %}` | Toolbar + gear |
+| `{% render_django_grid_view_search %}` | Search bar |
+| `{% render_django_grid_view_gear %}` | Gear button only |
+| `{% render_django_grid_view_modal %}` | Column/search modal |
+| `{% render_filter_bar %}` | Declarative filter bar |
+| `{% render_search_unified %}` | Unified search input |
+| `{% render_toolbar_search %}` | Toolbar search for Simple Table or AG-Grid |
+
+### AG-Grid scripts include
+
+```django
+{% include "django_grid_view/scripts.html" with grid_id="products" container_id="products-grid" options_var="gridOptions" %}
+```
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `grid_id` | yes | Preference key; must match JS `context.gridId` |
+| `options_var` | yes | Global name for grid options (e.g. `"gridOptions"`) |
+| `container_id` | yes | DOM id of the grid div |
+| `toolbar`, `modal` | no | Include toolbar/modal partials (default true) |
+
+View context may pass `ag_grid_presets` and `ag_grid_searches` as JSON strings for server-stored
+presets.
+
+See AG-Grid integration (see section: ag-grid.md).
+
+## Export and CDN helpers
+
+| Tag | Purpose |
+|-----|---------|
+| `{% export_pdf_href builder … %}` | PDF export URL |
+| `{% export_xlsx_href builder … %}` | XLSX export URL |
+| `{% ag_grid_cdn_url %}` | AG-Grid script URL |
+| `{% sortable_cdn_url %}` | Sortable.js URL |
+| `{% echarts_cdn_url %}` | ECharts script URL |
+
+Register builders and mount export views — PDF export (see section: guides/pdf-export.md),
+XLSX export (see section: guides/xlsx-export.md). For filterable pages, keep query params in sync —
+Server filtering contract (see section: guides/server-filtering-contract.md).
+
+## Context helper
+
+`get_grid_state(context, grid_id)` returns column preset and saved-search JSON for toolbars
+(`django_grid_view.render.grid_preferences`).
+
+
+---
+
+
+<!-- source: reference/javascript.md -->
+
+# JavaScript API
+
+Pre-built bundles ship under `django_grid_view/static/`. The main entry is **`grid-view.min.js`**
+(global `GridView`). Host projects do not need Node at runtime.
+
+## Boot
+
+After `{% grid_view_bundle %}`, one script initializes the page:
+
+| API | Purpose |
+|-----|---------|
+| `GridView.bootScope(scope?)` | Scan a DOM subtree (default `document`) and boot tables, filters, KPI, charts, column settings, GridViewSpec roots, and legacy artifact roots |
+| `GridView.boot(root?)` | Boot one element, or re-run scope boot when omitted |
+
+`DOMContentLoaded` and HTMX `afterSwap` call `GridView.bootScope()`. Do not load separate chart, KPI,
+or artifact boot scripts.
+
+## Loading scripts
+
+### GridViewSpec, Simple Table, and legacy Grid View
+
+```django
+{% load django_grid_view %}
+{% grid_view_bundle %}
+```
+
+Load order:
+
+1. Inline — `GridView.preferencesUrl`, `GridViewI18n`  
+2. `grid-view.min.js` — unified runtime  
+
+Inclusion tags (`render_simple_table`, `render_grid_view`, `render_grid_view_spec`, …) can pull in
+the bundle automatically if the host did not call `{% grid_view_bundle %}`.
+
+**Globals the host must provide** (before the bundle):
+
+| Global | Required for |
+|--------|----------------|
+| `echarts` | Charts |
+| `Sortable` | Column drag-reorder in settings modal |
+
+Use `{% echarts_cdn_url %}` and `{% sortable_cdn_url %}` or your own CDN links.
+
+### AG-Grid pages
+
+Load CDN scripts, `ag-grid-host.js`, and boot JSON — see AG-Grid integration (see section: ag-grid.md).
+
+### Legacy artifact roots
+
+Pages with `[data-cm-grid-artifact-boot]` still initialize through `GridView.bootScope()`. Older
+per-page boot scripts are no longer shipped; their behaviour is part of `grid-view.min.js`.
+
+## GridView.init
+
+Used by chat panels and SPAs that receive a resolved artifact JSON:
+
+```javascript
+var disconnect = GridView.init({
+  root: document,
+  artifact: artifactJson,
+  gridAdapter: adapter,
+});
+```
+
+Initializes Simple Tables, KPI strips, charts, and optional AG-Grid bindings. `disconnect()` removes
+listeners.
+
+## AG-Grid infinite model
+
+```javascript
+GridView.AgGrid.createInfiniteDatasource({
+  url: "/api/my-grid-data/",
+  gridId: "my-grid",
+  getExtraParams: function () { return { period: "2024-01" }; },
+});
+
+GridView.AgGrid.syncExportHref(linkEl, "my-grid", { exportColumns: true });
+GridView.AgGrid.syncExportLinks("my-grid");
+```
+
+| API | Purpose |
+|-----|---------|
+| `createInfiniteDatasource(options)` | Wire AG-Grid infinite `getRows` to your JSON API |
+| `buildInfiniteQueryParams(...)` | Serialize block params, filters, sort, search |
+| `syncExportHref(linkEl, gridId, options)` | Copy filters, sort, `q`, `col_q`, `export_cols` into export URL |
+| `syncExportLinks(gridId, options)` | Update all `[data-cm-export-sync]` links |
+| `GridView.byId.get(gridId)` | Runtime handle (`AgGridHost` or column settings) |
+| `GridView.createColumnSettings(...)` | Column settings for AG-Grid or Simple Table |
+
+Toolbar markup uses `data-cm-grid-id`, `data-cm-col-action`, `data-cm-grid-action`, and
+`data-cm-grid-search` — no inline JS required.
+
+`AgGridHost` persists filters, columns, and search to `localStorage` and optionally mirrors them in
+the URL. See [AG-Grid — Persistence](../ag-grid.md#persistence).
+
+## AG-Grid adapter (filtered KPI / charts)
+
+```javascript
+var adapter = GridView.createAgGridAdapter(gridApi);
+GridView.bindGridKpis({ root: document, gridAdapter: adapter });
+GridView.bindGridFilteredCharts(document, adapter);
+```
+
+| Method | Purpose |
+|--------|---------|
+| `getRows()` | Visible rows after filter/sort |
+| `onChange(cb)` | Subscribe to model updates |
+
+For static rows: `GridView.staticRowsAdapter(rowsArray)`.
+
+## KPI helpers
+
+| API | Purpose |
+|-----|---------|
+| `GridView.resolveKpis(specs, rows)` | Client-side aggregates |
+| `GridView.Kpi.initKpiStrip(root, kpis, columns)` | Render resolved KPI cards |
+| `GridView.bindGridKpis({ gridAdapter })` | Wire `[data-cm-grid-kpi]` strips |
+
+## Charts
+
+| API | Purpose |
+|-----|---------|
+| `GridView.initChart(el, config, rows)` | Mount one ECharts instance |
+| `GridView.initAllCharts(scope)` | Scan `[data-cm-chart-config]` |
+| `GridView.buildEchartsOption(config, rows)` | Build ECharts option object |
+| `GridView.bindGridFilteredCharts(scope, adapter)` | Charts with `data_source: grid_filtered` |
+
+Requires global `echarts`.
+
+## Simple Table
+
+```javascript
+GridView.SimpleTable.initAll(scope);
+```
+
+Usually called automatically from `GridView.bootScope()`.
+
+## Search and filters
+
+Client matching must stay aligned with Python search modules. Conformance fixtures live under
+`tests/fixtures/`; run `npm run test:conformance` in `frontend/` and pytest filter tests after
+behaviour changes. See Filter semantics (see section: guides/filter-semantics-contract.md).
+
+## i18n
+
+```javascript
+GridView.i18n.t("search.placeholder", "Search…");
+```
+
+Translations ship in `django_grid_view/locale/`. The bundle injects `window.GridViewI18n` before
+`grid-view.min.js`.
+
+## Maintainer build
+
+```bash
+cd frontend && npm ci && npm run build
+```
+
+Commit regenerated files under `src/django_grid_view/static/`. CI checks for drift.
+
+
+---
+
+
+<!-- source: legacy/index.md -->
+
+# Legacy API index
+
+These pages describe APIs that predate **GridViewSpec v2** (blocks + layout). Host applications
+still use them during migration. **New pages** should follow Getting started (see section: getting-started.md).
+
+| Document | What it covers | v2 replacement |
+|----------|----------------|----------------|
+| Simple Table (see section: simple-table.md) | `SimpleTableConfig`, `{% render_simple_table %}` | `GridViewTable(backend="simple")` |
+| Grid View artifacts (see section: grid-view-artifacts.md) | `GridArtifact`, `{% render_grid_view %}` | `GridViewSpec` + `{% render_grid_view_spec %}` |
+| Charts and KPIs (see section: charts-and-kpis.md) | `ChartSpec`, `KpiSpec` on flat spec | `GridViewKpi`, chart blocks |
+| Dashboard builders (see section: guides/dashboard-builders.md) | Merging separate builders | One `page_data` loader + spec |
+| [Python types — legacy](../reference/python-types.md#legacy-flat-spec) | `django_grid_view.types` v1 | `grid_view_spec.types` |
+
+Sunset tracking: Documentation inventory (see section: maintainers/doc-inventory.md).
+
+
+---
+
+
+<!-- source: simple-table.md -->
+
+# Simple Table
+
+> **Legacy API.** New pages should use `GridViewTable(backend="simple")` inside a
+> GridViewSpec (see section: reference/grid-view-spec.md). This page documents the older `SimpleTableConfig`
+> path, which many host apps still use.
+
+Simple Table renders HTML tables on the server. The browser adds sort, search, column settings, and
+export links that stay in sync with visible columns.
+
+## Configuration
+
+```python
+from django_grid_view.tables import Column, ColumnGroup, SimpleTableConfig
+from django_grid_view.types import RowDict
+
+rows: list[RowDict] = [{"sku": "A1", "name": "Widget", "price": 9.99}]
+
+config = SimpleTableConfig(
+    grid_id="products",
+    columns=[
+        Column(key="sku", label="SKU", width="120px"),
+        Column(key="name", label="Name"),
+        Column(key="price", label="Price", align="right", hide=True),
+    ],
+    data=rows,
+    search_mode="global",  # global | per_column | disabled
+    striped=True,
+    column_settings=True,
+    column_groups_order=("Main", "Finance"),
+)
+```
+
+### Column options
+
+| Field | Purpose |
+|-------|---------|
+| `key` | Row dict key |
+| `label` | Header text |
+| `sortable` | Enable column sort (default `True`) |
+| `searchable` | Include in client search (default `True`) |
+| `align` | `left`, `center`, `right` |
+| `hide` | Hidden by default (Standard preset restores this) |
+| `menu_group` | Group label in column settings modal |
+| `exportable` | Include in XLSX when visible (default `True`) |
+| `sort_value` | Callable for custom sort key |
+| `export_raw` | Callable for XLSX raw value |
+| `render` | Override cell HTML (subclass `Column`) |
+
+### Column settings
+
+Turn on with `column_settings=True`.
+
+| Feature | Behaviour |
+|---------|-----------|
+| Gear button | In the table toolbar, or `{% render_django_grid_view_gear grid_id %}` on external toolbars |
+| Modal | Drag order, show/hide, L/R pin, named presets |
+| Persistence | Session state in `localStorage` plus server presets via `GridPreference` |
+| Export sync | Links with `data-cm-export-sync` receive an `export_cols` query param |
+
+```django
+{% render_django_grid_view_gear "products" %}
+{% include "django_grid_view/partials/export_xlsx_link.html" with href=export_url grid_id="products" %}
+{% render_simple_table config %}
+```
+
+Server XLSX export respects visible columns:
+
+```python
+from django_grid_view.export.table_columns import resolve_simple_table_for_export
+
+def build_products_xlsx(request):
+    page = load_products_page(request)
+    table = resolve_simple_table_for_export(page.table, request)
+    return report_from_simple_table(table, sheet_name="Products")
+```
+
+### Column groups
+
+Multi-level headers use `ColumnGroup(label="Q1", column_keys=["jan", "feb", "mar"])`.
+
+The settings modal treats each group as one unit for show/hide and reorder. Standalone columns stay
+individual units. Pin (L/R) applies to standalone columns only. Export expands visible groups to
+leaf column keys.
+
+### Row actions and footer
+
+```python
+SimpleTableConfig(
+    grid_id="orders",
+    columns=[...],
+    data=rows,
+    row_url="/orders/{id}/",
+    footer_row={"name": "Total", "amount": 1000},
+    footer_label="Summary",
+    footer_label_span=2,
+)
+```
+
+## Template tag
+
+```django
+{% load django_grid_view %}
+{% render_simple_table config %}
+```
+
+The tag prepares header, body, and footer context and sets `data-cm-*` attributes read by
+`grid-view.min.js`.
+
+## Table layout
+
+Rendered structure:
+
+```
+.cm-table-shell
+  .cm-table-viewport     ← horizontal scroll when columns exceed width
+    table.cm-table
+  .cm-col-filter-portal   ← column filter popover
+```
+
+Wide tables scroll inside the viewport, not the whole page. Column filter behaviour is described in
+Filter semantics (see section: guides/filter-semantics-contract.md).
+
+## Export
+
+Register builders and mount export routes — XLSX export (see section: guides/xlsx-export.md),
+PDF export (see section: guides/pdf-export.md).
+
+Sync visible columns from the browser:
+
+```html
+<a href="{% export_xlsx_href 'products' %}"
+   data-cm-export-sync="1"
+   data-cm-grid-id="products">XLSX</a>
+```
+
+## When to keep Simple Table
+
+| Keep Simple Table | Prefer GridViewSpec |
+|-------------------|---------------------|
+| Custom `Column.render()` cell HTML | Declarative blocks + layout |
+| Existing dashboard tables | New pages with filters, KPI, charts |
+| No KPI/chart on the same block | One spec for the whole page |
+
+See Grid View artifacts (see section: grid-view-artifacts.md) for the flat-spec path, or
+Getting started (see section: getting-started.md) for GridViewSpec v2.
+
+## Shared column settings with AG-Grid
+
+Column settings UI ships inside `{% grid_view_bundle %}`. AG-Grid and Simple Table share the same
+modal and preset storage pattern.
+
+
+---
+
+
+<!-- source: grid-view-artifacts.md -->
+
+# Grid View artifacts
+
+> **Legacy API.** New pages should use GridViewSpec v2 (see section: reference/grid-view-spec.md) with blocks and
+> layout. This page documents the flat spec that produces a `GridArtifact` for
+> `{% render_grid_view %}`.
+
+A **GridArtifact** is resolved HTML context: KPI numbers, chart bindings, and table columns computed
+from Python `rows`. The wire spec describes structure only — it must not contain row data or KPI
+values.
+
+## Quick start
+
+```python
+from django_grid_view.types import JsonObject, RowDict
+from django_grid_view.render import build_artifact_from_view
+
+rows: list[RowDict] = [{"name": "A", "amount": 10}, {"name": "B", "amount": 20}]
+view: JsonObject = {
+    "grid_id": "demo",
+    "title": "Demo",
+    "columns": [
+        {"key": "name", "label": "Name", "format": "text"},
+        {"key": "amount", "label": "Amount", "format": "number"},
+    ],
+    "kpis": [
+        {"label": "Total", "column_key": "amount", "aggregate": "sum", "format": "number"}
+    ],
+    "charts": [{
+        "id": "main",
+        "chart_type": "bar",
+        "x_key": "name",
+        "series": [{"key": "amount", "label": "Amount"}],
+    }],
+    "layout": {"blocks": ["title", "kpis", "chart", "table"]},
+}
+
+artifact = build_artifact_from_view(view, rows)
+payload = artifact.to_json()
+```
+
+Typed builders:
+
+```python
+from django_grid_view.types import ChartSpec, ChartType, ColumnSpec, GridViewSpec, SeriesSpec
+from django_grid_view.render import GridRenderer
+
+spec = GridViewSpec(
+    grid_id="demo",
+    columns=(ColumnSpec(key="name", label="Name"),),
+    charts=(
+        ChartSpec(
+            id="main",
+            chart_type=ChartType.BAR,
+            x_key="name",
+            series=(SeriesSpec(key="amount", label="Amount"),),
+        ),
+    ),
+)
+artifact = GridRenderer.build(spec, rows)
+```
+
+Import map: Python types (see section: reference/python-types.md) (legacy section).
+
+## API
+
+| Function | Input | Output |
+|----------|-------|--------|
+| `parse_grid_view_spec_json(raw)` | dict | flat `GridViewSpec` |
+| `GridRenderer.build(spec, rows)` | validated spec + rows | `GridArtifact` |
+| `build_artifact_from_view(view, rows)` | dict or spec + rows | `GridArtifact` |
+| `build_artifact_json_from_view(view, rows)` | dict or spec + rows | JSON payload |
+
+Use `build_artifact_from_view` when the spec comes from JSON (chat or planner output).
+Use `GridRenderer.build` when you already hold a validated spec object.
+
+Wire schema: `schema/grid-view-spec.v1.json` in the repository.
+
+## Template rendering
+
+```django
+{% load django_grid_view %}
+{% render_grid_view artifact %}
+```
+
+## Client init (chat panels)
+
+```javascript
+GridView.init({ root: document.getElementById("chat-panel"), artifact: payload });
+```
+
+Load `{% grid_view_bundle %}` and ECharts on the host page first.
+
+## Moving to GridViewSpec v2
+
+| Legacy | v2 replacement |
+|--------|----------------|
+| Flat `columns` / `kpis` / `charts` on one dict | `blocks` + `layout` tree |
+| `{% render_grid_view %}` | `{% render_grid_view_spec spec rows %}` |
+| `GridRenderer.build` | `validate_spec` + `render_grid_view_spec` |
+
+Use MCP tool `gridview_migration_hints` or see Getting started (see section: getting-started.md).
+
+## Related
+
+- Charts and KPIs (see section: charts-and-kpis.md) — KPI and chart blocks on this path  
+- Chat visualizer (see section: guides/chat-visualizer.md) — streaming a grid into chat UI  
+- GridViewSpec reference (see section: reference/grid-view-spec.md) — current contract
+
+
+---
+
+
+<!-- source: charts-and-kpis.md -->
+
+# Charts and KPIs
+
+> **Legacy API.** On new pages, use `GridViewKpi` and chart blocks inside a
+> GridViewSpec (see section: reference/grid-view-spec.md). This page covers KPI and chart helpers on the flat
+> `GridViewSpec` used with `{% render_grid_view %}`.
+
+KPI values and chart series are always computed in Python from `rows`. The spec carries labels and
+wiring only.
+
+## KPI strip (server-resolved)
+
+```python
+from django_grid_view.types import ColumnFormat, KpiAggregate, KpiSpec, RowDict
+from django_grid_view.render.kpi import resolve_kpis
+
+specs = [
+    KpiSpec(
+        label="Total",
+        column_key="amount",
+        aggregate=KpiAggregate.SUM,
+        format=ColumnFormat.NUMBER,
+    ),
+]
+kpis = resolve_kpis(specs, rows)
+```
+
+```django
+{% render_kpi_strip kpis columns=4 %}
+```
+
+## Charts (static rows)
+
+Charts need `window.echarts` on the page:
+
+```django
+{% load django_grid_view %}
+<script src="{% echarts_cdn_url %}"></script>
+```
+
+Optional setting for the CDN version:
+
+```python
+DJANGO_GRID_VIEW_ECHARTS_VERSION = "5.5.1"
+```
+
+Build runtime config from rows:
+
+```python
+from django_grid_view.types import ChartSpec, ChartType, RowDict, SeriesSpec
+from django_grid_view.render.charts import build_chart_runtime
+
+chart = ChartSpec(
+    id="main",
+    chart_type=ChartType.BAR,
+    x_key="name",
+    series=(SeriesSpec(key="amount", label="Amount"),),
+)
+runtime = build_chart_runtime(chart, rows)
+```
+
+```django
+{% render_chart chart rows %}
+```
+
+## AG-Grid–filtered KPIs and charts
+
+When KPIs or charts must follow **visible** AG-Grid rows after filter or sort:
+
+```django
+{% render_grid_kpi_strip specs %}
+```
+
+In JavaScript:
+
+```javascript
+var adapter = GridView.createAgGridAdapter(gridApi);
+GridView.bindGridKpis({ root: document, gridAdapter: adapter });
+GridView.bindGridFilteredCharts(document, adapter);
+```
+
+`ChartSpec.data_source` is `static` (artifact rows) or `grid_filtered` (adapter rows).
+
+## Unified layout on one page
+
+When KPI, chart, and table share the same `rows`, build one artifact:
+
+```python
+from django_grid_view.render import GridRenderer
+
+artifact = GridRenderer.build(spec, rows)
+```
+
+```django
+{% render_grid_view artifact %}
+```
+
+Types: [Python types — legacy](reference/python-types.md#legacy-flat-spec).
+
+See Grid View artifacts (see section: grid-view-artifacts.md) for the full render flow.
+
+
+---
+
+
+<!-- source: guides/chat-visualizer.md -->
+
+# Chat visualizer
+
+How a chat application turns SQL (or other tabular) results into an interactive grid in the browser.
+
+The host application owns routing, prompts, and graph wiring. This package provides spec validation,
+artifact resolution, and `GridView.init` for the client.
+
+## Flow
+
+```
+User question
+  → Host: run query, build spec in Python
+  → Host: validate / resolve rows → payload for the UI
+  → SSE or JSON: { "type": "grid_view", "artifact": … }  (legacy)
+                 or { "type": "grid_view_spec", "spec": …, "rows": … }  (v2)
+  → Browser: mount DOM + GridView.init or render_grid_view_spec HTML
+```
+
+**Rule:** row data and KPI numbers always come from the query result in Python. The LLM must not
+emit numeric KPI values or row arrays in the layout JSON.
+
+## Recommended: planner-driven presenter
+
+Use a graph with planning, SQL execution, and verification — not a separate “layout LLM” unless you
+need model-chosen charts.
+
+1. **Planner** returns SQL and presentation hints only.  
+2. **SQL step** produces `columns` and `rows`.  
+3. **Verifier** checks the result (optional loop).
+
+### Planner output
+
+```json
+{
+  "sql": "SELECT name AS customer_name, COUNT(*) AS total_orders FROM …",
+  "purpose": "Customers with the most orders",
+  "format": "table"
+}
+```
+
+| `format` | Typical blocks |
+|----------|----------------|
+| `table` | title, KPIs, table |
+| `report` | title, KPIs, chart, table |
+| `chart` | title, KPIs, chart, table |
+| `answer` | title, KPIs |
+
+Do **not** put in planner output: `rows`, KPI values, a full grid spec, or `echarts_option`.
+
+### Python presenter (GridViewSpec v2)
+
+```python
+from grid_view_spec import GridViewSpec, validate_spec
+from grid_view_spec.types.layout import GridViewArea, GridViewLayout
+from grid_view_spec.types.table_v2 import GridViewColumn, GridViewTable
+
+def present_grid(format: str, purpose: str, columns: list[str], rows: list[dict]):
+    spec = GridViewSpec(
+        id="analytics",
+        blocks=(
+            GridViewTable(
+                id="result_table",
+                backend="simple",
+                columns=tuple(
+                    GridViewColumn(id=c, label=c.replace("_", " ").title(), field=c)
+                    for c in columns
+                ),
+            ),
+        ),
+        layout=GridViewLayout(root=GridViewArea(id="root", blocks=("result_table",))),
+    )
+    validate_spec(spec)
+    return {"type": "grid_view_spec", "title": purpose, "spec": spec, "rows": rows}
+```
+
+Stream or return that object to the browser. Render with `{% render_grid_view_spec spec rows %}` or
+`render_grid_view_spec(spec, rows, host=…)` in a partial.
+
+Validate wire JSON with MCP `gridview_validate` before merge.
+
+### Python presenter (legacy artifact)
+
+Still supported for chat widgets that call `GridView.init`:
+
+```python
+from django_grid_view.render import build_artifact_from_view
+from django_grid_view.types import GridViewSpecWire, RowDict
+
+view: GridViewSpecWire = {
+    "grid_id": "analytics",
+    "columns": [{"key": "customer_name", "label": "Customer"}],
+    "kpis": [{"label": "Orders", "aggregate": "count"}],
+    "layout": {"blocks": ["title", "kpis", "table"]},
+}
+artifact = build_artifact_from_view(view, sql_rows)
+return {"type": "grid_view", "artifact": artifact.to_json(), "rows": sql_rows}
+```
+
+### Frontend (legacy widget)
+
+```javascript
+GridView.init({ root: wrap, artifact: component.artifact });
+```
+
+Load `{% grid_view_styles %}`, `{% grid_view_bundle %}`, and ECharts on the chat page.
+
+## Optional visualizer LLM
+
+A second LLM node may emit layout JSON **without rows or numbers**:
+
+```json
+{
+  "view": {
+    "grid_id": "analytics-result",
+    "columns": [{ "key": "customer_name", "label": "Customer" }],
+    "layout": { "blocks": ["title", "kpis", "table"] }
+  }
+}
+```
+
+Always call `build_artifact_from_view(view, sql_rows)` in Python so aggregates come from SQL, not
+the model. For new integrations, prefer emitting v2 `GridViewSpec` wire and validating with
+`gridview_validate`.
+
+## Choosing an approach
+
+| Approach | LLM emits | Python builds |
+|----------|-----------|---------------|
+| Planner + presenter (recommended) | `sql`, `purpose`, `format` | Full v2 spec or legacy view dict |
+| Visualizer LLM | `{ "view": … }` structure only | Artifact via `build_artifact_from_view` |
+
+## Related
+
+- GridViewSpec reference (see section: reference/grid-view-spec.md) — v2 wire contract  
+- Grid View artifacts (see section: grid-view-artifacts.md) — legacy artifact path  
+- MCP server (see section: guides/mcp-server.md) — validate specs in the IDE
+
+
+---
+
+
+<!-- source: guides/dashboard-builders.md -->
+
+# Dashboard builders
+
+> **Legacy API.** Prefer a single `GridViewSpec` built in your page loader — see
+> Host app page export (see section: guides/host-app-page-export.md) and Getting started (see section: getting-started.md).
+
+Many dashboards started as separate chart builders, KPI helpers, and table configs. You can fold
+them into one spec so HTML, export, and filters share one data load.
+
+## Legacy pattern (flat spec + artifact)
+
+**Before** — separate builders and template tags:
+
+```python
+chart_spec, chart_rows = build_revenue_chart(tab_id, categories)
+kpi_specs, kpi_rows = build_revenue_kpis(categories)
+# template: render_kpi_strip + render_chart
+```
+
+**After (flat spec)** — one loader, one template tag:
+
+```python
+from django_grid_view.render import GridRenderer, parse_grid_view_spec
+from django_grid_view.types import GridViewSpecWire, RowDict
+
+def build_revenue_artifact(tab_id: str, categories: list[CategoryStats]):
+    rows: list[RowDict] = revenue_rows(categories)
+    view: GridViewSpecWire = {
+        "grid_id": f"revenue-{tab_id}",
+        "title": "Revenue by category",
+        "columns": [...],
+        "kpis": [...],
+        "charts": [...],
+        "layout": {"blocks": ["title", "kpis", "chart"]},
+    }
+    return GridRenderer.build(parse_grid_view_spec(view), rows)
+```
+
+```django
+{% render_grid_view artifact %}
+```
+
+## Current pattern (GridViewSpec v2)
+
+Build blocks and layout in Python, validate, pass to the template:
+
+```python
+from grid_view_spec import GridViewSpec, validate_spec
+from grid_view_spec.types.layout import GridViewArea, GridViewLayout
+from grid_view_spec.types.table_v2 import GridViewColumn, GridViewTable
+
+def load_revenue_page(request, tab_id: str):
+    rows = revenue_rows(...)
+    spec = GridViewSpec(
+        id=f"revenue-{tab_id}",
+        blocks=(
+            GridViewTable(
+                id="revenue_table",
+                backend="simple",
+                columns=(GridViewColumn(id="name", label="Category", field="name"),),
+            ),
+            # GridViewKpi, chart blocks, filters, …
+        ),
+        layout=GridViewLayout(root=GridViewArea(id="root", blocks=("revenue_table",))),
+    )
+    validate_spec(spec)
+    return {"spec": spec, "rows": rows}
+```
+
+```django
+{% render_grid_view_spec spec rows %}
+```
+
+## When to migrate
+
+| Pattern | Action |
+|---------|--------|
+| KPI + chart + table on one page | Move to one spec (v2 preferred) |
+| Single chart, no KPI | Optional |
+| Custom `Column.render()` HTML | Keep `SimpleTableConfig` until v2 table covers the case |
+
+Use `gridview_migration_hints` in the MCP server to map old field names to v2 blocks.
+
+
+---
+
+
+<!-- source: guides/host-app-page-export.md -->
+
+# Host app: page loader → HTML / PDF / XLSX
+
+django-grid-view owns **rendering and export HTTP views**. Your Django app owns **domain data** and should expose **one loader per screen** so HTML, PDF, and XLSX never diverge.
+
+This guide is the recommended template for dashboard-style host apps.
+
+## Responsibility split
+
+| Layer | Host app | django-grid-view |
+|-------|----------|------------------|
+| ORM / filters / rows | `load_*_page(request)` | — |
+| `SimpleTableConfig` / `GridArtifact` | build in loader or `*_tables.py` | types, render tags |
+| HTTP export routes | mount `export_pdf`, `export_xlsx` under `/api/` | views + registry |
+| Builder registration | `AppConfig.ready()` | `register_pdf_builder`, `register_xlsx_builder` |
+| Template export links | `{% export_pdf_href %}`, shared partials | templatetags + `build_export_href` |
+| AG-Grid XLSX columns | replay data API + `resolve_export_columns` | `AgGridPageSpec`, `syncExportHref` |
+
+## Recommended module layout
+
+```
+myapp/dashboard/entities/
+  page_data.py      # load_entity_page(request, pk) -> EntityPageData
+  list_data.py      # optional second screen in same area
+  entity_tables.py  # SimpleTableConfig factories (plain str labels)
+  export.py         # register_*_exports(); thin build_* wrappers
+  views.py          # render HTML only
+```
+
+Register once in `apps.py`:
+
+```python
+def ready(self):
+    from myapp.dashboard.entities.export import register_entity_exports
+    register_entity_exports()
+```
+
+## Step 1 — Frozen page dataclass
+
+```python
+from dataclasses import dataclass
+from django.http import HttpRequest
+from django_grid_view.tables import SimpleTableConfig
+
+@dataclass(frozen=True, slots=True)
+class EntityListPage:
+    category: str
+    table: SimpleTableConfig
+    export_title: str
+
+def load_entity_list_page(request: HttpRequest) -> EntityListPage:
+    rows, category = query_entities(request)
+    return EntityListPage(
+        category=category,
+        table=build_entity_list_table(rows),
+        export_title=f"Entities — {category}",
+    )
+```
+
+Parse **`request.GET` only here**. Accept alias params (`entity_id` and legacy `pk`) in one helper.
+
+## Step 2 — HTML view
+
+```python
+def entities_list(request):
+    page = load_entity_list_page(request)
+    return render(request, "entities/list.html", {
+        "config": page.table,
+        "category": page.category,
+    })
+```
+
+## Step 3 — Export builders (thin)
+
+```python
+from django_grid_view.export.registry import register_pdf_builder
+from django_grid_view.export.xlsx.registry import register_xlsx_builder
+from django_grid_view.export.xlsx.table import report_from_simple_table
+
+def build_entity_list_xlsx_report(request):
+    page = load_entity_list_page(request)
+    return report_from_simple_table(
+        page.table,
+        sheet_name="Entities",
+        title_rows=[[page.export_title]],
+    )
+
+def register_entity_exports():
+    register_xlsx_builder("entities_list", build_entity_list_xlsx_report, filename_fn=…)
+```
+
+For **PDF + chart + table** pages:
+
+```python
+def build_entity_summary_page_artifact(page: EntitySummaryPage, *, for_export: bool = False) -> GridArtifact:
+    blocks = (BlockType.TITLE, BlockType.CHART, BlockType.TABLE) if for_export else (BlockType.TABLE, BlockType.CHART)
+    spec = GridViewSpec(title=page.export_title if for_export else "", layout=ViewLayout(blocks=blocks), …)
+    return build_artifact_from_view(spec, page.rows, table=page.table)
+
+def load_entity_summary_page(request) -> EntitySummaryPage:
+    …
+    return EntitySummaryPage(..., artifact=build_entity_summary_page_artifact(partial, for_export=False), …)
+
+def build_entity_summary_pdf(request):
+    page = load_entity_summary_page(request)
+    return build_entity_summary_page_artifact(page, for_export=True)
+```
+
+HTML uses `page.artifact`; export calls `build_*_page_artifact(page, for_export=True)` once for PDF and XLSX (`ArtifactXlsxBundle`).
+
+## Step 4 — Template links
+
+```django
+{% load django_grid_view %}
+{% include "dashboard/shared/export_xlsx_link.html" with builder="entities_list" category=category only %}
+```
+
+Tags reverse `DJANGO_GRID_VIEW_EXPORT_XLSX_URL` (default `api_export_xlsx`). Pass the **same GET keys** the loader reads.
+
+Dynamic JS (modals, chat):
+
+```javascript
+window.cmExportHref('xlsx', 'entity_detail', { entity_id: id });
+```
+
+## Three export shapes
+
+### A. Simple table only (entity list, entity detail records)
+
+One `SimpleTableConfig` in the page dataclass → `report_from_simple_table`.
+
+### B. Grid artifact (category summary, detail modal with chart)
+
+`GridArtifact` for PDF → XLSX from `artifact.table` (same columns as PDF table block).
+
+### C. AG-Grid infinite model (large grids)
+
+Export builder **replays the JSON data API** with the same filters/sort/`q`, plus optional `export_cols` from `GridView.AgGrid.syncExportHref`. Column labels from `AgGridPageSpec`.
+
+### Simple Table XLSX and browser filters
+
+For server-rendered tables, XLSX builders typically call `report_from_simple_table` on a `SimpleTableConfig` rebuilt in the page loader. When the HTML page applies client-side search or column filters, export must **replay the same filter params** from `request.GET` (`q`, `col_q`, etc.) — `export/table_columns.py` imports `filter_table_for_request` from `django_grid_view.search` intentionally so PDF/XLSX match what the user sees. Keep one loader that reads those params; do not maintain a separate export filter path.
+
+## Invariants
+
+1. **Never put numbers in URLs** — rebuild from ORM in the loader (security).
+2. **Plain strings for export column labels** — not `gettext_lazy`.
+3. **One builder key per screen** — matches `?builder=` in export URLs.
+4. **One loader, one artifact builder** — `load_*_page` + `build_*_page_artifact(page, for_export=…)`; no parallel export aggregation path.
+5. **Grouped section tables** — `__section__` rows + `footer_row`; PDF/XLSX use the same section totals as HTML (package handles this).
+6. **Empty `django_grid_view.urls`** — mount export + grid preferences in the host API:
+
+```python
+path("grid/preferences/", save_grid_settings, name="api_grid_preferences"),
+path("export/pdf/", export_pdf, name="api_export_pdf"),
+path("export/xlsx/", export_xlsx, name="api_export_xlsx"),
+```
+
+## Related
+
+- PDF export (see section: guides/pdf-export.md)
+- XLSX export (see section: guides/xlsx-export.md)
+- Getting started (see section: getting-started.md) — host HTTP setup
+- AG-Grid integration (see section: ag-grid.md) — `export_cols` / `syncExportHref`
+
+
+---
+
+
+<!-- source: guides/filter-semantics-contract.md -->
+
+# Filter semantics
+
+Search and column filters use one matching contract across Simple Table, AG-Grid, exports, and the
+browser. The same query string should produce the same visible rows on every surface.
+
+## Search profiles
+
+Each column declares how its filter popover behaves via `Column.column_filter`:
+
+| Value | Use for | Syntax |
+|-------|---------|--------|
+| `default` | General text or value columns | text, phrases, smart combiners, numeric expressions, wildcards |
+| `text` | Text-only columns | text, phrases, smart combiners, wildcards |
+| `numeric` | Numeric columns | comparisons, ranges, wildcards |
+| `list` | Checklist columns | set/list model plus expression support |
+| `nosearch` | Actions, buttons, service columns | no filter UI; excluded from toolbar search |
+
+Toolbar search uses the `toolbar` profile (same smart syntax as `default`, plus `label:term` scoping).
+
+Aliases such as `column_text`, `set`, and `none` still work; new code should use the values above.
+
+## Filter channels
+
+| Channel | Request param | UI | Scope |
+|---------|---------------|-----|-------|
+| Toolbar search | `q` | Toolbar or table search input | Row haystack across visible searchable columns |
+| Column expression | `col_q` (string per key) | Header popover | One column |
+| Column list | `col_q` (set/list model) | Header checklist | One column |
+| AG-Grid set filter | `filters` | SmartFilter checklist | One column |
+
+FilterBar parameters such as `period` or `department` are **page-level** filters. Apply them in the
+host loader before rows, KPIs, charts, and exports are built.
+
+## Application order
+
+Apply filters in this order on server and client:
+
+1. Page-level FilterBar / queryset parameters  
+2. Column `col_q` filters (AND across columns)  
+3. Toolbar `q` on the row haystack  
+4. AG-Grid set filters from `filters` (AND across columns)  
+
+Simple Table client code applies `col_q` then `q`. Server export uses the same order through
+`filter_table_for_request()` and `resolve_simple_table_for_export()`.
+
+## Toolbar search (`q`)
+
+Smart syntax:
+
+| Syntax | Meaning |
+|--------|---------|
+| `alpha,beta` | OR groups (`/` and `\` also accepted outside quotes) |
+| `alpha+beta` | AND inside one group |
+| `-term` | Exclude term |
+| `"literal phrase"` | Quoted literal |
+| `>10`, `<=20`, `10..20` | Numeric comparison or inclusive range |
+| `%fin%`, `oper%`, `%ions` | Contains, prefix, suffix wildcard |
+
+Column scope is toolbar-only: `лікарів:10..20` limits that term to columns whose label matches.
+Column popovers do not use `:` scoping because they are already bound to one column key.
+
+## Column filters (`col_q`)
+
+`col_q` is a JSON object keyed by column key. Values are expression strings or set/list models:
+
+```text
+col_q={"amount": ">1000", "name": "%Alpha%", "status": {"values": ["Open"]}}
+```
+
+Expression strings use the same parser as toolbar search, but the haystack is one cell.
+
+## Set/list model
+
+Shared by Simple Table list columns and AG-Grid SmartFilter:
+
+```json
+null
+{"mode": "empty"}
+{"mode": "non_empty"}
+{"values": ["Alpha", "Beta"]}
+{"values": ["Alpha"], "match": "any_token"}
+```
+
+| Model | Matches |
+|-------|---------|
+| `null` / missing | Filter inactive |
+| `{"mode": "empty"}` | Blank, dash, or null cells |
+| `{"mode": "non_empty"}` | Non-empty cells |
+| `{"values": [...]}` | Selected values (`exact` or `any_token` per column) |
+
+Use `Column(filter_match="any_token")` when a cell holds multiple space-separated tokens.
+
+## Export parity
+
+PDF, XLSX, and server-rendered tables should replay the same GET parameters: FilterBar params,
+`q`, `col_q`, and `export_cols` for column visibility.
+
+For Simple Table: `filter_table_for_request()` or `resolve_simple_table_for_export()`.
+For flat artifacts: `resolve_artifact_table_for_export()`.
+
+## Related
+
+- Server filtering contract (see section: guides/server-filtering-contract.md) — host queryset integration  
+- Host app page export (see section: guides/host-app-page-export.md) — one loader for page and export  
+- Simple Table (see section: simple-table.md) — column filter UI on legacy tables
+
+## Conformance
+
+Python and TypeScript implementations share JSON fixtures under `tests/fixtures/`. When behaviour
+changes, update both sides and run `tests/test_filter_conformance.py` and
+`npm run test:conformance` in `frontend/`.
+
+
+---
+
+
+<!-- source: guides/server-filtering-contract.md -->
+
+# Server Filtering Contract
+
+Use one server pipeline for every filtered surface: HTML tables, KPIs, charts,
+PDF, and XLSX. If the page and export use different filtering paths, totals,
+rows, and chart values will drift.
+
+Filter syntax and matching rules are defined in
+Filter Semantics Contract (see section: guides/filter-semantics-contract.md). This page focuses on
+where filtering belongs in the server pipeline.
+
+## Contract
+
+The host app should treat URL/request state as the public filter contract.
+
+```text
+request.GET -> load_page_data() -> PageData(table, artifact, export metadata)
+```
+
+The same loader should serve the HTML page and export handlers. Avoid state tokens
+or separate export-only loaders unless they delegate back to the same request
+filtering code.
+
+## Recommended Flow
+
+1. Read URL state: FilterBar params, toolbar `q`, column `col_q`, and export
+   column state.
+2. Build the base queryset.
+3. Apply page-level filters to the queryset.
+4. Apply server-side search/filter parameters that belong to the queryset.
+5. Aggregate rows, KPIs, and charts from the filtered queryset.
+6. Build `SimpleTableConfig` and/or `GridArtifact`.
+7. Build export links with the same GET params.
+
+All numeric KPI and chart values must come from the filtered Python rows or
+queryset. Specs describe structure only.
+
+## Column Filters (`col_q`)
+
+SimpleTable column filters serialize to one GET parameter. String values are
+expression filters; object values are set/list models.
+
+```text
+col_q={"amount": ">1000", "name": "%Alpha%", "status": {"values": ["Open"]}}
+```
+
+Use:
+
+```python
+from django_grid_view.search.server import filter_table_for_request
+
+rows = filter_table_for_request(rows, table, request)
+```
+
+`filter_table_for_request()` applies column filters and toolbar search in the
+same order as the SimpleTable client. Export helpers use the same path, so PDF
+and XLSX can match the visible table.
+
+## Toolbar Search (`q`)
+
+Toolbar search should be applied to the same visible/searchable column set used
+by the rendered table.
+
+For ORM-backed views, map visible table columns to ORM paths and use the search
+helpers from `django_grid_view.search.server`. For in-memory rows, use
+`filter_table_for_request()` after the table config is built.
+
+Do not apply an extra ad hoc row filter after aggregation unless that same rule
+is also used for KPIs, charts, and exports.
+
+## Grouped Tables
+
+Grouped section tables should preserve grouping in the table builder, not in a
+separate export path.
+
+Recommended pattern:
+
+- build rows from the already filtered queryset,
+- use an explicit row policy such as `row_policy="catalog"` when search is empty,
+- switch to `row_policy="strict"` when search is non-empty and zero-total rows
+  should disappear,
+- let `inject_group_section_totals()` prepare HTML/PDF/XLSX section totals.
+
+Do not post-process grouped export rows separately in the host app.
+
+## Export Parity
+
+Export links should carry the same state as the page:
+
+- FilterBar params such as `period` or category/type filters,
+- toolbar `q`,
+- column `col_q`,
+- column order/visibility through `export_cols`.
+
+The browser syncs live column state through `data-cm-export-sync` and
+`data-cm-grid-id`. Export handlers should call:
+
+- `resolve_simple_table_for_export()` for `SimpleTableConfig`,
+- `resolve_artifact_table_for_export()` for artifact tables.
+
+For title/subtitle metadata, pass the request into the export helpers or call:
+
+```python
+from django_grid_view.export.meta_lines import build_export_meta_lines
+
+meta_lines = build_export_meta_lines(request, table=table, filter_specs=filter_specs)
+```
+
+PDF/XLSX subtitle rows can then include active search and filter labels without
+duplicating parsing code.
+
+## FilterBar Integration
+
+`GridView.FilterBar` should serialize UI state to the URL. Data filtering remains
+server-side.
+
+Client-side debounce is fine for input ergonomics, but the backend must still be
+the authority for filtered rows, KPIs, charts, and exports.
+
+## Checklist
+
+- One loader builds both page data and export data.
+- Page-level filters are applied before aggregating rows/KPIs/charts.
+- `q` and `col_q` are replayed for exports.
+- `export_cols` is respected by PDF/XLSX.
+- Grouped totals use `inject_group_section_totals()`.
+- No host-specific export path reimplements table filtering.
 
 
 ---

@@ -165,9 +165,9 @@ Browser bundles are built from TypeScript in `frontend/src/` and written to `src
 
 ```
 frontend/src/
-  grid-view-entry.ts      # esbuild entry (IIFE bundle → grid-view.js)
+  spec-boot.ts            # esbuild entry (IIFE bundle → grid-view.js)
+  runtime/                # unified boot: tables, filters, KPI, charts, spec roots
   grid-view/              # modules: charts, kpi, filter-bar, search/, …
-  column-settings.ts
   types/                  # chart-bind, kpi-bind (mirror Python contracts)
 ```
 
@@ -179,7 +179,7 @@ npm run test:conformance                 # Python↔JS filter/search parity (sha
 
 After editing `frontend/src/*.ts`, commit the regenerated static artifacts (CI verifies `git diff --exit-code src/django_grid_view/static/`).
 
-**Load order for host pages:** `{% grid_view_bundle %}` once → `grid-view.min.js` + `column-settings.min.js`. AG-Grid pages add `scripts.html` partials. Details: [Architecture](https://alpiua.github.io/django-grid-view/architecture/#front-end-bundle) · [JavaScript API](https://alpiua.github.io/django-grid-view/reference/javascript/).
+**Load order for host pages:** `{% grid_view_bundle %}` once → `grid-view.min.js` (unified runtime). AG-Grid pages add `scripts.html` partials. Details: [Architecture](https://alpiua.github.io/django-grid-view/architecture/#front-end-bundle) · [JavaScript API](https://alpiua.github.io/django-grid-view/reference/javascript/).
 
 Release: tag `v*` on `main` → PyPI via trusted publishing (`environment: pypi`). Docs deploy from `main` via GitHub Actions.
 

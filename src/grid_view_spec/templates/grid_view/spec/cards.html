@@ -1,0 +1,5 @@
+<div class="cm-cards cm-cards-{{ block.presentation | e }}">
+  {% for card in block.cards %}
+  <article class="cm-card" data-card-id="{{ card.id | e }}">{{ card.title | e }}</article>
+  {% endfor %}
+</div>

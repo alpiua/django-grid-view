@@ -1,0 +1,5 @@
+<nav class="cm-nav cm-nav-{{ block.presentation | e }}">
+  {% for item in block.items %}
+  <a class="cm-nav-item{% if item.active %} is-active{% endif %}" href="{{ item.href | e }}">{{ item.label | e }}</a>
+  {% endfor %}
+</nav>

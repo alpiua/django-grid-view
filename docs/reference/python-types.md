@@ -1,391 +1,201 @@
-# Python types (for host projects)
+# Python types
 
-django-grid-view ships with **`py.typed`** (PEP 561). In a consuming Django app, enable strict pyright or mypy and **import contracts from this package** — do not copy TypedDict shapes or use `dict[str, Any]` at domain boundaries.
+The package ships **`py.typed`** (PEP 561). Import contracts from the library — do not copy
+TypedDict shapes into host code.
 
-Full API surface: `django_grid_view.types` (see `types.__all__` in source).
+## GridViewSpec v2 (`grid_view_spec`)
 
-## Quick reference
+Current pages use the agnostic core. Row data stays outside the spec.
 
-| Use case | Import from |
-|----------|-------------|
-| Table rows | `django_grid_view.types` → `RowDict` |
-| Parsed JSON / filters | `as_str_object_dict`, `json_object_list_from`, `is_object_list`, `coerce_float`, `to_json_number` |
-| Card groups render context | `CardGroupsRenderContext`, `PreparedCardTab`, `PreparedCardGroup` |
-| Chart export colors | `ChartPaletteColor` |
-| Python-built grid | `GridViewSpec`, `ColumnSpec`, `KpiSpec`, `ChartSpec`, `SeriesSpec` |
-| LLM / JSON spec | `GridViewSpecWire`, `ColumnSpecWire`, `JsonObject`, `ViewSpecInput` |
-| Chat / frontend payload | `GridArtifactJson`, `GridLayoutDict` |
-| Simple Table | `django_grid_view.tables` → `Column`, `SimpleTableConfig` |
-| AG-Grid page | `AgGridPageSpec`, `AgGridColumnSpec`, `django_grid_view.ag_grid` |
-| Filter/search toolbar | `FilterSpec`, `FilterOption`, `SearchSpec`, `ToolbarSpec` |
-| XLSX export | `django_grid_view.export.xlsx` → `XlsxReport`, `XlsxSheet`, `XlsxCell` |
-| PDF/XLSX builders | `django_grid_view.export.registry` / `export.xlsx.registry` → `*BuilderFn`, `FilenameFn` |
-| Template render cells | `django_grid_view.types.template_cells` (internal render contract) |
-| Print/PDF table context | `django_grid_view.export.table_html` → `SimpleTablePrintContext` |
-| Column settings id | `SimpleTableConfig.group_settings_id()` |
-| Render | `django_grid_view.render` → `build_artifact_from_view`, `parse_grid_view_spec` |
+| Need | Import |
+|------|--------|
+| Spec root | `from grid_view_spec import GridViewSpec, validate_spec` |
+| Wire JSON | `from grid_view_spec.validate import spec_from_wire, spec_to_wire, normalize_spec` |
+| Render HTML | `from grid_view_spec.render import render_grid_view_spec` |
+| Table block | `from grid_view_spec.types.table_v2 import GridViewTable, GridViewColumn` |
+| Layout | `from grid_view_spec.types.layout import GridViewLayout, GridViewArea` |
+| Other blocks | `from grid_view_spec.types import …` (KPI, filters, actions, charts) |
+| Django host | `from grid_view_spec.backends.django.host import DjangoGridViewHost` |
+| Export registry | `from grid_view_spec.export.registry import register_pdf_builder, register_xlsx_builder` |
 
-## Short imports (root package)
-
-Common symbols are re-exported from `django_grid_view`:
+Example:
 
 ```python
-from django_grid_view import (
-    GridViewSpec,
-    GridViewSpecWire,
-    GridArtifactJson,
-    JsonObject,
-    RowDict,
-    ViewSpecInput,
-    build_artifact_from_view,
-    parse_grid_view_spec,
-)
-```
-
-Prefer `django_grid_view.types` when you need enums, wire helpers, or the full list below.
-
-## Domain models (Python builders)
-
-```python
-from django_grid_view.types import (
-    BlockType,
-    ChartPaletteColor,
-    ChartSpec,
-    ChartType,
-    ColumnFormat,
-    ColumnSpec,
-    GridViewSpec,
-    JsonObject,
-    KpiAggregate,
-    KpiSpec,
-    KpiTone,
-    RowDict,
-    SeriesSpec,
-    ViewLayout,
-    as_str_object_dict,
-    coerce_float,
-    json_object_list_from,
-)
-from django_grid_view.render import GridRenderer, build_artifact_from_view
-
-rows: list[RowDict] = [{"name": "Ada", "amount": 10}]
+from grid_view_spec import GridViewSpec, validate_spec
+from grid_view_spec.types.layout import GridViewArea, GridViewLayout
+from grid_view_spec.types.table_v2 import GridViewColumn, GridViewTable
 
 spec = GridViewSpec(
-    grid_id="demo",
-    columns=(ColumnSpec(key="name", label="Name"), ColumnSpec(key="amount", label="Amount")),
-    kpis=(KpiSpec(label="Total", column_key="amount", aggregate=KpiAggregate.SUM),),
-    charts=(
-        ChartSpec(
-            id="main",
-            chart_type=ChartType.BAR,
-            x_key="name",
-            series=(SeriesSpec(key="amount", label="Amount"),),
+    id="orders",
+    blocks=(
+        GridViewTable(
+            id="orders_table",
+            backend="simple",
+            columns=(GridViewColumn(id="name", label="Name", field="name"),),
         ),
     ),
+    layout=GridViewLayout(root=GridViewArea(id="root", blocks=("orders_table",))),
 )
+validate_spec(spec)
+```
 
+Wire interchange:
+
+```python
+from grid_view_spec.validate import spec_from_wire, spec_to_wire
+
+wire = spec_to_wire(spec)
+restored = spec_from_wire(wire)
+```
+
+Full field reference: [GridViewSpec](grid-view-spec.md). JSON Schema: `schema/grid-view-spec.v2.json`.
+
+---
+
+## Legacy flat spec {#legacy-flat-spec}
+
+> **Legacy API.** Flat `GridViewSpec` in `django_grid_view.types` with `GridRenderer` and
+> `GridArtifact`. Use `grid_view_spec` for new work.
+
+| Need | Import |
+|------|--------|
+| Table rows | `RowDict` from `django_grid_view.types` |
+| Python-built grid | `GridViewSpec`, `ColumnSpec`, `KpiSpec`, `ChartSpec`, `SeriesSpec` |
+| Wire / LLM JSON | `GridViewSpecWire`, `ColumnSpecWire`, `JsonObject`, `ViewSpecInput` |
+| Chat payload | `GridArtifact`, `GridArtifactJson` |
+| Build artifact | `GridRenderer`, `build_artifact_from_view`, `parse_grid_view_spec` |
+
+```python
+from django_grid_view.types import ChartSpec, ChartType, ColumnSpec, GridViewSpec, KpiSpec, RowDict, SeriesSpec
+from django_grid_view.render import GridRenderer
+
+rows: list[RowDict] = [{"name": "Ada", "amount": 10}]
+spec = GridViewSpec(
+    grid_id="demo",
+    columns=(ColumnSpec(key="name", label="Name"),),
+    kpis=(KpiSpec(label="Total", column_key="amount", aggregate="sum"),),
+)
 artifact = GridRenderer.build(spec, rows)
+payload = artifact.to_json()
 ```
 
-## LLM / API JSON (snake_case wire)
+Loose JSON from chat or Router:
 
 ```python
-from django_grid_view.types import (
-    ChartSpecWire,
-    ColumnSpecWire,
-    GridViewSpecWire,
-    JsonObject,
-    ViewSpecInput,
-)
-from django_grid_view.render import (
-    build_artifact_json_from_view,
-    parse_grid_view_spec,
-    parse_grid_view_spec_json,
-)
+from django_grid_view.render import build_artifact_from_view
+from django_grid_view.types import JsonObject, RowDict
 
-# Untyped JSON from json.loads or Router
-def handle_llm_payload(raw: JsonObject, rows: list[RowDict]) -> ...:
-    return build_artifact_json_from_view(raw, rows)
-
-# Typed wire literal (tests, planners, presenters)
-wire: GridViewSpecWire = {
-    "grid_id": "orders",
-    "columns": [{"key": "name", "label": "Name"}],
-    "kpis": [{"label": "Count", "aggregate": "count"}],
-}
-spec = parse_grid_view_spec(wire)
-artifact_json = build_artifact_json_from_view(spec, rows)  # GridViewSpec also works
+raw: JsonObject = {"grid_id": "x", "columns": [...]}
+artifact = build_artifact_from_view(raw, rows)
 ```
 
-`parse_grid_view_spec_json(raw)` accepts `JsonObject` only. For `GridViewSpecWire`, use `parse_grid_view_spec`.
+Wire schema: `schema/grid-view-spec.v1.json`.
 
-## Outbound JSON (frontend / chat UI)
-
-CamelCase keys match `GridView.init` and SSE payloads:
+Convenience re-exports from `django_grid_view`:
 
 ```python
-from django_grid_view.types import GridArtifact, GridArtifactJson, RowDict
-
-artifact: GridArtifact = ...
-payload: GridArtifactJson = artifact.to_json()
+from django_grid_view import GridViewSpec, GridViewSpecWire, build_artifact_from_view, parse_grid_view_spec
 ```
 
-## Simple Table (server-rendered)
+Prefer `django_grid_view.types` for enums and the full public list (`types.__all__`).
+
+---
+
+## Simple Table
 
 ```python
-from django_grid_view.tables import Align, Column, ColumnGroup, SimpleTableConfig
+from django_grid_view.tables import Column, ColumnGroup, SimpleTableConfig
 from django_grid_view.types import RowDict
-
-rows: list[RowDict] = [{"sku": "A1", "name": "Widget"}]
-config = SimpleTableConfig(
-    grid_id="products",
-    columns=[Column(key="sku", label="SKU"), Column(key="name", label="Name")],
-    data=rows,
-)
 ```
 
-## `ViewSpecInput`
+See [Simple Table](../simple-table.md).
 
-Type alias for `build_artifact_from_view` / `build_artifact_json_from_view`:
-
-```text
-GridViewSpec | JsonObject
-```
-
-Import: `from django_grid_view.types import ViewSpecInput`
-
-For `GridViewSpecWire`, call `parse_grid_view_spec(wire)` first, then `GridRenderer.build(spec, rows)`.
+---
 
 ## AG-Grid
-
-Large interactive grids use **AG Grid Community** under the hood; django-grid-view adds Django
-toolbar, infinite-model helpers, and export wiring. See [AG-Grid integration](../ag-grid.md).
 
 ```python
 from django_grid_view.types import AgGridColumnSpec, AgGridPageSpec
 from django_grid_view.ag_grid import (
     apply_grid_filters,
-    apply_grid_sort,
     parse_infinite_params,
     resolve_export_columns,
 )
-
-PRODUCTS_SPEC = AgGridPageSpec(
-    grid_id="products",
-    columns=(
-        AgGridColumnSpec("sku", "SKU"),
-        AgGridColumnSpec("name", "Name"),
-        AgGridColumnSpec("cost", "Cost", hide=True),
-    ),
-)
-
-def build_products_xlsx(request):
-    col_ids = resolve_export_columns(PRODUCTS_SPEC, request)
-    labels = [PRODUCTS_SPEC.label_for(c) for c in col_ids]
-    ...
 ```
 
-| Symbol | Role |
-|--------|------|
-| `AgGridColumnSpec` | `col_id`, `label`, `hide`, `exportable` |
-| `AgGridPageSpec` | Column order + `resolve_export_columns(active_ids)` |
-| `parse_infinite_params(request)` | `startRow`, `endRow`, `filters`, `sort`, `q`, `cols` |
-| `resolve_export_columns(spec, request)` | Uses `export_cols` param or spec defaults |
+See [AG-Grid integration](../ag-grid.md).
 
-## Filter/search toolbar
+---
+
+## Filter and search toolbar
 
 ```python
 from django_grid_view.types import FilterOption, FilterSpec, SearchSpec, ToolbarSpec
-
-toolbar = ToolbarSpec(
-    filters=(
-        FilterSpec(
-            id="period",
-            label="Period",
-            type="multiselect",
-            select_all_option=True,
-            options=(
-                FilterOption("all_future", "All future periods", exclusive_solo=True),
-                FilterOption("2026-01", "2026-01"),
-            ),
-        ),
-    ),
-    search=SearchSpec(param="q", mode="smart", backend="server"),
-)
 ```
 
-`FilterSpec.param` defaults to `id`. `FilterOption.exclusive_solo=True` marks an
-option that clears other choices when selected. `SearchSpec.backend="ag_grid"` is for
-AG-Grid quick search; `backend="server"` serializes `q` for server loaders and
-export builders.
+`SearchSpec.backend="server"` serializes `q` for page loaders and export builders.
+`backend="ag_grid"` targets AG-Grid quick search.
 
-## XLSX export (declarative layout)
+See [Filter semantics](../guides/filter-semantics-contract.md).
 
-Host apps build an engine-agnostic workbook description; django-grid-view renders bytes
-(xlsxwriter by default, openpyxl optional).
+---
+
+## XLSX export
+
+Layout types and registry:
 
 ```python
-from django_grid_view.export.xlsx import (
-    XlsxCell,
-    XlsxReport,
-    XlsxRow,
-    XlsxSheet,
-    report_from_simple_table,
-)
-from django_grid_view.export.xlsx.registry import (
-    FilenameFn as XlsxFilenameFn,
-    XlsxBuilderFn,
-    register_xlsx_builder,
-)
-from django_grid_view.types import RowDict
-
-# Scalar cell values only — no formulas or rich text at the layout layer.
-cell: XlsxCell = "Total"
-row: XlsxRow = ("№", "Name", 42)
-
-report = XlsxReport(
-    sheets=[
-        XlsxSheet(
-            name="Report",
-            title_rows=[("Clinic — Packages",), ("Period: 2025-01",)],
-            header_rows=[("No.", "Name", "Records")],
-            data_rows=[(1, "Package A", 120)],
-            footer_rows=[("Total", "", 120)],
-        )
-    ]
-)
-
-def build_packages_xlsx(request) -> XlsxReport:
-    ...
-
-register_xlsx_builder("packages", build_packages_xlsx, filename_fn=...)
+from django_grid_view.export.xlsx import XlsxCell, XlsxReport, XlsxSheet, report_from_simple_table
+from django_grid_view.export.xlsx.registry import register_xlsx_builder
 ```
 
-| Symbol | Role |
-|--------|------|
-| `XlsxCell` | `str \| int \| float \| bool \| None` |
-| `XlsxRow` | `Sequence[XlsxCell]` — use tuples for covariant-safe rows |
-| `XlsxSheet` | One worksheet: title/header/data/footer rows, merges, widths |
-| `XlsxReport` | Workbook with one or more `XlsxSheet` |
-| `XlsxBuilderFn` | `(HttpRequest) -> XlsxReport` for registry builders |
-| `FilenameFn` (XLSX) | `(HttpRequest, XlsxReport) -> str` download name |
-| `report_from_simple_table` | `SimpleTableConfig` → `XlsxReport`; pass a pre-resolved table or `request=` for title/meta lines |
+Install `django-grid-view[xlsx]`. See [XLSX export](../guides/xlsx-export.md).
 
-Prefer **`title_rows`** as `Sequence[Sequence[XlsxCell]]` (each title line is one row tuple).
-Do not confuse with host helpers named `title_lines` that return plain `tuple[str, ...]` —
-convert those to `title_rows=[(line,) for line in title_lines]` when filling `XlsxSheet`.
+---
 
-Install extras: `django-grid-view[xlsx]` (xlsxwriter) or `[xlsx-all]` (+ openpyxl).
-
-## PDF export registry
+## PDF export
 
 ```python
-from django_grid_view.export.registry import (
-    FilenameFn as PdfFilenameFn,
-    PdfBuilderFn,
-    register_pdf_builder,
-)
-from django_grid_view.types import GridArtifact
-
-def build_report_pdf(request) -> GridArtifact:
-    ...
-
-register_pdf_builder("report", build_report_pdf, filename_fn=...)
+from django_grid_view.export.registry import register_pdf_builder
 ```
 
-| Symbol | Role |
-|--------|------|
-| `PdfBuilderFn` | `(HttpRequest) -> GridArtifact` |
-| `FilenameFn` (PDF) | `(HttpRequest, GridArtifact) -> str` |
+Builder returns a `GridArtifact` or v2 export job depending on host setup — see
+[PDF export](../guides/pdf-export.md).
 
-## Simple Table print context (PDF/email)
+---
 
-```python
-from django_grid_view.export.table_html import (
-    PrintTableRow,
-    SimpleTablePrintContext,
-    simple_table_print_context,
-)
-from django_grid_view.tables import SimpleTableConfig
-
-ctx: SimpleTablePrintContext = simple_table_print_context(config)
-# header_rows reuse TableHeaderCell from types.template_cells
-```
-
-## Template render cells (`types.template_cells`)
-
-Used by `{% render_simple_table %}` and export paths — import when extending render
-or writing tests against prepared table rows:
-
-```python
-from django_grid_view.types.template_cells import (
-    PreparedTableRow,
-    SimpleTableRenderContext,
-    TableBodyCell,
-    TableFooterCell,
-    TableHeaderCell,
-)
-```
-
-`SimpleTableRenderContext` is the dict passed to `simple/table.html`. Column settings
-init is page-scoped: call `GridView.bootGridViewScope(document)` once (via
-`{% grid_view_bundle %}`), not per-table inline scripts. Tables with column settings
-expose `[data-cm-column-settings="1"]` on `.cm-page-table-layout` / `.cm-simple-wrapper`.
-
-## Column settings helpers
-
-```python
-from django_grid_view.tables import ColumnSettingsMeta, SimpleTableConfig
-
-meta: list[ColumnSettingsMeta] = config.column_settings_meta()
-group_id = config.group_settings_id(column_group)
-```
-
-## Stability
-
-| Module | Status |
-|--------|--------|
-| `django_grid_view.types` | Public — semver applies to names in `types.__all__` |
-| `django_grid_view.types.spec_wire` | Public wire contract (`schema/grid-view-spec.v1.json`) |
-| `django_grid_view.types.artifact_bind` | Public camelCase artifact JSON |
-| `django_grid_view.tables` | Public Simple Table API |
-| `django_grid_view.ag_grid` | Public AG-Grid server helpers (`parse_infinite_params`, export resolution) |
-| `django_grid_view.render` | Public render/build helpers |
-| `django_grid_view` (root re-exports) | Public convenience imports |
-| `django_grid_view.templatetags` | Public template tags (untyped Django surface) |
-| `django_grid_view.export` | Optional extras `[xlsx]`, `[static-charts]`; registries + layout types |
-| `django_grid_view.export.xlsx` | Public XLSX layout + builder registry |
-| `django_grid_view.types.template_cells` | Render TypedDicts (stable for tests/extensions) |
-
-Internal modules (`render.spec_parser`, `export._matplotlib_*`) may change without notice.
-
-## Host project setup
+## Type checking in host projects
 
 ```toml
-# pyproject.toml
 dependencies = ["django-grid-view>=1.0.0"]
-```
 
-```toml
-# pyproject.toml — strict checking (recommended)
 [tool.basedpyright]
 typeCheckingMode = "strict"
 ```
 
+Optional Django app for templates and preferences:
+
 ```python
-# settings.py
 INSTALLED_APPS = ["django_grid_view"]
 ```
 
-No separate types-stubs package is required.
+---
 
-**Optional engines:** For strict checking of openpyxl-backed code in this repo, dev deps
-include `openpyxl>=3.1` so pyright resolves from source. Do **not** use the published
-`openpyxl-stubs` package — it conflicts with openpyxl 3.x types. Host apps only need
-`django-grid-view[xlsx]` at runtime; typing comes from `django_grid_view` + layout types above.
+## Module stability
+
+| Module | Status |
+|--------|--------|
+| `grid_view_spec` | Public v2 contract |
+| `django_grid_view.types` | Public legacy + shared types |
+| `django_grid_view.tables` | Public Simple Table |
+| `django_grid_view.render` | Public build helpers |
+| `django_grid_view.ag_grid` | Public AG-Grid server helpers |
+| `django_grid_view.export` | Optional extras; registries |
+
+Internal modules (`render.spec_parser`, private export helpers) may change without notice.
 
 ## See also
 
-- [GridViewSpec JSON reference](grid-view-spec.md) — field tables and schema file
-- [Grid View artifacts](../grid-view-artifacts.md) — render flow
-- [Chat visualizer](../guides/chat-visualizer.md) — planner-driven presenter
+- [GridViewSpec reference](grid-view-spec.md)  
+- [Grid View artifacts](../grid-view-artifacts.md)  
+- [Legacy API index](../legacy/index.md)

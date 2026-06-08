@@ -1,0 +1,591 @@
+# grid-view-spec MCP
+
+Reference for the **gridviewspec-mcp** server: tool names, request/response shapes, validation
+codes, and policy flags. User setup: [MCP server guide](guides/mcp-server.md).
+
+**Scope:** read-mostly tools for `GridViewSpec` wire JSON — catalog, schema, examples, validation,
+normalization, migration hints, and A2UI patches. The server does not render HTML and does not
+require Django.
+
+## Role in the stack
+
+```text
+Authoring tool / IDE
+  -> gridviewspec-mcp (grid_view_spec.mcp)
+      -> validate / normalize / catalog / examples
+  -> host application stores spec + rows
+  -> render_grid_view_spec (or Django template tag) in the host
+```
+
+## Non-goals
+
+- Render HTML or PDF/XLSX
+- Access host request context, databases, or export endpoints
+- Replace `render_grid_view_spec` or host authorization
+
+## Package layout
+
+```text
+src/grid_view_spec/mcp/
+  __init__.py        # exports: run_* handlers, GridViewMcpPolicy, envelope
+  server.py          # MCP bootstrap, tool registration, main()
+  envelope.py        # {ok, tool, data, diagnostics} + GridViewMcpPolicy
+  catalog.py         # static capability catalog
+  schema.py          # loads grid-view-spec.v2.json from package data
+  validate.py        # structural validator (no Django)
+  normalize.py       # defaults and stable ordering
+  examples.py        # fixture specs by case id
+  migration_hints.py # legacy pattern -> v2 block mapping
+  a2ui.py            # A2UI catalog + apply_patch adapters
+```
+
+Constraints:
+
+- No Django import under `grid_view_spec/mcp/` (see `test_mcp_modules_have_no_django_imports`).
+- Tool inputs and outputs are JSON-serializable dicts only.
+- `schema.py` reads `grid-view-spec.v2.json` via `importlib.resources`; schema is not duplicated in Python.
+
+CLI:
+
+```toml
+[project.scripts]
+gridviewspec-mcp = "grid_view_spec.mcp.server:main"
+```
+
+Install: `pip install "django-grid-view[mcp]"` registers CLI **`gridviewspec-mcp`** (also
+`python -m grid_view_spec.mcp`). Aliases: `grid-view-spec-mcp`, `django-grid-view-mcp`.
+
+Policy CLI flags (default off): `--policy-allow-raw-html`, `--policy-allow-trusted-css-vars`,
+`--policy-strict-unknown-config`.
+
+## Tools
+
+Registered tools (8 total):
+
+| Tool | Role |
+|------|------|
+| `gridview_catalog` | Block types, area types, registries, authoring rules |
+| `gridview_schema` | JSON Schema for `GridViewSpec` or a `$defs` target |
+| `gridview_validate` | Structural + policy validation |
+| `gridview_normalize` | Deterministic defaults and stable ordering |
+| `gridview_examples` | Fixture-backed example specs by case id |
+| `gridview_migration_hints` | Legacy Django tags / 1.x builders → vNext blocks |
+| `gridview_a2ui_catalog` | A2UI projection catalog (`to_a2ui_catalog`) |
+| `gridview_apply_patch` | Atomic A2UI patch ops (`apply_a2ui_patch`) |
+
+### Result envelope (all tools)
+
+Every tool returns the **same envelope**. There is no per-tool `valid`/`errors`/`warnings` shape;
+status and diagnostics are uniform, only `data` differs by tool.
+
+```json
+{
+  "ok": true,
+  "tool": "gridview_validate",
+  "data": { "...": "tool-specific payload (see each tool's Output)" },
+  "diagnostics": [
+    { "severity": "error", "code": "missing_block_ref", "path": "layout.root.blocks[2]",
+      "message": "Block id 'records_table' is not defined in spec.blocks." }
+  ]
+}
+```
+
+Envelope rules:
+
+- `ok` is `false` **iff** `diagnostics` contains at least one `severity: "error"`; otherwise `true`;
+- `severity` is one of `error` \| `warning` \| `info`; `path` may be `""` when not location-specific;
+- `data` is always present (may be `{}` / `null` when an error aborts the operation);
+- the per-tool **Output** blocks below show only the `data` payload; assume this envelope wraps them;
+- the package mirrors this with one `GridViewResult` type (see architecture doc); MCP serializes it,
+  it does not invent a second result shape.
+
+### `gridview_catalog`
+
+Return supported block/action/filter/layout capabilities.
+
+Input:
+
+```json
+{}
+```
+
+Output:
+
+```json
+{
+  "root": "GridViewSpec",
+  "blocks": [
+    "GridViewHeader",
+    "GridViewToolbar",
+    "GridViewFilters",
+    "GridViewActions",
+    "GridViewTable",
+    "GridViewCharts",
+    "GridViewKpi",
+    "GridViewCards",
+    "GridViewGallery",
+    "GridViewImage",
+    "GridViewTabs",
+    "GridViewNav",
+    "GridViewContent",
+    "GridViewForm",
+    "GridViewOverlay",
+    "GridViewTemplate"
+  ],
+  "area_types": ["stack", "grid", "sidebar", "split", "tabs", "modal", "table-card"],
+  "registries": {
+    "renderers": ["badge", "tag", "link", "money", "progress", "date", "boolean", "image", "thumbnail"],
+    "validators": ["required", "email", "url", "number", "integer", "min", "max",
+                   "min_length", "max_length", "pattern", "domain"],
+    "editor_types": ["text", "number", "select", "date", "boolean"]
+  },
+  "rules": [
+    "blocks are defined in spec.blocks",
+    "layout references block ids",
+    "block ids are globally unique across the whole spec tree, including nested overlay/lazy specs",
+    "use type as discriminator; visual variants use presentation; no kind/variant/*_type",
+    "GridViewToolbar is always a layout block; no page/embedded modes; bind via target",
+    "in-card chrome = a table-card area holding [toolbar(target=table_id), table]",
+    "at most one toolbar search per table (XOR)",
+    "GridViewFilters.target is explicit (null = page-wide; block id = scoped)",
+    "custom cells use GridViewColumn.renderer (registry id), never inline JS",
+    "images use GridViewGallery / GridViewImage / renderer=image; spec carries resolved URLs only — image backend is a host builder, never in the spec",
+    "inline editing uses GridViewTable.edit + GridViewColumn.editable",
+    "GridViewForm is the declarative form; GridViewTemplate is bespoke host content only",
+    "spec values must be JSON-serializable (JsonValue); no callables, ORM, or request",
+    "GridViewTemplate is trusted file/raw template content"
+  ]
+}
+```
+
+### `gridview_schema`
+
+Return JSON schema for `GridViewSpec` or a specific block.
+
+Input:
+
+```json
+{ "target": "GridViewSpec" }
+```
+
+Targets (each must resolve to a `$defs` entry in `schema/grid-view-spec.v2.json`; unknown target =
+error `unknown_schema_target`):
+
+- `GridViewSpec`
+- `GridViewBlock`
+- `GridViewFilters`
+- `GridViewActions`
+- `GridViewTable`
+- `GridViewForm`
+- `GridViewGallery`
+- `GridViewImage`
+- `GridViewOverlay`
+- `GridViewTemplate`
+- `GridViewLazyDefaults`
+- `GridViewLazyBlock`
+- `GridViewLazyResponse`
+- `A2UIPatch`
+
+### `gridview_validate`
+
+Validate a spec and return structural errors.
+
+Input:
+
+```json
+{ "spec": { "...": "GridViewSpec JSON" } }
+```
+
+Validation rules. Each row is `error_code` — condition (severity). The validator MUST emit the
+exact `code` strings below as `diagnostics[].code` (see Result envelope) so host tests can assert on
+them; `severity` maps to the envelope `severity` field.
+
+Structure / references:
+
+- `duplicate_block_id` — the same block id appears twice **anywhere in the spec tree**, including
+  nested `GridViewOverlay.spec` and `GridViewLazyResponse.spec` (error);
+- `missing_layout_ref` — a layout area references a block id not in `spec.blocks` (error);
+- `missing_block_ref` — a block-to-block ref is undefined: `toolbar.filters`, `toolbar.actions`,
+  `header.nav`, `header.content`, `charts.filters`, `tabs[].area|block`, `overlay.content`,
+  `*.target`, `search.bind` (error);
+- `unknown_type` — `block.type` is not a known block type (error);
+- `base_field_redeclared` — a block schema redeclares `id`/`title`/`config`/`style`/`lazy` (error).
+
+Toolbar / filters / search (vNext model):
+
+- `multiple_search_per_table` — more than one toolbar search bound (`target`/`bind`) to the same
+  table (error; this is the XOR rule);
+- `filter_target_mismatch` — a `GridViewFilters` block mounted via `toolbar.filters` has
+  `target` != the toolbar `target` (error);
+- `unknown_target_block` — `toolbar.target` / `filters.target` / `charts.filters` points to a
+  non-existent block (error).
+
+Table / columns / editing / rendering:
+
+- `invalid_filter_value` — `GridViewColumn.filter` value does not match `filter.type` (incl.
+  `SetFilterModel` for `set`) (error);
+- `editable_without_edit` — a column has `editable=true` but the table has no `edit`
+  (`GridViewTableEdit`) (error);
+- `edit_commit_xor` — `GridViewTableEdit` sets both `commit_endpoint` and `commit_callback`, or
+  neither (error);
+- `unknown_renderer` — `GridViewColumn.renderer` is neither a built-in (see catalog
+  `registries.renderers`) nor declared in `policy.registered_renderers` (error);
+- `column_source_unstable_ids` — `GridViewColumnSource` declared without a documented stable-id
+  contract note (warning; reminds host that dynamic column ids must be stable across refetch).
+
+Media (gallery / image):
+
+- `gallery_no_source` — `GridViewGallery` has neither inline `images` nor a `datasource.endpoint`
+  (error: nothing to render);
+- `image_no_url` — a `GridViewImageSource` (in `GridViewImage`, `GridViewGallery.images`, or a
+  `renderer=image` cell) has no `url`, `thumb`, or `variants` (error: spec must carry resolved URLs,
+  the image backend is a host builder).
+
+Form:
+
+- `unknown_validator_kind` — `GridViewValidator.kind` not in the allowed set (error);
+- `pattern_requires_value` — `kind="pattern"` with empty `value` (error);
+- `custom_validator_missing_name` — `kind="custom"` without a `name`, or `name` not in
+  `policy.registered_validators` (error);
+- `form_field_duplicate_name` — two `GridViewField` share a `name` (error);
+- `fieldset_unknown_field` — `GridViewFieldset.fields` references an undefined field name (error).
+
+Overlay / template:
+
+- `overlay_content_xor` — not exactly one of `spec` / `content` (unless lazy placeholder) (error);
+- `overlay_content_not_template` — `content` does not reference a `GridViewTemplate` block (error);
+- `invalid_template_mode` — `mode` not in {`file`,`raw`} (error);
+- `invalid_template_payload` — `mode=file` without `template`, or `mode=raw` without `html` (error);
+- `unsafe_template_file` — `mode=file` while `policy.allow_template_file=false` (error);
+- `unsafe_raw_html` — `mode=raw` while `policy.allow_raw_html=false` (error).
+
+Lazy (split contract):
+
+- `lazy_block_missing_endpoint` — a `GridViewLazyBlock` (i.e. `block.lazy` present) without
+  `endpoint` (error);
+- `lazy_disabled_global` — a block is lazy while `spec.config.lazy.enabled=false` (warning:
+  block renders eagerly);
+- `invalid_lazy_response` — `GridViewLazyResponse.state`/payload mismatch with `mode` (error).
+
+Style / serialization:
+
+- `raw_style_key` — a style key outside the `GridViewStyle` token allowlist (error);
+- `trusted_css_vars_denied` — `GridViewTrustedStyle.css_vars` set while
+  `policy.allow_trusted_css_vars=false` (error);
+- `non_serializable_value` — a spec leaf is not `JsonValue` (callable/ORM/etc.) (error);
+- `unknown_config_key` — an `extra`/`config` key not in the documented set while
+  `policy.strict_unknown_config=true` (error).
+
+Output (`data`): `{ "spec": <the validated spec, unchanged> }`. All findings go to envelope
+`diagnostics`; the `ok` flag (not a `valid` field) reflects whether any error-severity diagnostic was
+emitted. Example envelope:
+
+```json
+{
+  "ok": false,
+  "tool": "gridview_validate",
+  "data": { "spec": { "...": "GridViewSpec JSON (unchanged)" } },
+  "diagnostics": [
+    { "severity": "error", "code": "missing_block_ref", "path": "layout.root.blocks[2]",
+      "message": "Block id 'records_table' is not defined in spec.blocks." }
+  ]
+}
+```
+
+### `gridview_normalize`
+
+Apply deterministic defaults and stable ordering.
+
+Input:
+
+```json
+{ "spec": { "...": "GridViewSpec JSON" }, "policy": { "allow_template_file": true, "allow_raw_html": false } }
+```
+
+Normalization (apply in this order; output must be deterministic and idempotent —
+`normalize(normalize(x)) == normalize(x)`):
+
+1. add default `meta`, `config`, `layout` when absent;
+2. add default `type` for each block where the target class is unambiguous;
+3. fill `GridViewLazyDefaults` on `spec.config.lazy` (enabled defaults `false`);
+4. for each `block.lazy` (`GridViewLazyBlock`), resolve `None` overrides (`method`, `placeholder`,
+   `mode`, `timeout_ms`) from `GridViewLazyDefaults`; never invent an `endpoint`;
+5. default `GridViewFilters.target` to `null` (page-wide) when omitted;
+6. default `GridViewToolbar.presentation` to `default`;
+7. normalize empty collections to canonical empty tuples/lists;
+8. preserve overlay `content` as a block id reference; never inline a `GridViewTemplate`;
+9. preserve `GridViewTemplate.mode`; default missing mode to `file`;
+10. drop style keys outside the `GridViewStyle` token allowlist (record a `raw_style_key` warning);
+11. preserve `GridViewTrustedStyle.css_vars` only when `policy.allow_trusted_css_vars=true`;
+12. sort blocks/areas into canonical order only when `policy` requests canonical output.
+
+Normalization MUST NOT change semantics: it never rebinds `target`, never adds/removes search, and
+never resolves dynamic columns (`column_source` is left untouched).
+
+Output (`data`): `{ "spec": <normalized spec> }`. Lossy/adjusting steps (e.g. dropped
+`raw_style_key`) are reported as `warning` diagnostics; `ok` stays `true` unless a step encounters an
+error-severity condition.
+
+### `gridview_examples`
+
+Return examples by use case.
+
+Input:
+
+```json
+{ "case": "doctor_detail_overlay_html" }
+```
+
+Output (`data`): `{ "case": "<id>", "spec": <example GridViewSpec> }`. Each case is a **complete,
+validate-clean** spec (running `gridview_validate` on it returns `ok: true` with no error
+diagnostics). Add a test `test_mcp_examples_valid.py` that loops every case id and asserts this.
+
+Cases:
+
+- `table_with_toolbar` — root toolbar (`target=table`) + simple table
+- `table_card_fused` — `table-card` area holding `[toolbar(target=table), table]`
+- `departments_list_filters` — page filters (`target=null`) + table
+- `doctor_detail_overlay_template` — entity header + overlay referencing a `GridViewTemplate`
+- `department_summary` — page-wide filters driving KPI + cards + charts + tables
+- `ag_grid_table` — `backend="ag_grid"` + `datasource`
+- `dynamic_columns_table` — `column_source` with `depends_on` filter + stable ids
+- `inline_edit_table` — `GridViewTableEdit(mode="row")` + `editable` columns + `commit_endpoint`
+- `cell_renderers` — columns using built-in `renderer` ids (`badge`/`money`/`link`/`image`)
+- `product_gallery` — `GridViewGallery` with inline `images` (resolved URLs + `variants`), lightbox
+- `lazy_gallery` — `GridViewGallery` with empty `images` + `datasource.endpoint`
+- `standalone_image` — `GridViewImage` hero block with `aspect`/`fit`
+- `declarative_form` — `GridViewForm` with fields, fieldsets, and validators (incl. `pattern`)
+- `lazy_table` — schema-known columns, rows lazy via `GridViewLazyBlock`
+- `lazy_overlay_template` — overlay shell known, body lazy
+- `tabs_area_refs` — `GridViewTabs` referencing areas
+- `template_file_block` / `template_raw_block`
+- `a2ui_patch_add_chart`
+
+### `gridview_migration_hints`
+
+Map old package/host template patterns and 1.x Python builders to vNext `GridViewSpec`. This is a
+migration aid for host code, not a separate MCP contract version.
+
+Input:
+
+```json
+{
+  "patterns": [
+    "render_toolbar_search",
+    "render_dashboard_filter_bar",
+    "export_paired_buttons",
+    "render_django_grid_view_gear"
+  ]
+}
+```
+
+Output:
+
+```json
+{
+  "hints": [
+    {
+      "old": "render_toolbar_search",
+      "new": "GridViewToolbar(search=GridViewSearch(...))"
+    },
+    {
+      "old": "render_dashboard_filter_bar",
+      "new": "GridViewFilters(schema=..., state=...)"
+    },
+    {
+      "old": "export_paired_buttons",
+      "new": "GridViewActions(items=(GridViewExportAction(...),))"
+    },
+    {
+      "old": "render_django_grid_view_gear",
+      "new": "GridViewTable(settings=GridViewTableSettings(...)); table renderer shows settings control"
+    },
+    {
+      "old": "inline edit JS via GridViewTable.assets / data-cm-edit",
+      "new": "GridViewTable(edit=GridViewTableEdit(mode='cell'|'row', commit_endpoint=...)) + GridViewColumn(editable=True)"
+    },
+    {
+      "old": "custom cellRenderer / render() callable on a column",
+      "new": "GridViewColumn(renderer='<built-in or registered id>')"
+    },
+    {
+      "old": "dynamic price-tier columnDefs built in host JS",
+      "new": "GridViewTable(column_source=GridViewColumnSource(endpoint=..., depends_on=(...), anchor=...))"
+    },
+    {
+      "old": "embedded cm-toolbar inside simple/table.html",
+      "new": "GridViewArea(type='table-card', blocks=[toolbar_id, table_id]) with toolbar.target=table_id"
+    },
+    {
+      "old": "custom POST form template",
+      "new": "GridViewForm(fields=(GridViewField(...),), submit=GridViewExportAction|button, endpoint=...)"
+    },
+    {
+      "old": "product image gallery / carousel in a template (host JS + storage URLs)",
+      "new": "GridViewGallery(images=(GridViewImageSource(url=..., variants=(...)),), lightbox=True); host builder resolves backend URLs in page_data"
+    },
+    {
+      "old": "<img> thumbnail column rendered in a custom table template",
+      "new": "GridViewColumn(renderer='image', extra={'thumb_field': '...', 'size': '...'})"
+    }
+  ]
+}
+```
+
+### `gridview_a2ui_catalog`
+
+Return A2UI projection catalog for `GridViewSpec`.
+
+Input:
+
+```json
+{}
+```
+
+Output:
+
+```json
+{
+  "catalog": "django-grid-view",
+  "source_contract": "GridViewSpec",
+  "components": [
+    { "name": "GridViewTable", "type": "table", "editable": true, "dynamic_columns": true },
+    { "name": "GridViewForm", "type": "form", "declarative_validators": true },
+    { "name": "GridViewGallery", "type": "gallery", "lazy": true, "lightbox": true },
+    { "name": "GridViewImage", "type": "image" },
+    { "name": "GridViewOverlay", "type": "overlay" },
+    { "name": "GridViewTemplate", "type": "template", "modes": ["file", "raw"], "trusted_host_content": true }
+  ]
+}
+```
+
+### `gridview_apply_patch`
+
+Apply a validated A2UI/GridView patch by id. This tool is a **thin wire adapter over the package's
+`apply_a2ui_patch`** (architecture doc, A2UI Projection): it deserializes the wire ops into
+`A2UIPatchOp`, calls `apply_a2ui_patch`, and serializes `A2UIPatchResult`. It must not implement its
+own patch logic, op set, or error codes.
+
+Supported patch ops (map 1:1 to `A2UIPatchOp.op`; reject any other `op` with `unknown_patch_op`):
+
+- `add_block` — `{ "op": "add_block", "block": {…} }` (block id must be globally unique);
+- `update_block` — `{ "op": "update_block", "block_id": "x", "set": {…} }` (shallow field merge; the
+  adapter rebuilds the full `block` before delegating);
+- `remove_block` — `{ "op": "remove_block", "block_id": "x" }` (also removes layout refs);
+- `place_block` — `{ "op": "place_block", "area_id": "root", "block_id": "x", "after": "kpi"|null }`
+  (`after` resolves to `A2UIPatchOp.index`; `null` = append);
+- `unplace_block` — `{ "op": "unplace_block", "area_id": "root", "block_id": "x" }`;
+- `move_block` — `{ "op": "move_block", "area_id": "root", "block_id": "x", "after": "kpi"|null }`.
+
+Apply algorithm (delegated to `apply_a2ui_patch`; semantics the agent must preserve):
+
+1. never mutate the caller's spec — `apply_a2ui_patch` returns a new spec;
+2. ops apply in order and the patch is **atomic**: any failing op aborts the whole patch (no partial
+   apply) and yields `ok: false` with the offending op index in the diagnostic `path` (e.g.
+   `ops[1]`);
+3. the result is validated (`gridview_validate`) and then normalized (`gridview_normalize`) before
+   return;
+4. `add_block`/`update_block` reject content that fails policy (raw HTML, css_vars, unknown
+   renderer/validator ids), reusing the same error codes as `gridview_validate` and the shared A2UI
+   patch codes (`unknown_block`, `add_block_missing_block`, `duplicate_block_id`, `unknown_area`,
+   `place_index_out_of_range`).
+
+Input:
+
+```json
+{
+  "spec": { "...": "GridViewSpec JSON" },
+  "patch": [
+    { "op": "add_block", "block": { "id": "chart", "type": "charts" } },
+    { "op": "place_block", "area_id": "root", "block_id": "chart", "after": "kpi" }
+  ]
+}
+```
+
+Output (`data`): `{ "spec": <patched + normalized spec> }`. On an aborted (atomic) patch, `ok` is
+`false`, `data.spec` is the **unchanged input spec**, and the failing op is reported as an `error`
+diagnostic with `path` = the op index (e.g. `"ops[1]"`). Example envelope:
+
+```json
+{
+  "ok": true,
+  "tool": "gridview_apply_patch",
+  "data": { "spec": { "...": "normalized GridViewSpec JSON" } },
+  "diagnostics": []
+}
+```
+
+## Resources
+
+Expose compact resources:
+
+```text
+gridview://schema/GridViewSpec
+gridview://schema/GridViewBlock
+gridview://catalog
+gridview://examples/table_with_toolbar
+gridview://examples/doctor_detail_overlay_template
+gridview://migration/legacy-tags
+```
+
+## Policies
+
+Validation policy:
+
+`GridViewMcpPolicy` mirrors the package's `GridViewPolicy` (architecture doc, A2UI Projection): the
+shared capability fields keep the **same names and meaning**, plus MCP-only server toggles. The
+server builds a package `GridViewPolicy` from these shared fields and passes it to validation /
+`from_a2ui_intent` — no parallel gating logic.
+
+```python
+@dataclass(frozen=True, slots=True)
+class GridViewMcpPolicy:
+    # shared with package GridViewPolicy (same names):
+    allow_template_file: bool = True
+    allow_raw_html: bool = False
+    allow_trusted_css_vars: bool = False
+    strict_unknown_config: bool = False
+    registered_renderers: tuple[str, ...] = ()   # host renderer ids accepted beyond built-ins
+    registered_validators: tuple[str, ...] = ()  # host custom-validator ids for kind="custom"
+    # MCP-server-only toggles:
+    require_layout_refs: bool = True
+    require_overlay_content: bool = True
+```
+
+Default policy allows trusted host template files because `GridViewTemplate(mode="file")` is an
+official package contract. Raw HTML is disabled by default for agent-generated specs.
+Trusted CSS variables are disabled by default for agent-generated specs.
+`registered_renderers` / `registered_validators` are empty by default: only built-in registry ids
+(see catalog) pass validation unless the host extends them.
+
+## Host Extension
+
+Generic MCP should know package contracts only.
+
+Host-specific MCP can wrap it:
+
+```text
+nszu-grid-view-mcp
+  -> gridviewspec-mcp
+  -> NSZU page taxonomy
+  -> NSZU examples
+  -> NSZU migration hints
+```
+
+Generic server remains reusable for other hosts.
+
+## Ship status
+
+All eight tools are implemented. Tests live under `tests/test_gridviewspec_mcp.py` and related MCP
+modules. Host-specific wrappers (for example `nszu-grid-view-mcp`) should delegate to these tools and
+add only local taxonomy, examples, and migration hints.
+
+## Acceptance
+
+- Every tool returns the same `ok`/`tool`/`data`/`diagnostics` envelope.
+- Catalog, schema, examples, validate, normalize, migration hints, A2UI catalog, and apply_patch
+  work without Django settings or imports.
+- Validation covers duplicate ids, broken layout refs, toolbar/search rules, filter targets,
+  renderer/validator ids, overlays, and non-serializable values.
+- `gridview_apply_patch` validates and normalizes; it does not mutate the caller's input dict.
+- Each documented `error_code` and example `case` has a dedicated test.

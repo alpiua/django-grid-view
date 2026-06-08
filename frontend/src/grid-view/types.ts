@@ -102,7 +102,8 @@ export interface GridViewPublic {
     scope: Document | Element,
     adapter: GridRowsAdapter
   ) => (() => void) | null;
-  bootScope: (scope?: Document | Element) => void;
+  boot: (root?: Document | Element | null) => void;
+  bootScope: (scope?: Document | Element | null) => void;
   parseSmartQuery: (text: unknown) => SmartQueryParse;
   buildFilterUrl: (baseUrl: string, state: FilterState) => string;
   [key: string]: unknown;

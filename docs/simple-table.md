@@ -1,6 +1,11 @@
 # Simple Table
 
-Server-rendered HTML tables with client-side sort, search, column settings, and server XLSX/PDF export links.
+> **Legacy API.** New pages should use `GridViewTable(backend="simple")` inside a
+> [GridViewSpec](reference/grid-view-spec.md). This page documents the older `SimpleTableConfig`
+> path, which many host apps still use.
+
+Simple Table renders HTML tables on the server. The browser adds sort, search, column settings, and
+export links that stay in sync with visible columns.
 
 ## Configuration
 
@@ -43,14 +48,14 @@ config = SimpleTableConfig(
 
 ### Column settings
 
-Enable with `column_settings=True` on `SimpleTableConfig` or `GridViewSpec`.
+Turn on with `column_settings=True`.
 
 | Feature | Behaviour |
 |---------|-----------|
-| Gear button | Included in table toolbar; use `{% render_django_grid_view_gear grid_id %}` for external toolbars |
+| Gear button | In the table toolbar, or `{% render_django_grid_view_gear grid_id %}` on external toolbars |
 | Modal | Drag order, show/hide, L/R pin, named presets |
-| Persistence | `localStorage` session state + `GridPreference.col_presets` via `api_grid_preferences` |
-| Export sync | Export links with `data-cm-export-sync data-cm-grid-id="…"` receive `export_cols` query param |
+| Persistence | Session state in `localStorage` plus server presets via `GridPreference` |
+| Export sync | Links with `data-cm-export-sync` receive an `export_cols` query param |
 
 ```django
 {% render_django_grid_view_gear "products" %}
@@ -71,53 +76,25 @@ def build_products_xlsx(request):
 
 ### Column groups
 
-Multi-level headers:
+Multi-level headers use `ColumnGroup(label="Q1", column_keys=["jan", "feb", "mar"])`.
 
-```python
-ColumnGroup(label="Q1", column_keys=["jan", "feb", "mar"])
-```
+The settings modal treats each group as one unit for show/hide and reorder. Standalone columns stay
+individual units. Pin (L/R) applies to standalone columns only. Export expands visible groups to
+leaf column keys.
 
-With `column_groups`, the settings modal operates on **units**: each `ColumnGroup` is one chip (show/hide/reorder moves the whole group + its leaf columns together). Standalone columns outside groups remain individual units. Pin (L/R) is available for standalone columns only. Export expands visible groups to their leaf column keys.
-
-### Row actions
+### Row actions and footer
 
 ```python
 SimpleTableConfig(
     grid_id="orders",
     columns=[...],
     data=rows,
-    row_url="/orders/{id}/",  # placeholders from row keys
-    # or row_onclick="openOrder({id})"
+    row_url="/orders/{id}/",
+    footer_row={"name": "Total", "amount": 1000},
+    footer_label="Summary",
+    footer_label_span=2,
 )
 ```
-
-### Footer row
-
-```python
-footer_row={"name": "Total", "amount": 1000},
-footer_label="Summary",
-footer_label_span=2,
-```
-
-## Table layout (overflow)
-
-DOM contract rendered by `simple/table.html`:
-
-```
-.cm-table-shell
-  .cm-table-viewport     ← horizontal scroll when columns exceed width
-    table.cm-table
-  .cm-col-filter-portal   ← fixed popover; data-cm-col-filter-table = grid_id
-```
-
-CSS behaviour:
-
-1. **Squeeze** — `th`/`td` use `text-overflow: ellipsis` and `white-space: nowrap` inside a `width: 100%` table.
-2. **Scroll** — when intrinsic column minimums exceed the viewport, `table { min-width: max-content }` expands the table and `.cm-table-viewport { overflow-x: auto }` shows a horizontal scrollbar.
-
-Shell (`.cm-table-shell`) clips border-radius; scrolling happens only in the viewport, not the page.
-
-Column filter UI is documented in [Filter Semantics Contract](guides/filter-semantics-contract.md) (UI layer vs `SimpleTable.applyAllFilters`).
 
 ## Template tag
 
@@ -126,19 +103,29 @@ Column filter UI is documented in [Filter Semantics Contract](guides/filter-sema
 {% render_simple_table config %}
 ```
 
-The tag delegates to `render.simple_table_context` (header/footer/body prep) and injects `data-cm-*` attributes consumed by `grid-view.min.js` (`GridView.SimpleTable` + column settings).
+The tag prepares header, body, and footer context and sets `data-cm-*` attributes read by
+`grid-view.min.js`.
+
+## Table layout
+
+Rendered structure:
+
+```
+.cm-table-shell
+  .cm-table-viewport     ← horizontal scroll when columns exceed width
+    table.cm-table
+  .cm-col-filter-portal   ← column filter popover
+```
+
+Wide tables scroll inside the viewport, not the whole page. Column filter behaviour is described in
+[Filter semantics](guides/filter-semantics-contract.md).
 
 ## Export
 
-Server export via registered builders:
+Register builders and mount export routes — [XLSX export](guides/xlsx-export.md),
+[PDF export](guides/pdf-export.md).
 
-- XLSX: `{% export_xlsx_href 'my_table' … %}` — [XLSX export](guides/xlsx-export.md)
-- PDF: `{% export_pdf_href 'my_table' … %}` — [PDF export](guides/pdf-export.md)
-
-Host mounts `/api/export/xlsx/` and `/api/export/pdf/`; set `DJANGO_GRID_VIEW_EXPORT_*_URL` in settings.
-Optional: `export_xlsx_url` / `export_pdf_url` on `SimpleTableConfig` for toolbar links.
-
-Sync export columns from the browser:
+Sync visible columns from the browser:
 
 ```html
 <a href="{% export_xlsx_href 'products' %}"
@@ -146,20 +133,18 @@ Sync export columns from the browser:
    data-cm-grid-id="products">XLSX</a>
 ```
 
-`GridView.AgGrid.syncExportHref` is intentionally shared with Simple Table column settings:
-when the grid id resolves to a column-settings adapter instead of an AG-Grid host, it writes
-`export_cols` from the displayed Simple Table columns.
+## When to keep Simple Table
 
-## When to use Simple Table vs Grid View 1.0
+| Keep Simple Table | Prefer GridViewSpec |
+|-------------------|---------------------|
+| Custom `Column.render()` cell HTML | Declarative blocks + layout |
+| Existing dashboard tables | New pages with filters, KPI, charts |
+| No KPI/chart on the same block | One spec for the whole page |
 
-| Use Simple Table | Use Grid View artifact |
-|------------------|------------------------|
-| Custom `Column.render()` HTML | Declarative `GridViewSpec` + KPI + charts |
-| Legacy dashboard tables | Chat / LLM-driven views |
-| No KPI/chart on same block | One `{% render_grid_view %}` block |
-
-See [Grid View artifacts](grid-view-artifacts.md) for the unified spec path.
+See [Grid View artifacts](grid-view-artifacts.md) for the flat-spec path, or
+[Getting started](getting-started.md) for GridViewSpec v2.
 
 ## Shared column settings with AG-Grid
 
-Column settings UI (`modal.html`, presets, drag/pin) is implemented in `column-settings.min.js` as `GridView.createColumnSettings`. It ships with `{% grid_view_bundle %}` alongside `grid-view.min.js`. `AgGridHost` delegates after `gridApi` init; Simple Table uses the DOM table adapter. Same modal: `django_grid_view/modal.html`.
+Column settings UI ships inside `{% grid_view_bundle %}`. AG-Grid and Simple Table share the same
+modal and preset storage pattern.

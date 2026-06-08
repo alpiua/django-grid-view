@@ -1,0 +1,195 @@
+"""Django HTTP views wired through :class:`DjangoGridViewHost`."""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Sequence
+
+from django.contrib.auth.decorators import login_required
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.views.decorators.http import require_GET, require_POST
+from django_grid_view.export.throttle import export_throttle
+from django_grid_view.types.grid_settings import GridSettingsPayload
+from django_grid_view.types.json import is_json_object
+from grid_view_spec.backends.django.export import DjangoExportContext
+from grid_view_spec.backends.django.host import DjangoGridViewHost
+from grid_view_spec.backends.django.lazy import LazyPageLoaderNotFoundError, resolve_lazy_block
+from grid_view_spec.backends.fragment.html import render_block_fragment
+from grid_view_spec.export.pipeline import (
+    default_pdf_filename,
+    default_xlsx_filename,
+    render_pdf_html,
+    render_xlsx_report,
+)
+from grid_view_spec.render.spec_renderer import build_render_context
+from grid_view_spec.types.host import GridPrefs, GridViewHostConfig
+from grid_view_spec.types.json import RowDict
+from grid_view_spec.types.spec import GridViewSpec
+
+__all__ = [
+    "django_host",
+    "export_pdf",
+    "export_xlsx",
+    "load_lazy_block",
+    "render_lazy_block_response",
+    "save_grid_prefs",
+]
+
+
+def django_host(
+    request: HttpRequest,
+    *,
+    config: GridViewHostConfig | None = None,
+) -> DjangoGridViewHost:
+    return DjangoGridViewHost(request, config=config)
+
+
+def _parse_prefs_payload(body: bytes) -> GridSettingsPayload | None:
+    try:
+        raw = json.loads(body)
+    except json.JSONDecodeError:
+        return None
+    if not is_json_object(raw):
+        return None
+    payload: GridSettingsPayload = {}
+    grid_id = raw.get("grid_id")
+    if isinstance(grid_id, str):
+        payload["grid_id"] = grid_id
+    col_presets = raw.get("colPresets")
+    if is_json_object(col_presets):
+        payload["colPresets"] = col_presets
+    searches = raw.get("searches")
+    if isinstance(searches, list):
+        payload["searches"] = [
+            item for item in searches if isinstance(item, str | int | float | bool) or item is None
+        ]
+    return payload
+
+
+def _prefs_from_payload(data: GridSettingsPayload) -> GridPrefs:
+    import json
+
+    from grid_view_spec.types.json import JsonObject
+
+    col_raw = data.get("colPresets") or {}
+    col_presets: JsonObject = json.loads(json.dumps(col_raw))
+    searches_raw = data.get("searches") or []
+    searches = tuple(json.loads(json.dumps(searches_raw)))
+    return GridPrefs(col_presets=col_presets, searches=searches)
+
+
+@require_POST
+@login_required
+def save_grid_prefs(request: HttpRequest) -> JsonResponse:
+    data = _parse_prefs_payload(request.body)
+    if data is None:
+        return JsonResponse({"status": "error", "message": "Invalid JSON"}, status=400)
+    grid_id = data.get("grid_id")
+    if not grid_id:
+        return JsonResponse(
+            {"status": "error", "message": "Missing grid_id parameter"},
+            status=400,
+        )
+    host = django_host(request)
+    subject_id = host.current_subject_id()
+    if subject_id is None:
+        return JsonResponse({"status": "error", "message": "Unauthorized"}, status=401)
+    host.save_grid_prefs(subject_id, grid_id, _prefs_from_payload(data))
+    return JsonResponse({"status": "ok"})
+
+
+def render_lazy_block_response(
+    request: HttpRequest,
+    spec: GridViewSpec,
+    rows: Sequence[RowDict],
+    block_id: str,
+    *,
+    host: DjangoGridViewHost | None = None,
+) -> HttpResponse:
+    """Render one block as HTMX partial HTML."""
+    host = host or django_host(request)
+    ctx = build_render_context(spec, rows, host=host)
+    export_ctx = DjangoExportContext.from_request(request, table_id=block_id)
+    html = render_block_fragment(ctx, block_id, host=host, export_ctx=export_ctx)
+    return HttpResponse(html)
+
+
+@require_GET
+def load_lazy_block(
+    request: HttpRequest,
+    *,
+    host: DjangoGridViewHost | None = None,
+) -> HttpResponse:
+    """HTMX lazy endpoint backed by :func:`register_lazy_page_loader`."""
+    from django.http import Http404
+
+    host = host or django_host(request)
+    try:
+        spec, rows, block_id = resolve_lazy_block(host, request)
+    except LazyPageLoaderNotFoundError as exc:
+        raise Http404(str(exc)) from exc
+    except ValueError as exc:
+        return HttpResponse(str(exc), status=400)
+    return render_lazy_block_response(request, spec, rows, block_id, host=host)
+
+
+@require_GET
+@export_throttle(
+    key_fn=lambda request: (
+        f"export:{getattr(request.user, 'pk', 'anon')}:{request.GET.get('builder', '')}"
+    ),
+)
+def export_pdf(
+    request: HttpRequest,
+    *,
+    host: DjangoGridViewHost | None = None,
+) -> HttpResponse:
+    from django.http import Http404
+    from django_grid_view.export.pdf_response import pdf_response_from_html
+    from grid_view_spec.export.registry import ExportBuilderNotFoundError, get_pdf_export
+
+    host = host or django_host(request)
+    ctx = DjangoExportContext.from_request(request)
+    try:
+        entry = get_pdf_export(ctx.builder_key())
+    except ExportBuilderNotFoundError as exc:
+        raise Http404(str(exc)) from exc
+    html, payload = render_pdf_html(host, ctx, entry)
+    if entry.filename_fn is not None:
+        filename = entry.filename_fn(host, ctx, payload)
+    else:
+        filename = default_pdf_filename(host, ctx, payload)
+
+    return pdf_response_from_html(html, filename)
+
+
+@require_GET
+@export_throttle(
+    key_fn=lambda request: (
+        f"export_xlsx:{getattr(request.user, 'pk', 'anon')}:{request.GET.get('builder', '')}"
+    ),
+)
+def export_xlsx(
+    request: HttpRequest,
+    *,
+    host: DjangoGridViewHost | None = None,
+) -> HttpResponse:
+    from django.http import Http404
+    from django_grid_view.export.xlsx_response import xlsx_response_from_report
+    from grid_view_spec.export.registry import ExportBuilderNotFoundError, get_xlsx_export
+
+    host = host or django_host(request)
+    ctx = DjangoExportContext.from_request(request)
+    try:
+        entry = get_xlsx_export(ctx.builder_key())
+    except ExportBuilderNotFoundError as exc:
+        raise Http404(str(exc)) from exc
+    report, payload = render_xlsx_report(host, ctx, entry)
+    if entry.legacy_filename_fn is not None:
+        filename = entry.legacy_filename_fn(ctx, report)
+    elif entry.filename_fn is not None:
+        filename = entry.filename_fn(host, ctx, payload)
+    else:
+        filename = default_xlsx_filename(host, ctx, payload)
+
+    return xlsx_response_from_report(report, filename)

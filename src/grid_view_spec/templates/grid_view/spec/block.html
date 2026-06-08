@@ -1,0 +1,19 @@
+<div class="cm-block cm-block-{{ block.type | e }}" data-block-id="{{ block.id | e }}" id="block-{{ block.id | e }}">
+  {% if block.type == 'header' %}{% include 'header.html' %}
+  {% elif block.type == 'toolbar' %}{% include 'toolbar.html' %}
+  {% elif block.type == 'filters' %}{% include 'filters.html' %}
+  {% elif block.type == 'actions' %}{% include 'actions.html' %}
+  {% elif block.type == 'table' %}{% include 'table.html' %}
+  {% elif block.type == 'charts' %}{% include 'charts.html' %}
+  {% elif block.type == 'kpi' %}{% include 'kpi.html' %}
+  {% elif block.type == 'cards' %}{% include 'cards.html' %}
+  {% elif block.type == 'tabs' %}{% include 'tabs.html' %}
+  {% elif block.type == 'nav' %}{% include 'nav.html' %}
+  {% elif block.type == 'content' %}{% include 'content.html' %}
+  {% elif block.type == 'form' %}{% include 'form.html' %}
+  {% elif block.type == 'overlay' %}{% include 'overlay.html' %}
+  {% elif block.type == 'template' %}{% include 'template.html' %}
+  {% elif block.type == 'gallery' %}{% include 'gallery.html' %}
+  {% elif block.type == 'image' %}{% include 'image.html' %}
+  {% endif %}
+</div>

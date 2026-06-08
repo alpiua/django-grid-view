@@ -1,0 +1,350 @@
+/* Toolbar shell, search, and nav controls. */
+
+.cm-toolbar-outside {
+    background: transparent;
+    border: none;
+    border-bottom: none !important;
+    padding: var(--cm-toolbar-padding-y) 0;
+}
+
+/* ── Toolbar ──────────────────────────────────────────────────────────── */
+.cm-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--cm-border);
+    background: var(--cm-bg);
+}
+
+.cm-search-input {
+    flex: 1;
+    max-width: 280px;
+    background: var(--cm-surface);
+    border: 1px solid var(--cm-border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    color: var(--cm-text);
+    font-size: 0.82rem;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.cm-search-input:focus {
+    border-color: var(--cm-primary);
+}
+.cm-search-input::placeholder {
+    color: var(--cm-muted);
+}
+.cm-search-clear-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    margin-left: -28px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--cm-muted);
+    cursor: pointer;
+    visibility: hidden;
+}
+.cm-search-clear-btn.is-visible {
+    visibility: visible;
+}
+.cm-search-clear-btn:hover {
+    color: var(--cm-text);
+    background: var(--cm-hover);
+}
+
+.cm-counter {
+    font-size: 0.72rem;
+    color: var(--cm-muted);
+    margin-left: auto;
+}
+
+
+/* Extended toolbar layout: search left + filters center */
+.cm-toolbar-extended {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.cm-toolbar-extended .cm-toolbar-left {
+    flex: 0 0 auto;
+}
+.cm-toolbar-extended .cm-search-input {
+    flex: 0 1 280px;
+    max-width: 280px;
+}
+.cm-toolbar-extended .cm-toolbar-center {
+    flex: 1 1 auto;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.cm-toolbar-extended .cm-counter {
+    margin-left: auto;
+}
+.cm-toolbar-extended .cm-export-group {
+    margin-left: 0;
+}
+
+/* Unified toolbar search (server + grid) — self-contained layout (no Tailwind) */
+.cm-toolbar-unified .cm-toolbar-search {
+    display: inline-flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    vertical-align: middle;
+}
+.cm-toolbar-search--compact {
+    width: auto;
+    max-width: none;
+}
+.cm-toolbar-search--compact .cm-toolbar-search-field {
+    width: 330px;
+    max-width: 330px;
+    flex: 0 0 330px;
+}
+[data-cm-toolbar-search-root] {
+    position: relative;
+    z-index: 200;
+}
+.cm-toolbar-search-saved-panel--detached {
+    top: calc(100% + 6px);
+    right: 0;
+    left: auto;
+}
+.cm-toolbar-search-field {
+    position: relative;
+    display: block;
+    flex: 0 0 auto;
+    height: 28px;
+    min-width: 0;
+    overflow: visible;
+}
+.cm-toolbar-search-field .cm-toolbar-search-icon,
+.cm-toolbar-search-field .cm-toolbar-search-clear,
+.cm-toolbar-search-field .cm-search-help-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0;
+    padding: 0;
+}
+.cm-toolbar-search-icon {
+    left: 10px;
+    z-index: 1;
+    display: block;
+    width: 15px;
+    height: 15px;
+    color: var(--cm-muted);
+    pointer-events: none;
+}
+.cm-toolbar-search-input {
+    display: block;
+    width: 100%;
+    height: 28px;
+    box-sizing: border-box;
+    background: var(--cm-surface);
+    border: 1px solid var(--cm-border);
+    color: var(--cm-text);
+    padding: 0 30px 0 30px;
+    font-size: 0.75rem;
+    line-height: 28px;
+    border-radius: 10px;
+    outline: none;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+    appearance: none;
+    -webkit-appearance: none;
+}
+.cm-toolbar-search-input::placeholder {
+    color: var(--cm-muted);
+    opacity: 1;
+}
+.cm-toolbar-search-input:focus {
+    border-color: var(--cm-primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--cm-primary) 35%, transparent);
+}
+.cm-toolbar-search-field:has(.cm-toolbar-search-clear.is-visible) .cm-toolbar-search-input {
+    padding-right: 54px;
+}
+.cm-search-help-btn {
+    right: 4px;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: color-mix(in srgb, var(--cm-primary, #818cf8) 92%, white);
+    border-radius: 6px;
+    cursor: default;
+    flex: 0 0 auto;
+    overflow: visible;
+}
+.cm-toolbar-search-field:has(.cm-toolbar-search-clear.is-visible) .cm-search-help-btn {
+    right: 28px;
+}
+.cm-search-help-btn:hover,
+.cm-search-help-btn:focus-visible {
+    color: var(--cm-text);
+    background: var(--cm-hover);
+    outline: none;
+}
+.cm-search-help-icon {
+    display: block;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    overflow: visible;
+}
+.cm-toolbar-search-clear {
+    right: 4px;
+    z-index: 4;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    background: transparent;
+    color: var(--cm-muted);
+    border-radius: 6px;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+}
+.cm-toolbar-search-clear.is-visible {
+    opacity: 1;
+    color: var(--cm-text);
+    pointer-events: auto;
+}
+.cm-toolbar-search-clear:hover {
+    color: #ef4444;
+    background: var(--cm-hover);
+}
+.cm-toolbar-search-clear.cm-tip-host {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+.cm-toolbar-search-action.cm-tip-host,
+.cm-toolbar-search-btn.cm-tip-host {
+    position: relative;
+}
+[data-cm-toolbar-search-root],
+.cm-toolbar-search,
+.cm-toolbar-search-saved-actions,
+.cm-toolbar-search-actions {
+    overflow: visible;
+}
+.cm-toolbar-search .cm-tip-host:hover > .cm-ellipsis-tip,
+.cm-toolbar-search .cm-tip-host:focus-within > .cm-ellipsis-tip,
+[data-cm-toolbar-search-root] .cm-tip-host:hover > .cm-ellipsis-tip,
+[data-cm-toolbar-search-root] .cm-tip-host:focus-within > .cm-ellipsis-tip {
+    z-index: 220;
+}
+.cm-toolbar-search-actions {
+    display: inline-flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+}
+.cm-toolbar-search-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid var(--cm-border);
+    border-radius: 8px;
+    background: var(--cm-bg);
+    color: var(--cm-muted);
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.cm-toolbar-search-btn:hover {
+    border-color: var(--cm-primary);
+    color: var(--cm-text);
+}
+.cm-toolbar-search-btn.is-active {
+    border-color: var(--cm-primary);
+    color: var(--cm-primary);
+    background: color-mix(in srgb, var(--cm-primary) 12%, var(--cm-bg));
+}
+.cm-toolbar-search-saved-title {
+    padding: 6px 10px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cm-muted);
+    border-bottom: 1px solid var(--cm-border);
+}
+.cm-toolbar-search-saved-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+.cm-toolbar-search-saved-item:hover {
+    background: var(--cm-hover);
+}
+.cm-period-wrap {
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Nav controls inside toolbar slots */
+.cm-period-select {
+    background: var(--cm-surface);
+    border: 1px solid var(--cm-border);
+    color: var(--cm-text);
+    border-radius: 8px;
+    padding: 6px 28px 6px 12px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+}
+.cm-toolbar-left select:focus,
+.cm-period-select:focus {
+    border-color: var(--cm-primary);
+}
+
+.cm-counter [data-cm-count] {
+    font-weight: 700;
+    color: var(--cm-text);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .cm-toolbar {
+        flex-wrap: wrap;
+    }
+    .cm-search-input {
+        max-width: 100%;
+    }
+}
+

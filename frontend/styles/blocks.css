@@ -1,0 +1,10 @@
+/* Grid-view block spacing and composition. */
+
+/* Optional wrapper when chart is outside grid-view */
+.cm-tab-pane-chart {
+    margin-top: var(--cm-block-gap);
+}
+.cm-grid-view > .cm-chart-wrap {
+    margin-top: var(--cm-block-gap);
+}
+

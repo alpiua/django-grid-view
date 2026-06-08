@@ -19,7 +19,6 @@ import {
   FilterBar,
   ToolbarSearch,
   initToolbarSearch,
-  bootGridViewScope,
   buildFilterUrl,
 } from "./filter-bar";
 import { parseSmartQuery } from "./search/smart-query";
@@ -30,6 +29,7 @@ import {
 } from "./search/filter-engine";
 import { initAllSimpleTables } from "./simple-table";
 import { initButtonEllipsisTips } from "./table-cell-ui";
+import { boot, bootScope } from "../runtime/boot";
 import type { GridViewPublic } from "./types";
 
 export function createGridView(): GridViewPublic {
@@ -39,6 +39,7 @@ export function createGridView(): GridViewPublic {
   return {
     preferencesUrl: inheritedPreferencesUrl,
     init,
+    boot,
     byId,
     SimpleTable: { initAll: initAllSimpleTables },
     initSimpleTableColumnSettings,
@@ -60,7 +61,7 @@ export function createGridView(): GridViewPublic {
     initToolbarSearch,
     ToolbarSearch,
     AgGrid,
-    bootScope: bootGridViewScope,
+    bootScope,
     parseSmartQuery,
     matchColumnFilter,
     matchToolbarQuery,
@@ -80,11 +81,5 @@ export function bootstrapGridView(): GridViewPublic {
   attachSimpleTableGlobals();
   bindDelegatedGridActions();
   g.GridView = GridView;
-
-  if (typeof document !== "undefined") {
-    document.addEventListener("DOMContentLoaded", () => {
-      bootGridViewScope(document);
-    });
-  }
   return GridView;
 }

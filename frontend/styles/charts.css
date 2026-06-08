@@ -1,0 +1,33 @@
+/* Chart blocks and empty states. */
+
+.cm-chart-wrap {
+    position: relative;
+}
+.cm-chart-empty {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    text-align: center;
+    color: var(--cm-muted);
+    font-size: 0.82rem;
+    line-height: 1.4;
+    pointer-events: none;
+}
+.cm-chart-empty.is-hidden {
+    display: none !important;
+}
+.cm-chart-root.is-hidden {
+    visibility: hidden;
+}
+/* ── Charts ───────────────────────────────────────────────────────────────── */
+.cm-chart-wrap {
+    width: 100%;
+    margin-bottom: var(--cm-page-gap);
+}
+.cm-chart-root {
+    min-height: 120px;
+}

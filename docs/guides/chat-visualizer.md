@@ -1,40 +1,34 @@
-# Chat visualizer wire contract
+# Chat visualizer
 
-How a Django chat app turns analytics SQL results into a **`grid_view`** UI component using django-grid-view.
+How a chat application turns SQL (or other tabular) results into an interactive grid in the browser.
 
-Router prompts, graph wiring, and component extraction live in **your application**. This package provides `build_artifact_from_view` and `GridView.init`.
+The host application owns routing, prompts, and graph wiring. This package provides spec validation,
+artifact resolution, and `GridView.init` for the client.
 
----
-
-## End-to-end flow
+## Flow
 
 ```
 User question
-  → Router graph: planner → SQL tool → verifier → end
-  → Django: extract_components(graph_state)
-       SQL rows + planner hints → GridViewSpec (Python)
-       → build_artifact_from_view(spec, rows) → GridArtifact
-  → SSE/JSON: { "type": "grid_view", "artifact": …, "rows": … }
-  → Frontend: renderGridView → GridView.init({ root, artifact })
+  → Host: run query, build spec in Python
+  → Host: validate / resolve rows → payload for the UI
+  → SSE or JSON: { "type": "grid_view", "artifact": … }  (legacy)
+                 or { "type": "grid_view_spec", "spec": …, "rows": … }  (v2)
+  → Browser: mount DOM + GridView.init or render_grid_view_spec HTML
 ```
 
-**Invariant:** row data and KPI numbers never come from a dedicated “visualizer” LLM. SQL returns rows; your Django code builds the view spec and resolves aggregates.
+**Rule:** row data and KPI numbers always come from the query result in Python. The LLM must not
+emit numeric KPI values or row arrays in the layout JSON.
 
----
+## Recommended: planner-driven presenter
 
-## Recommended: planner-driven presenter (no visualizer LLM)
+Use a graph with planning, SQL execution, and verification — not a separate “layout LLM” unless you
+need model-chosen charts.
 
-Use a Router graph with **planning, SQL execution, and verification only** — no extra node whose job is to emit a full grid layout.
+1. **Planner** returns SQL and presentation hints only.  
+2. **SQL step** produces `columns` and `rows`.  
+3. **Verifier** checks the result (optional loop).
 
-Typical graph shape:
-
-1. **Planner** (`llm`, JSON output) — produces the query and how to present results.
-2. **SQL tool** — runs the query; state gets `columns` and `rows`.
-3. **Verifier** (`llm`, optional loop) — checks the result; on success the graph ends.
-
-### Planner output (not `GridViewSpec`)
-
-The planner model returns JSON with SQL and presentation hints only:
+### Planner output
 
 ```json
 {
@@ -44,107 +38,99 @@ The planner model returns JSON with SQL and presentation hints only:
 }
 ```
 
-| `format` | Typical layout (built in your app) |
-|----------|-------------------------------------|
-| `table` | title, kpis, table |
-| `report` | title, kpis, chart, table |
-| `chart` | title, kpis, chart, table |
-| `answer` | title, kpis |
+| `format` | Typical blocks |
+|----------|----------------|
+| `table` | title, KPIs, table |
+| `report` | title, KPIs, chart, table |
+| `chart` | title, KPIs, chart, table |
+| `answer` | title, KPIs |
 
-Define a strict JSON schema (`sql`, `purpose`, `format`) in the planner prompt.  
-**Forbidden in planner output:** `rows`, KPI values, a `view` object, `echarts_option`.
+Do **not** put in planner output: `rows`, KPI values, a full grid spec, or `echarts_option`.
 
-After the SQL step, graph state should expose result rows (e.g. under `final_output` or `intermediate_results` for the tool node) plus planner fields for `purpose` and `format`.
-
-### Python presenter
-
-In your app (e.g. `extract_components`):
-
-1. Read SQL result (`columns`, `rows`) from the Router payload.
-2. Read `purpose` and `format` from the planner step.
-3. Build a `GridViewSpec` wire dict in Python — column labels, KPI candidates, chart choice, `layout.blocks` from `format` and column types.
-4. Build a typed wire dict (`GridViewSpecWire`) or `GridViewSpec`, then `build_artifact_from_view(spec, rows)` → resolved `GridArtifact`.
-5. Emit one chat component:
+### Python presenter (GridViewSpec v2)
 
 ```python
-{
-    "type": "grid_view",
-    "title": "…",
-    "artifact": artifact.to_json(),
-    "columns": [...],
-    "rows": [...],
-}
+from grid_view_spec import GridViewSpec, validate_spec
+from grid_view_spec.types.layout import GridViewArea, GridViewLayout
+from grid_view_spec.types.table_v2 import GridViewColumn, GridViewTable
+
+def present_grid(format: str, purpose: str, columns: list[str], rows: list[dict]):
+    spec = GridViewSpec(
+        id="analytics",
+        blocks=(
+            GridViewTable(
+                id="result_table",
+                backend="simple",
+                columns=tuple(
+                    GridViewColumn(id=c, label=c.replace("_", " ").title(), field=c)
+                    for c in columns
+                ),
+            ),
+        ),
+        layout=GridViewLayout(root=GridViewArea(id="root", blocks=("result_table",))),
+    )
+    validate_spec(spec)
+    return {"type": "grid_view_spec", "title": purpose, "spec": spec, "rows": rows}
 ```
 
-On the Router `result` event, map graph state → `components` and stream or return JSON to the browser.
+Stream or return that object to the browser. Render with `{% render_grid_view_spec spec rows %}` or
+`render_grid_view_spec(spec, rows, host=…)` in a partial.
 
-### Frontend
+Validate wire JSON with MCP `gridview_validate` before merge.
 
-Register a `grid_view` widget that mounts KPI/chart/table DOM from `artifact` and calls:
+### Python presenter (legacy artifact)
+
+Still supported for chat widgets that call `GridView.init`:
+
+```python
+from django_grid_view.render import build_artifact_from_view
+from django_grid_view.types import GridViewSpecWire, RowDict
+
+view: GridViewSpecWire = {
+    "grid_id": "analytics",
+    "columns": [{"key": "customer_name", "label": "Customer"}],
+    "kpis": [{"label": "Orders", "aggregate": "count"}],
+    "layout": {"blocks": ["title", "kpis", "table"]},
+}
+artifact = build_artifact_from_view(view, sql_rows)
+return {"type": "grid_view", "artifact": artifact.to_json(), "rows": sql_rows}
+```
+
+### Frontend (legacy widget)
 
 ```javascript
-GridView.init({ root: wrap, artifact: c.artifact });
+GridView.init({ root: wrap, artifact: component.artifact });
 ```
 
-Load `{% grid_view_styles %}` + `{% grid_view_bundle %}` and ECharts (`{% echarts_cdn_url %}`) on the chat page — same asset contract as dashboards.
+Load `{% grid_view_styles %}`, `{% grid_view_bundle %}`, and ECharts on the chat page.
 
-### Package API
+## Optional visualizer LLM
 
-```python
-from django_grid_view.types import GridArtifactJson, GridViewSpecWire, JsonObject, RowDict
-from django_grid_view.render import GridRenderer, build_artifact_from_view, parse_grid_view_spec
-
-sql_rows: list[RowDict] = [...]
-
-# Presenter builds wire spec in Python
-view: GridViewSpecWire = {"grid_id": "analytics", "columns": [...], "kpis": [...]}
-artifact = GridRenderer.build(parse_grid_view_spec(view), sql_rows)
-
-# Or loose JSON / visualizer LLM output
-raw: JsonObject = {"grid_id": "analytics", "columns": [...]}
-artifact = build_artifact_from_view(raw, sql_rows)
-
-payload: GridArtifactJson = artifact.to_json()
-```
-
-Imports: [Python types](../reference/python-types.md).
-
----
-
-## Alternative: dedicated visualizer LLM node
-
-Some integrations add a **second LLM node** after SQL that emits layout JSON. The model returns structure only:
+A second LLM node may emit layout JSON **without rows or numbers**:
 
 ```json
 {
   "view": {
     "grid_id": "analytics-result",
     "columns": [{ "key": "customer_name", "label": "Customer" }],
-    "kpis": [{ "label": "Orders", "aggregate": "count" }],
-    "charts": [],
     "layout": { "blocks": ["title", "kpis", "table"] }
   }
 }
 ```
 
-Use a generic LLM node with `output_format: json`. Avoid legacy platform-specific `sql_visualizer` executors unless you still depend on them.
-
-**Forbidden** in visualizer output: `rows`, row data, numeric KPI values, `echarts_option`, SQL text.
-
-You must still call `build_artifact_from_view(view, sql_rows)` in Django so numbers come from SQL rows, not the model.
-
----
+Always call `build_artifact_from_view(view, sql_rows)` in Python so aggregates come from SQL, not
+the model. For new integrations, prefer emitting v2 `GridViewSpec` wire and validating with
+`gridview_validate`.
 
 ## Choosing an approach
 
-| Approach | Graph | LLM emits | Who builds `GridViewSpec` |
-|----------|-------|-----------|---------------------------|
-| **Planner-driven presenter** | planner → SQL tool → verifier | `sql`, `purpose`, `format` | Your Python presenter |
-| **Visualizer LLM** | planner → SQL tool → visualizer → … | `{ "view": … }` | Visualizer LLM, then `build_artifact_from_view` |
+| Approach | LLM emits | Python builds |
+|----------|-----------|---------------|
+| Planner + presenter (recommended) | `sql`, `purpose`, `format` | Full v2 spec or legacy view dict |
+| Visualizer LLM | `{ "view": … }` structure only | Artifact via `build_artifact_from_view` |
 
-Checklist:
+## Related
 
-1. **Graph** — no visualizer node unless you need model-chosen layouts.
-2. **Planner prompt** — SQL + `format`, not a full grid spec ([GridViewSpec reference](../reference/grid-view-spec.md) documents the presenter output).
-3. **Adapter** — graph state → `grid_view` component; see [Grid View artifacts](../grid-view-artifacts.md).
-4. **Frontend** — `GridView.init({ artifact })` in the chat panel.
+- [GridViewSpec reference](../reference/grid-view-spec.md) — v2 wire contract  
+- [Grid View artifacts](../grid-view-artifacts.md) — legacy artifact path  
+- [MCP server](mcp-server.md) — validate specs in the IDE

@@ -1,5 +1,5 @@
 site_name: Django Grid View
-site_description: Declarative grid views for Django — Simple Table, AG-Grid, KPI, ECharts, GridViewSpec
+site_description: GridViewSpec — declarative page layout, tables, KPI, charts; optional Django backend
 site_url: https://alpiua.github.io/django-grid-view/
 repo_url: https://github.com/alpiua/django-grid-view
 repo_name: alpiua/django-grid-view
@@ -71,26 +71,35 @@ nav:
   - Home: index.md
   - Getting started: getting-started.md
   - User guide:
-      - Simple Table: simple-table.md
+      - Architecture: architecture.md
+      - GridViewSpec: reference/grid-view-spec.md
       - AG-Grid integration: ag-grid.md
-      - Charts and KPIs: charts-and-kpis.md
-      - Grid View artifacts: grid-view-artifacts.md
       - Saved preferences: preferences.md
       - PDF export: guides/pdf-export.md
       - XLSX export: guides/xlsx-export.md
-  - Architecture: architecture.md
+      - MCP server: guides/mcp-server.md
   - Reference:
       - Python types: reference/python-types.md
       - Template tags: reference/template-tags.md
       - JavaScript API: reference/javascript.md
-      - GridViewSpec: reference/grid-view-spec.md
+  - Legacy API:
+      - Overview: legacy/index.md
+      - Simple Table: simple-table.md
+      - Grid View artifacts: grid-view-artifacts.md
+      - Charts and KPIs: charts-and-kpis.md
   - Advanced:
       - Chat visualizer: guides/chat-visualizer.md
       - Dashboard builders: guides/dashboard-builders.md
       - Host app page export: guides/host-app-page-export.md
-      - Filter semantics contract: guides/filter-semantics-contract.md
-      - Server filtering contract: guides/server-filtering-contract.md
+      - Filter semantics: guides/filter-semantics-contract.md
+      - Server filtering: guides/server-filtering-contract.md
       - Internationalization: guides/i18n.md
+  - Maintainers:
+      - Full v2 architecture: gridviewspec-architecture.md
+      - Documentation inventory: maintainers/doc-inventory.md
+      - Host dependency policy: guides/host-dependency-policy.md
+      - Phase 11 prep: vnext/phase-11-prep.md
+      - Deprecation targets: vnext/deprecation-targets.md
   - Changelog: changelog.md
   - LLM context:
       - Download bundle: llm/context.md

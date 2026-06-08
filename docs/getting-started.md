@@ -1,147 +1,136 @@
 # Getting started
 
+This guide walks through a minimal **GridViewSpec** page. It assumes a Django host because that is
+the most common setup (templates, static files, optional ORM preferences). The same spec API works
+with other backends — see [Architecture](architecture.md).
+
 ## Install
 
 ```bash
 pip install django-grid-view
 ```
 
-Editable install for local development:
+Local development:
 
 ```bash
 pip install -e /path/to/django-grid-view
+# optional: MCP CLI (`pip install -e ".[mcp]"` or `./scripts/install-mcp-cli.sh`)
 ```
 
-With **uv**, override PyPI in your project:
+## Django backend (optional)
 
-```toml
-[project]
-dependencies = ["django-grid-view>=1.0.0"]
-
-[tool.uv.sources]
-django-grid-view = { path = "../django-grid-view", editable = true }
-```
-
-## Django setup
+Add the app and migrate once for saved column presets:
 
 ```python
-# settings.py
-INSTALLED_APPS = [
-    # ...
-    "django_grid_view",
-]
+INSTALLED_APPS = ["django_grid_view"]
 ```
-
-```python
-# settings.py (export + grid prefs URL names used by templatetags and scripts.html)
-DJANGO_GRID_VIEW_EXPORT_PDF_URL = "api_export_pdf"
-DJANGO_GRID_VIEW_EXPORT_XLSX_URL = "api_export_xlsx"
-
-# Optional: pin third-party CDN scripts (see docs/ag-grid.md#cdn-pins-confpy)
-# DJANGO_GRID_VIEW_AG_GRID_VERSION = "31.3.2"
-# DJANGO_GRID_VIEW_SORTABLE_VERSION = "1.15.2"
-# DJANGO_GRID_VIEW_ECHARTS_VERSION = "5.5.1"
-```
-
-Mount HTTP routes in **your** API `urls.py` (the package ships an empty `django_grid_view.urls` — do not `include()` it):
-
-```python
-# myapp/api/urls.py — example; mount as path("api/", include("myapp.api.urls"))
-from django.urls import path
-from django_grid_view.export.pdf_view import export_pdf
-from django_grid_view.export.xlsx_view import export_xlsx
-from django_grid_view.views import save_grid_settings
-
-urlpatterns = [
-    path("grid/preferences/", save_grid_settings, name="api_grid_preferences"),
-    path("export/pdf/", export_pdf, name="api_export_pdf"),
-    path("export/xlsx/", export_xlsx, name="api_export_xlsx"),
-]
-```
-
-| Endpoint | URL name | Purpose |
-|----------|----------|---------|
-| `POST …/grid/preferences/` | `api_grid_preferences` | Save `GridPreference` (required for `scripts.html`) |
-| `GET …/export/pdf/?builder=…` | `api_export_pdf` | Server PDF (`{% export_pdf_href %}`) |
-| `GET …/export/xlsx/?builder=…` | `api_export_xlsx` | Server XLSX (`{% export_xlsx_href %}`) |
-
-Register PDF/XLSX **builders** in `AppConfig.ready()` — see [Host app page export](guides/host-app-page-export.md), [PDF export](guides/pdf-export.md), and [XLSX export](guides/xlsx-export.md).
 
 ```bash
 python manage.py migrate django_grid_view
 ```
 
-This creates the `GridPreference` model used for per-user column presets and saved searches.
+Mount export and preference routes in **your** URLconf (the package does not ship a root
+`urls.py` to include):
 
-## Load assets once per page
+```python
+from django.urls import path
+from grid_view_spec.backends.django.views import export_pdf, export_xlsx, save_grid_prefs
 
-Host base template (recommended):
+urlpatterns = [
+    path("grid/prefs/", save_grid_prefs, name="api_grid_preferences"),
+    path("export/pdf/", export_pdf, name="api_export_pdf"),
+    path("export/xlsx/", export_xlsx, name="api_export_xlsx"),
+]
+```
+
+Register PDF/XLSX builders in `AppConfig.ready()` — [PDF export](guides/pdf-export.md),
+[XLSX export](guides/xlsx-export.md).
+
+Optional settings for URL names used by templates:
+
+```python
+DJANGO_GRID_VIEW_EXPORT_PDF_URL = "api_export_pdf"
+DJANGO_GRID_VIEW_EXPORT_XLSX_URL = "api_export_xlsx"
+```
+
+## Page assets
+
+In the site base template, once per page:
 
 ```django
 {% load django_grid_view %}
-{% grid_view_styles %}   {# <head> — grid-view.min.css #}
+{% grid_view_styles %}   {# in <head> #}
 …
-{% grid_view_bundle %}   {# before </body> — grid-view.min.js + column-settings.min.js #}
+{% grid_view_bundle %}   {# before </body> — grid-view.min.js + boot config #}
 ```
 
-Optional CDN pins in `<head>` before the bundle — see [AG-Grid integration](ag-grid.md#cdn-pins-confpy):
+Charts need ECharts in the host template; column drag-reorder needs Sortable. AG-Grid pages load
+additional scripts — [AG-Grid integration](ag-grid.md).
 
-```django
-<script src="{% ag_grid_cdn_url %}"></script>
-<script src="{% sortable_cdn_url %}"></script>
-<script src="{% echarts_cdn_url %}"></script>
-```
+## First spec page
 
-Inclusion tags (`{% render_simple_table %}`, `{% render_grid_view %}`, …) auto-load CSS/JS on first use when the host did not call the tags above.
-
-## First Simple Table
-
-**View** — build rows in Python:
+**1. Build a spec and rows in the view**
 
 ```python
 from django.shortcuts import render
-from django_grid_view.tables import Column, SimpleTableConfig
+from grid_view_spec import GridViewSpec, validate_spec
+from grid_view_spec.types.layout import GridViewArea, GridViewLayout
+from grid_view_spec.types.table_v2 import GridViewColumn, GridViewTable
 
 def orders_list(request):
-    rows = [
-        {"name": "Ada", "visits": 12},
-        {"name": "Bob", "visits": 8},
-    ]
-    config = SimpleTableConfig(
-        grid_id="orders",
-        columns=[
-            Column(key="name", label="Customer"),
-            Column(key="visits", label="Visits", align="right"),
-        ],
-        data=rows,
+    rows = [{"name": "Ada", "amount": 120}, {"name": "Bob", "amount": 85}]
+    spec = GridViewSpec(
+        id="orders",
+        blocks=(
+            GridViewTable(
+                id="orders_table",
+                backend="simple",
+                columns=(
+                    GridViewColumn(id="name", label="Customer", field="name"),
+                    GridViewColumn(id="amount", label="Amount", field="amount", format="currency"),
+                ),
+            ),
+        ),
+        layout=GridViewLayout(root=GridViewArea(id="root", blocks=("orders_table",))),
     )
-    return render(request, "orders.html", {"table": config})
+    validate_spec(spec)
+    return render(request, "orders.html", {"spec": spec, "rows": rows})
 ```
 
-**Template:**
+**2. Render in the template**
 
 ```django
 {% load django_grid_view %}
-{% render_simple_table table %}
+{% render_grid_view_spec spec rows %}
 ```
 
-Open the page — client-side sort and search work without extra JavaScript.
+Open the page — client sort, search, and column settings work through the unified
+`grid-view.min.js` runtime.
 
-## Typing in host projects
-
-The package includes **`py.typed`**. Import contracts instead of copying TypedDicts:
+## Validate before render
 
 ```python
-from django_grid_view.types import GridViewSpec, GridViewSpecWire, JsonObject, RowDict
-from django_grid_view.tables import Column, SimpleTableConfig
-from django_grid_view.render import build_artifact_from_view, parse_grid_view_spec
+from grid_view_spec import validate_spec
+
+validate_spec(spec)  # raises GridViewValidationError on structural errors
 ```
 
-See [Python types](reference/python-types.md) for wire types, `GridArtifactJson`, enums, and pyright setup.
+For IDE workflows, run the [MCP server](guides/mcp-server.md) (`gridview_validate` on wire JSON).
+
+## Python imports
+
+| Need | Import |
+|------|--------|
+| Spec types | `from grid_view_spec import GridViewSpec` |
+| Render | `from grid_view_spec.render import render_grid_view_spec` |
+| Wire JSON | `from grid_view_spec.validate import spec_to_wire, spec_from_wire` |
+| Django host | `from grid_view_spec.backends.django.host import DjangoGridViewHost` |
+
+Public type reference: [Python types](reference/python-types.md).
 
 ## Next steps
 
-- [Simple Table](simple-table.md) — columns, export, footers
-- [AG-Grid integration](ag-grid.md) — infinite API contract, persistence, wiring
-- [Charts and KPIs](charts-and-kpis.md) — ECharts and KPI strips
-- [Grid View artifacts](grid-view-artifacts.md) — unified `GridViewSpec` rendering
+- [GridViewSpec reference](reference/grid-view-spec.md) — blocks, layout, schema
+- [Architecture](architecture.md) — responsibilities and bundle layout
+- [Host app page export](guides/host-app-page-export.md) — one loader for HTML and export
+- [Simple Table (previous API)](simple-table.md) — if you maintain older pages

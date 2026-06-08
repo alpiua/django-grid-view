@@ -1,0 +1,12 @@
+/* Design tokens (--cm-* custom properties). */
+
+/* ── Page spacing (single source of truth) ─────────────────────────────── */
+:root {
+    --cm-page-gap: 8px;
+    --cm-page-padding-y: 8px;
+    --cm-toolbar-padding-y: 8px;
+    --cm-block-gap: 8px;
+    /* Content block width — scales with viewport (see media queries below) */
+    --cm-page-layout-width: 920px;
+}
+

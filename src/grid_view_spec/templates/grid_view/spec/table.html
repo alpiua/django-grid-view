@@ -1,0 +1,20 @@
+<div class="cm-table-host cm-table-{{ block.backend | e }}" data-table-id="{{ block.id | e }}">
+  <table class="cm-table cm-table-grid" data-table-id="{{ block.id | e }}">
+    <thead>
+      <tr>
+        {% for col in block.columns %}
+        <th data-column-id="{{ col.id | e }}">{{ col.label | e }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in resolved.rows %}
+      <tr class="cm-row">
+        {% for col in block.columns %}
+        <td data-cm-col-key="{{ col.id | e }}">{{ row.get(col.field, '') | e }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

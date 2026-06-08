@@ -1,0 +1,5 @@
+<form class="cm-form cm-form-{{ block.presentation | e }}" method="{{ block.method | e }}" action="{{ block.endpoint | e }}">
+  {% for field in block.fields %}
+  <label class="cm-field" data-field-name="{{ field.name | e }}">{{ field.label | e }}</label>
+  {% endfor %}
+</form>

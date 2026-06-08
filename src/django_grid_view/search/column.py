@@ -15,7 +15,6 @@ from django_grid_view.search.engine import (
     match_column_filter_entry,
     parse_column_filter_entry,
 )
-from django_grid_view.search.params import COL_FILTERS_PARAM
 from django_grid_view.search.term_match import parse_search_number
 from django_grid_view.tables import Column, SimpleTableConfig
 from django_grid_view.types.json import RowDict, as_str_object_dict
@@ -51,10 +50,12 @@ def parse_column_filters(raw: str | None) -> dict[str, ColumnFilterEntry]:
     return out
 
 
-def parse_column_filters_from_request(request: HttpRequest | None) -> dict[str, ColumnFilterEntry]:
-    if request is None:
-        return {}
-    return parse_column_filters(request.GET.get(COL_FILTERS_PARAM))
+def parse_column_filters_from_request(
+    request: HttpRequest | None,
+) -> dict[str, ColumnFilterEntry]:
+    from grid_view_spec.backends.django.search import parse_column_filters_from_request as _impl
+
+    return _impl(request)
 
 
 def _cell_display_text(

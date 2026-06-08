@@ -28,27 +28,37 @@ def test_grid_view_bundle_assets_exist():
     assert not (static_root / "simple-table.js").is_file()
     assert not (static_root / "dist").is_dir()
 
-    for name in (
+    public_bundles = (
         "ag-grid-cdn.js",
         "ag-grid-host.js",
         "ag-grid-boot.js",
         "ag-grid-smart-filter.js",
         "ag-grid-advanced-search.js",
         "ag-grid-tooltip.js",
-        "chart-static-boot.js",
-        "grid-artifact-boot.js",
-        "kpi-static-boot.js",
         "grid-view.min.js",
-        "column-settings.min.js",
-    ):
+    )
+    for name in public_bundles:
         assert (static_root / name).is_file(), name
+
+    legacy_boots = (
+        "chart-static-boot.js",
+        "chart-static-boot.min.js",
+        "grid-artifact-boot.js",
+        "grid-artifact-boot.min.js",
+        "kpi-static-boot.js",
+        "kpi-static-boot.min.js",
+        "column-settings.js",
+        "column-settings.min.js",
+    )
+    for name in legacy_boots:
+        assert not (static_root / name).is_file(), f"stale static asset must be removed: {name}"
 
     bundle = static_root / "grid-view.js"
     assert bundle.is_file()
-    assert (static_root / "column-settings.js").is_file()
     js = bundle.read_text(encoding="utf-8")
     assert "GridView" in js
     assert "SimpleTable" in js
+    assert "bootScope" in js
     assert "CmSimpleTable" not in js
     assert "CmGridView" not in js
 

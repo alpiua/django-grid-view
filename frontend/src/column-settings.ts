@@ -1,6 +1,4 @@
-/** Column settings — ships in `{% grid_view_bundle %}` (`column-settings.min.js`).
- *  Source: frontend/src/column-settings.ts — rebuild with `npm run build --prefix frontend`.
- */
+/** Column settings — bundled inside grid-view.min.js via runtime/settings.ts (Phase 7). */
 (function (global) {
   "use strict";
   // ── Column settings (shared: Simple Table + AG-Grid) ─────────

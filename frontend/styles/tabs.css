@@ -1,0 +1,56 @@
+/* Tab controls and tab panes. */
+
+.cm-tab-btn {
+    white-space: nowrap;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--cm-border);
+    background: var(--cm-surface);
+    color: var(--cm-text);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.cm-tab-btn:hover {
+    background: var(--cm-hover);
+}
+.cm-tab-btn.is-active {
+    background: var(--cm-primary);
+    border-color: transparent;
+    color: #fff;
+}
+
+.cm-tab-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--cm-border);
+    margin-bottom: 1rem;
+    padding-bottom: 0.25rem;
+}
+.cm-tab-group .cm-tab-btn {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--cm-muted);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.35rem 0.75rem;
+}
+.cm-tab-group .cm-tab-btn.is-active {
+    border-bottom-color: #f59e0b;
+    color: #f59e0b;
+}
+.cm-tab-badge {
+    background: var(--cm-accent-amber-bg, rgba(245, 158, 11, 0.15));
+    border-radius: 999px;
+    color: var(--cm-accent-amber-fg, #f59e0b);
+    font-size: 0.65rem;
+    margin-left: 0.35rem;
+    padding: 0.1rem 0.45rem;
+}
+.cm-card-tab-pane.hidden {
+    display: none !important;
+}

@@ -1,0 +1,5 @@
+<div class="cm-kpi cm-kpi-{{ block.presentation | e }}">
+  {% for item in block.items %}
+  <div class="cm-kpi-item">{{ item.label | e }}</div>
+  {% endfor %}
+</div>

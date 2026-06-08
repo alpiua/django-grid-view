@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "gridviewspec-mcp": {
+      "command": "/home/oleksii/.local/bin/gridviewspec-mcp",
+      "args": []
+    }
+  }
+}

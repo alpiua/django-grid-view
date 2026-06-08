@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="{{ language_code|default('en') }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <style>
+    @page { size: A4 portrait; margin: 10mm 8mm; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "DejaVu Sans", Arial, sans-serif;
+      font-size: 10pt;
+      color: #1e293b;
+      line-height: 1.35;
+    }
+    h1 { font-size: 16pt; font-weight: 700; margin-bottom: 4px; }
+    .subtitle { color: #64748b; font-size: 9pt; margin-bottom: 14px; }
+    .meta { margin: 0 0 12px 16px; color: #475569; font-size: 9pt; }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9pt;
+      margin: 10px 0 16px;
+    }
+    table.data-table th {
+      background: #f1f5f9;
+      font-weight: 600;
+      padding: 6px 8px;
+      border: 1px solid #cbd5e1;
+      text-align: center;
+      font-size: 7pt;
+      text-transform: uppercase;
+    }
+    table.data-table td {
+      padding: 5px 8px;
+      border: 1px solid #e2e8f0;
+      text-align: right;
+    }
+    table.data-table td:first-child,
+    table.data-table th:first-child { text-align: left; }
+    table.data-table tfoot td {
+      font-weight: 700;
+      background: #f1f5f9;
+      border-top: 2px solid #cbd5e1;
+    }
+    table.data-table tbody tr:nth-child(even) td { background: #f8fafc; }
+    .empty { color: #94a3b8; font-style: italic; padding: 8px 0; }
+  </style>
+</head>
+<body>
+  <h1>{{ title }}</h1>
+  {% if subtitle %}<p class="subtitle">{{ subtitle }}</p>{% endif %}
+  {% block body %}{% endblock %}
+</body>
+</html>

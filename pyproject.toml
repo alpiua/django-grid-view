@@ -1,6 +1,6 @@
 [project]
 name = "django-grid-view"
-version = "1.2.0"
+version = "2.0.0a1"
 description = "Declarative grid views for Django: Simple Table, AG-Grid helpers, KPI cards, ECharts, and an LLM-friendly GridViewSpec contract"
 readme = "README.md"
 authors = [
@@ -24,6 +24,7 @@ classifiers = [
 ]
 dependencies = [
     "django>=4.2,<6.0",
+    "jinja2>=3.1",
 ]
 
 [project.urls]
@@ -33,7 +34,16 @@ Documentation = "https://alpiua.github.io/django-grid-view/"
 Issues = "https://github.com/alpiua/django-grid-view/issues"
 Changelog = "https://github.com/alpiua/django-grid-view/blob/main/CHANGELOG.md"
 
+[project.scripts]
+gridviewspec-mcp = "grid_view_spec.mcp.server:main"
+grid-view-spec-mcp = "grid_view_spec.mcp.server:main"  # deprecated alias
+django-grid-view-mcp = "grid_view_spec.mcp.server:main"  # deprecated alias
+
 [project.optional-dependencies]
+django = ["django>=4.2,<6.0"]
+mcp = ["fastmcp>=2.0.0"]
+starlette = ["starlette>=0.40"]
+fastapi = ["fastapi>=0.115", "starlette>=0.40"]
 static-charts = ["matplotlib>=3.8"]
 pdf = ["weasyprint>=62", "jinja2>=3.1"]
 xlsx = ["xlsxwriter>=3.2.0"]
@@ -42,7 +52,7 @@ docs = [
     "mkdocs>=1.6",
     "mkdocs-material>=9.5",
 ]
-# Mirror of [dependency-groups] dev — for pip install django-grid-view[dev]
+# Mirror of [dependency-groups] dev — for pip install django-grid-view[dev,mcp]
 dev = [
     "basedpyright>=1.28.0",
     "build>=1.2.0",
@@ -56,6 +66,7 @@ dev = [
     "pre-commit>=4.0.0",
     "pytest>=8.0.0",
     "pytest-django>=4.8.0",
+    "jsonschema>=4.23.0",
     "ruff>=0.8.0",
     "twine>=5.0.0",
     "typing_extensions>=4.12.0",
@@ -77,6 +88,8 @@ dev = [
     "pre-commit>=4.0.0",
     "pytest>=8.0.0",
     "pytest-django>=4.8.0",
+    "jsonschema>=4.23.0",
+    "fastmcp>=2.0.0",
     "ruff>=0.8.0",
     "twine>=5.0.0",
     "typing_extensions>=4.12.0",
@@ -102,12 +115,16 @@ django_grid_view = [
     "locale/**/*.mo",
     "static/**/*",
 ]
+grid_view_spec = ["py.typed", "templates/**/*.html", "schema/*.json"]
 
 [tool.pytest.ini_options]
 addopts = "--ds=tests.settings"
-pythonpath = ["src", "."]
+pythonpath = ["src", ".", "tests"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+markers = [
+    "compatibility: legacy 1.x API tests kept during Phase 11 migration window",
+]
 
 [tool.ruff]
 target-version = "py311"
@@ -118,8 +135,8 @@ exclude = ["*/migrations/*"]
 django_settings_module = "tests.settings"
 
 [tool.basedpyright]
-include = ["src/django_grid_view", "tests"]
-exclude = ["**/migrations/**", "**/__pycache__/**", "hooks/**"]
+include = ["src/django_grid_view", "src/grid_view_spec", "tests"]
+exclude = ["**/migrations/**", "**/__pycache__/**", "hooks/**", "**/backends/starlette/**", "tests/test_gridviewspec_*.py", "tests/gridviewspec_fixtures.py", "tests/phase11_compat.py"]
 typeCheckingMode = "strict"
 pythonVersion = "3.11"
 reportMissingTypeStubs = false

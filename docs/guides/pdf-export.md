@@ -198,6 +198,6 @@ to the host export route (e.g. `/api/export/pdf/`).
 
 ## Related
 
-- [Architecture — PDF export](../architecture.md#server-pdf-export)
+- [Architecture — export flow](../architecture.md#export-flow)
 - [Grid View artifacts](../grid-view-artifacts.md)
 - [Charts and KPIs](../charts-and-kpis.md)

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block body %}
+{% if meta_lines %}
+<ul class="meta">
+  {% for line in meta_lines %}
+  <li>{{ line }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% include "blocks/table.html" %}
+{% endblock %}

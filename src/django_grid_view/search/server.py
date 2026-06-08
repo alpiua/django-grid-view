@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Protocol, Self, TypeVar
 
-from django.db.models import Q
 from django.http import HttpRequest
 
 from django_grid_view.export.table_columns import (
@@ -13,23 +11,23 @@ from django_grid_view.export.table_columns import (
     parse_active_col_ids,
     resolve_simple_table_column_keys,
 )
-from django_grid_view.search.column import (
-    filter_rows_by_column_filters,
-    parse_column_filters_from_request,
-)
+from django_grid_view.search.column import filter_rows_by_column_filters
 from django_grid_view.search.column_scope import ColumnSearchMeta
 from django_grid_view.search.contract import column_is_searchable
 from django_grid_view.search.params import Q_PARAM
-from django_grid_view.search.smart import apply_smart_queryset_search, match_smart_haystack
+from django_grid_view.search.simple_queryset import apply_simple_queryset_search
+from django_grid_view.search.smart import (
+    QuerySetLike,
+    apply_smart_queryset_search,
+    match_smart_haystack,
+)
 from django_grid_view.tables import SimpleTableConfig
 from django_grid_view.types.json import RowDict, is_json_object, is_json_value_list
+from grid_view_spec.backends.django.search import (
+    apply_queryset_search,
+    parse_column_filters_from_request,
+)
 
-
-class SupportsFilter(Protocol):
-    def filter(self, q: Q) -> Self: ...
-
-
-QuerySetLike = TypeVar("QuerySetLike", bound=SupportsFilter)
 SearchFieldMap = Mapping[str, Sequence[str]]
 
 __all__ = [
@@ -42,26 +40,6 @@ __all__ = [
     "orm_fields_for_table_search",
     "row_haystack_for_search",
 ]
-
-
-def apply_queryset_search(
-    qs: QuerySetLike,
-    query: str,
-    *,
-    fields: Sequence[str],
-) -> QuerySetLike:
-    """AND-combine whitespace/comma-separated terms; each term ORs across *fields*."""
-    q = query.strip()
-    if not q or not fields:
-        return qs
-    terms = [t for t in q.replace(",", " ").split() if t]
-    combined = Q()
-    for term in terms:
-        term_q = Q()
-        for field in fields:
-            term_q |= Q(**{f"{field}__icontains": term})
-        combined &= term_q
-    return qs.filter(combined)
 
 
 def orm_fields_for_table_search(
@@ -105,7 +83,7 @@ def apply_table_search(
     """Apply ``q`` across searchable visible columns (smart syntax by default)."""
     fields = orm_fields_for_table_search(table, field_map, request)
     if mode == "simple":
-        return apply_queryset_search(qs, query, fields=fields)
+        return apply_simple_queryset_search(qs, query, fields=fields)
     return apply_smart_queryset_search(qs, query, fields=fields)
 
 

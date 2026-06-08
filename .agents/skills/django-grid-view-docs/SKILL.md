@@ -75,7 +75,7 @@ https://alpiua.github.io/django-grid-view/getting-started/
 
 - `SimpleTableConfig(..., column_settings=True, grid_id="…")`
 - `{% render_django_grid_view_gear grid_id %}` + modal (from `render_simple_table` or explicit `modal.html`)
-- `{% grid_view_bundle %}` loads `column-settings.min.js` (Sortable from host base template)
+- `{% grid_view_bundle %}` loads unified `grid-view.min.js` (column settings included; Sortable from host base template)
 - Export partials: `grid_id` → syncs `export_cols` on PDF/XLSX href
 
 ---

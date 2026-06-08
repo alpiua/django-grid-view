@@ -1,0 +1,28 @@
+<div class="cm-actions cm-actions-{{ block.presentation | e }}">
+  {% for action in block.items %}
+  {% if action.type == 'export' %}
+  <a href="{{ export_action_href(action) | e }}" class="cm-action cm-action-export cm-action-{{ action.format | e }}" data-action-id="{{ action.id | e }}"{% if action.disabled %} aria-disabled="true"{% endif %}>{{ action.label | e }}</a>
+  {% elif action.type == 'link' %}
+  <a href="{{ action_href(action) | e }}" class="cm-action cm-action-link" data-action-id="{{ action.id | e }}"{% if action.disabled %} aria-disabled="true"{% endif %}>{{ action.label | e }}</a>
+  {% elif action.type == 'overlay' %}
+  <button type="button" class="cm-action cm-action-overlay" data-action-id="{{ action.id | e }}" data-overlay-id="{{ action.overlay | e }}"{% if action.disabled %} disabled{% endif %}>{{ action.label | e }}</button>
+  {% elif action.type == 'menu' %}
+  <div class="cm-action cm-action-menu" data-action-id="{{ action.id | e }}">
+    <button type="button" class="cm-action-menu-trigger"{% if action.disabled %} disabled{% endif %}>{{ action.label | e }}</button>
+    <div class="cm-action-menu-items">
+      {% for item in action.items %}
+      {% if item.type == 'export' %}
+      <a href="{{ export_action_href(item) | e }}" class="cm-action cm-action-export cm-action-{{ item.format | e }}" data-action-id="{{ item.id | e }}">{{ item.label | e }}</a>
+      {% elif item.type == 'link' %}
+      <a href="{{ action_href(item) | e }}" class="cm-action cm-action-link" data-action-id="{{ item.id | e }}">{{ item.label | e }}</a>
+      {% else %}
+      <button type="button" class="cm-action cm-action-{{ item.type | e }}" data-action-id="{{ item.id | e }}">{{ item.label | e }}</button>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <button type="button" class="cm-action cm-action-{{ action.type | e }}" data-action-id="{{ action.id | e }}"{% if action.disabled %} disabled{% endif %}{% if action.action %} data-action="{{ action.action | e }}"{% endif %}>{{ action.label | e }}</button>
+  {% endif %}
+  {% endfor %}
+</div>
