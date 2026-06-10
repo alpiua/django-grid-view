@@ -1,0 +1,49 @@
+/* Lazy-load placeholder states */
+
+.cm-lazy-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  width: 100%;
+}
+
+/* Skeleton — shimmer bars */
+.cm-lazy-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--cm-surface-2, #1e293b) 25%,
+    var(--cm-surface-3, #273549) 50%,
+    var(--cm-surface-2, #1e293b) 75%
+  );
+  background-size: 200% 100%;
+  animation: cm-skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+  min-height: 160px;
+}
+
+@keyframes cm-skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Spinner */
+.cm-lazy-spinner::after {
+  content: "";
+  display: block;
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--cm-border, #334155);
+  border-top-color: var(--cm-accent, #38bdf8);
+  border-radius: 50%;
+  animation: cm-spin 0.7s linear infinite;
+}
+
+@keyframes cm-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Empty — no visual indicator */
+.cm-lazy-empty {
+  min-height: 0;
+}

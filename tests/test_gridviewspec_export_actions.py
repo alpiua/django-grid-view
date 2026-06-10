@@ -115,7 +115,34 @@ def test_export_action_href_respects_endpoint_and_include_state() -> None:
         spec=spec,
         filter_state=host.filter_state_from_request(spec),
     )
-    assert href == "/custom/export"
+    assert href == "/custom/export?builder=page_export"
+
+
+def test_export_action_href_endpoint_includes_builder_from_params() -> None:
+    spec = _actions_spec(
+        GridViewExportAction(
+            id="pdf",
+            label="PDF",
+            format="pdf",
+            endpoint="/api/export/pdf/",
+            include_state=True,
+            params={"builder": "alarms", "grid_id": "alarms"},
+        )
+    )
+    host = InMemoryHost(filter_state={"q": "Alpha", "period": "2026-03"})
+    action = spec.blocks[0].items[0]
+    assert isinstance(action, GridViewExportAction)
+    href = export_action_href(
+        action,
+        host=host,
+        spec=spec,
+        filter_state=host.filter_state_from_request(spec),
+    )
+    assert "builder=alarms" in href
+    assert "grid_id=alarms" in href
+    assert "q=Alpha" in href
+    assert "period=2026-03" in href
+    assert href.startswith("/api/export/pdf/")
 
 
 def test_actions_html_renders_export_links() -> None:
@@ -144,7 +171,7 @@ def test_actions_html_renders_export_links() -> None:
     assert 'href="/export_xlsx?builder=records&amp;q=Alpha"' in html
 
 
-def test_django_host_export_action_falls_back_without_urlconf() -> None:
+def test_django_host_export_action_resolves_default_urlconf() -> None:
     pytest.importorskip("django")
     from django.test import RequestFactory
 
@@ -167,7 +194,7 @@ def test_django_host_export_action_falls_back_without_urlconf() -> None:
         spec=spec,
         filter_state=host.filter_state_from_request(spec),
     )
-    assert href.startswith("/export_pdf?")
+    assert href.startswith("/grid/export/pdf/?")
     assert "builder=records" in href
     assert "q=Alpha" in href
 

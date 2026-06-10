@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Literal
+from typing import Literal, NotRequired, TypedDict
 
 from grid_view_spec.types.actions import GridViewAction
 from grid_view_spec.types.assets import GridViewTemplateAsset
@@ -18,6 +18,7 @@ GridViewSortDirection = Literal["asc", "desc"]
 GridViewDataSourceMethod = Literal["get", "post"]
 GridViewColumnSourceMerge = Literal["append", "replace"]
 GridViewTableEditMode = Literal["cell", "row"]
+GridViewTablePaginationMode = Literal["server", "client", "fragment"]
 
 GRIDVIEW_TABLE_BACKENDS: frozenset[GridViewTableBackend] = frozenset({"simple", "ag_grid"})
 GRIDVIEW_TABLE_SEARCH_MODES: frozenset[GridViewTableSearchMode] = frozenset(
@@ -34,6 +35,9 @@ GRIDVIEW_COLUMN_SOURCE_MERGES: frozenset[GridViewColumnSourceMerge] = frozenset(
     {"append", "replace"}
 )
 GRIDVIEW_TABLE_EDIT_MODES: frozenset[GridViewTableEditMode] = frozenset({"cell", "row"})
+GRIDVIEW_TABLE_PAGINATION_MODES: frozenset[GridViewTablePaginationMode] = frozenset(
+    {"server", "client", "fragment"}
+)
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -116,6 +120,58 @@ class GridViewDataSource:
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
+class GridViewTablePagination:
+    """Server or client paging for simple tables (``backend=simple``)."""
+
+    page: int = 1
+    page_size: int = 25
+    total: int = 0
+    mode: GridViewTablePaginationMode = "server"
+    page_param: str = "page"
+    page_size_param: str = "page_size"
+    fragment_endpoint: str = ""
+    fragment_target: str = ""
+    fragment_swap: str = "outerHTML"
+    page_endpoint: str = ""
+    page_size_options: tuple[int, ...] = ()
+
+
+def gridview_table_num_pages(pagination: GridViewTablePagination) -> int:
+    """Return total page count; ``1`` when paging is disabled."""
+    if pagination.page_size <= 0:
+        return 1
+    if pagination.total <= 0:
+        return 1
+    return max(1, (pagination.total + pagination.page_size - 1) // pagination.page_size)
+
+
+def gridview_table_page_range(pagination: GridViewTablePagination) -> tuple[int, int]:
+    """Inclusive 1-based row range ``(start, end)`` for the current page."""
+    if pagination.total <= 0 or pagination.page_size <= 0:
+        return (0, 0)
+    page = max(1, pagination.page)
+    start = (page - 1) * pagination.page_size + 1
+    end = min(page * pagination.page_size, pagination.total)
+    return start, end
+
+
+def gridview_table_page_window(
+    pagination: GridViewTablePagination,
+    *,
+    radius: int = 2,
+) -> tuple[int, ...]:
+    """Page numbers to render with optional ellipsis gaps."""
+    num_pages = gridview_table_num_pages(pagination)
+    if num_pages <= 1:
+        return (1,)
+    current = max(1, min(pagination.page, num_pages))
+    pages = {1, num_pages}
+    for page in range(max(1, current - radius), min(num_pages, current + radius) + 1):
+        pages.add(page)
+    return tuple(sorted(pages))
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
 class GridViewTableSettings:
     columns: bool = True
     order: bool = True
@@ -143,4 +199,19 @@ class GridViewTable(GridViewBlockBase):
     footer: GridViewTableFooter | None = None
     empty_message: str = ""
     per_page: int = 0
+    pagination: GridViewTablePagination | None = None
     striped: bool = False
+
+
+class ColumnSpecWire(TypedDict):
+    key: str
+    label: str
+    format: NotRequired[str]
+    align: NotRequired[str]
+    sortable: NotRequired[bool]
+    searchable: NotRequired[bool]
+    link_template: NotRequired[str]
+    width: NotRequired[str]
+    hide: NotRequired[bool]
+    menu_group: NotRequired[str]
+    exportable: NotRequired[bool]

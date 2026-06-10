@@ -5,80 +5,71 @@ actions, and layout areas. The Python package `grid_view_spec` validates specs, 
 exposes export hooks. Host applications supply **rows and business logic**; the spec describes
 **structure only**.
 
-The PyPI distribution is still named **`django-grid-view`** (it ships templates, static assets, and
-an optional Django backend). The core library imports as `grid_view_spec`.
+The PyPI distribution is **`grid-view-spec`**. The Python package imports as `grid_view_spec`.
 
 ```bash
-pip install django-grid-view
+pip install "grid-view-spec[django]"
 ```
 
 ## What you build
-
-A typical page loads data in Python, builds a `GridViewSpec`, and renders it:
 
 ```python
 from grid_view_spec import GridViewSpec, validate_spec
 from grid_view_spec.render import render_grid_view_spec
 
 spec = GridViewSpec(id="orders", blocks=(...), layout=...)
-validate_spec(spec)  # raises on invalid structure
+validate_spec(spec)
 html = render_grid_view_spec(spec, rows, host=host)
 ```
 
-In templates (Django backend):
-
 ```django
-{% load django_grid_view %}
-{% render_grid_view_spec page.grid %}
+{% load grid_view_spec %}
+{% render_grid_view_spec page.spec page.rows %}
 ```
 
-One bundle boots the page in the browser: `{% grid_view_bundle %}` loads `grid-view.min.js`, which
-calls `GridView.bootScope()` for tables, filters, KPIs, charts, and spec roots.
+One loader boots the page: `{% grid_view_spec_assets part='js' force_core=True %}` → `GridView.bootScope()`.
 
 ![Layer model: rows + GridViewSpec → HTML](assets/layer-model.svg)
 
-**Important:** KPI and chart **numbers** always come from Python `rows` (or server-side
-resolution). The spec never carries row data or computed aggregates from untrusted input.
+KPI and chart **numbers** always come from Python `rows` — never from untrusted spec input.
 
 ## Documentation map
 
-| Topic | Document |
-|-------|----------|
+| Group | Start here |
+|-------|------------|
 | Install and first page | [Getting started](getting-started.md) |
-| Spec contract (v2) | [GridViewSpec reference](reference/grid-view-spec.md) |
-| System overview | [Architecture](architecture.md) |
-| JavaScript runtime | [JavaScript API](reference/javascript.md) |
-| Template tags | [Template tags](reference/template-tags.md) |
-| AG-Grid tables | [AG-Grid integration](ag-grid.md) |
-| PDF / XLSX export | [PDF export](guides/pdf-export.md), [XLSX export](guides/xlsx-export.md) |
-| MCP server (IDE) | [MCP server](guides/mcp-server.md) |
-| JSON Schema | `schema/grid-view-spec.v2.json` in the repository |
+| Concepts | [Architecture overview](concepts/overview.md) |
+| Spec contract | [GridViewSpec](spec/index.md) |
+| Blocks | [Block catalog](blocks/index.md) |
+| Tables | [Tables overview](tables/index.md) |
+| Filtering | [Filter semantics](filtering/semantics.md) |
+| Visualization | [KPI and charts](visualization/kpi-charts.md) |
+| Integration | [Django](integration/django.md) |
+| Export | [Page pattern](export/page-pattern.md) |
+| Tools | [MCP server](tools/mcp-server.md) |
+| Reference | [Python types](reference/python-types.md) |
 
 ## Backends
 
 | Backend | Use when |
 |---------|----------|
-| **Django** | Templates, `GridPreference` ORM, export views, `INSTALLED_APPS` |
-| **Jinja2 / Starlette / FastAPI** | Headless HTML or API-only hosts (`grid_view_spec.backends.*`) |
-| **JSON** | Wire format, MCP, chat pipelines (`spec_to_wire`, `spec_from_wire`) |
+| **Django** | Templates, `GridPreference`, export views |
+| **Jinja2 / Starlette / FastAPI** | Headless HTML hosts |
+| **Wire / MCP** | JSON storage, IDE validation |
 
-Django is one integration path, not a requirement for the spec itself.
+[Backends detail](concepts/backends.md)
 
 ## Optional extras
 
-| Extra | Install | Purpose |
-|-------|---------|---------|
-| `[pdf]` | `pip install django-grid-view[pdf]` | WeasyPrint PDF export |
-| `[mcp]` | `pip install "django-grid-view[mcp]"` | CLI **`gridviewspec-mcp`** (installed with the package) |
-| `[starlette]` / `[fastapi]` | respective extra | ASGI page routes |
+| Extra | Purpose |
+|-------|---------|
+| `[pdf]` | WeasyPrint PDF export |
+| `[mcp]` | `gridviewspec-mcp` CLI |
+| `[starlette]` / `[fastapi]` | ASGI routes |
 
 ## Links
 
-- [PyPI](https://pypi.org/project/django-grid-view/)
-- [GitHub](https://github.com/alpiua/django-grid-view)
+- [PyPI](https://pypi.org/project/grid-view-spec/)
+- [GitHub](https://github.com/alpiua/grid-view-spec)
 - [Changelog](changelog.md)
-
-## Publishing this site
-
-Maintainers build docs with MkDocs Material; GitHub Actions deploys to
-[https://alpiua.github.io/django-grid-view/](https://alpiua.github.io/django-grid-view/).
+- [Architecture reference](maintainers/gridviewspec-architecture.md) (maintainers)

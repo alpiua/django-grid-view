@@ -15,6 +15,7 @@ from grid_view_spec.types.actions import (
 from grid_view_spec.types.host import GridViewHost
 from grid_view_spec.types.json import JsonValue
 from grid_view_spec.types.spec import GridViewSpec
+from grid_view_spec.types.table_v2 import GridViewTablePagination
 
 _EXPORT_ROUTES: dict[GridViewExportFormat, str] = {
     "pdf": "export_pdf",
@@ -80,7 +81,9 @@ def export_action_href(
         extra.pop(key, None)
 
     if action.endpoint:
-        merged = {**state_query, **extra}
+        merged: dict[str, str] = {"builder": export_builder_key(action, spec)}
+        merged.update(state_query)
+        merged.update(extra)
         return _append_query(action.endpoint, merged)
 
     route = _EXPORT_ROUTES.get(action.format)
@@ -97,6 +100,102 @@ def export_action_href(
 def link_action_href(action: GridViewLinkAction) -> str:
     """Return explicit link href; ``target`` is not resolved to URLs in v1."""
     return action.href
+
+
+def _pagination_query(
+    pagination: GridViewTablePagination,
+    *,
+    page: int,
+    page_size: int | None = None,
+    filter_state: Mapping[str, object] | None = None,
+) -> dict[str, str]:
+    query: dict[str, str] = {}
+    if filter_state is not None:
+        query.update(query_from_filter_state(filter_state))
+    query[pagination.page_param] = str(max(1, page))
+    resolved_size = pagination.page_size if page_size is None else page_size
+    if resolved_size > 0:
+        query[pagination.page_size_param] = str(resolved_size)
+    return query
+
+
+def _canonical_page_endpoint_from_fragment(fragment_endpoint: str) -> str:
+    frag = fragment_endpoint.strip()
+    if frag.endswith("/fragment/"):
+        return frag[: -len("fragment/")]
+    if frag.endswith("/fragment"):
+        base = frag[: -len("/fragment")]
+        return base + "/" if base else "/"
+    return frag
+
+
+def pagination_fragment_href(
+    pagination: GridViewTablePagination,
+    *,
+    page: int,
+    page_size: int | None = None,
+    filter_state: Mapping[str, object] | None = None,
+) -> str:
+    """Build HTMX fragment href for one pagination page (preserves filter query)."""
+    query = _pagination_query(pagination, page=page, page_size=page_size, filter_state=filter_state)
+    endpoint = pagination.fragment_endpoint.strip()
+    if not endpoint:
+        return "?" + urlencode(query) if query else "?"
+    return _append_query(endpoint, query)
+
+
+def pagination_page_href(
+    pagination: GridViewTablePagination,
+    *,
+    page: int,
+    page_size: int | None = None,
+    filter_state: Mapping[str, object] | None = None,
+) -> str:
+    """Build canonical full-page href for bookmarking, push-url, and filter navigation."""
+    query = _pagination_query(pagination, page=page, page_size=page_size, filter_state=filter_state)
+    if pagination.mode != "fragment":
+        return pagination_fragment_href(
+            pagination,
+            page=page,
+            page_size=page_size,
+            filter_state=filter_state,
+        )
+    endpoint = pagination.page_endpoint.strip()
+    if not endpoint:
+        endpoint = _canonical_page_endpoint_from_fragment(pagination.fragment_endpoint)
+    if not endpoint:
+        return "?" + urlencode(query) if query else "?"
+    return _append_query(endpoint, query)
+
+
+def pagination_page_size_href(
+    pagination: GridViewTablePagination,
+    *,
+    page_size: int,
+    filter_state: Mapping[str, object] | None = None,
+) -> str:
+    """Change page size and reset to page 1 (canonical page URL)."""
+    return pagination_page_href(
+        pagination,
+        page=1,
+        page_size=page_size,
+        filter_state=filter_state,
+    )
+
+
+def pagination_page_size_fragment_href(
+    pagination: GridViewTablePagination,
+    *,
+    page_size: int,
+    filter_state: Mapping[str, object] | None = None,
+) -> str:
+    """HTMX href for page-size change (page 1)."""
+    return pagination_fragment_href(
+        pagination,
+        page=1,
+        page_size=page_size,
+        filter_state=filter_state,
+    )
 
 
 def action_href(

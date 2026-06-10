@@ -1,5 +1,5 @@
 import { i18n } from "./i18n";
-import { byId } from "./registry";
+import { byId, invokeGridAction } from "./registry";
 import { getGlobal } from "./dom-utils";
 import { parseSmartQuery } from "./search/smart-query";
 import { collectColumnFiltersObject, serializeColumnFilters, matchColumnFilter } from "./search/column-filter-state";
@@ -8,13 +8,31 @@ import { Charts } from "./charts";
 import { Kpi } from "./kpi";
 import { initAllSimpleTables, applyFiltersInScope } from "./simple-table";
 import { initButtonEllipsisTips } from "./table-cell-ui";
+import { asHTMLElement, asHtmlInput, isRecord } from "./dom-guards";
+
+type FilterState = Record<string, string | string[]>;
+
+interface FilterBarOptions {
+  navigate?: boolean;
+  onChange?: (state: FilterState) => void;
+}
+
+interface ToolbarSearchContext {
+  root: HTMLElement;
+  scopeId: string;
+  prefId: string;
+  backend: string;
+  input: HTMLInputElement | null;
+  dropdown: HTMLElement | null;
+  container: HTMLElement | null;
+}
 
 const MS_VALUE_CHECKBOX =
   'input[type="checkbox"]:checked:not([data-ui-only])';
 const MS_COUNTABLE =
   'input[type="checkbox"]:not([data-period-all]):not([data-select-all]):not([data-ui-only]):not([data-exclusive-solo])';
 
-export function setMultiselectTriggerLabel(root, text) {
+export function setMultiselectTriggerLabel(root: Element, text: string): void {
   const trigger = root.querySelector(".cm-multiselect-trigger");
   if (!trigger) return;
   const label = trigger.querySelector(".cm-multiselect-trigger__label");
@@ -22,22 +40,27 @@ export function setMultiselectTriggerLabel(root, text) {
   else trigger.textContent = text;
 }
 
-export function selectedFilterValues(root) {
-  const state = {};
-  root.querySelectorAll("[data-cm-multiselect]").forEach((ms) => {
+export function selectedFilterValues(root: Element): FilterState {
+  const state: FilterState = {};
+  root.querySelectorAll("[data-cm-multiselect]").forEach((msEl) => {
+    const ms = asHTMLElement(msEl);
+    if (!ms) return;
     const param = ms.dataset.filterParam || ms.dataset.filterId || "period";
-    const vals = [...ms.querySelectorAll(MS_VALUE_CHECKBOX)].map((cb) => cb.value);
+    const vals = Array.from(ms.querySelectorAll<HTMLInputElement>(MS_VALUE_CHECKBOX)).map((cb) => cb.value);
     if (ms.dataset.cmSingleselect === "1") {
       state[param] = vals[0] || "";
     } else {
       state[param] = vals;
     }
   });
-  root.querySelectorAll("[data-cm-period-multiselect]").forEach((ms) => {
+  root.querySelectorAll("[data-cm-period-multiselect]").forEach((msEl) => {
+    const ms = asHTMLElement(msEl);
+    if (!ms) return;
     const param = ms.dataset.filterParam || ms.dataset.filterId || "period";
+    const periodFilter = getGlobal().CMPeriodFilter;
     const vals =
-      getGlobal().CMPeriodFilter && typeof getGlobal().CMPeriodFilter.selectedValues === "function"
-        ? getGlobal().CMPeriodFilter.selectedValues(ms)
+      periodFilter && typeof periodFilter.selectedValues === "function"
+        ? periodFilter.selectedValues(ms)
         : [];
     if (ms.dataset.cmSingleselect === "1") {
       state[param] = vals[0] || "";
@@ -45,20 +68,21 @@ export function selectedFilterValues(root) {
       state[param] = vals;
     }
   });
-  root.querySelectorAll("select[data-filter-id]").forEach((sel) => {
-    const param = sel.name || sel.dataset.filterId;
-    if (param) state[param] = sel.value;
+  root.querySelectorAll("select[data-filter-id]").forEach((selEl) => {
+    if (!(selEl instanceof HTMLSelectElement)) return;
+    const param = selEl.name || selEl.dataset.filterId;
+    if (param) state[param] = selEl.value;
   });
-  const search = root.querySelector("[data-cm-search]");
+  const search = asHtmlInput(root.querySelector("[data-cm-search]"));
   if (search && search.name) state[search.name] = search.value;
   return state;
 }
 
-export function _updateMultiSelectLabel(ms) {
+export function _updateMultiSelectLabel(ms: HTMLElement): void {
   const placeholder = ms.dataset.placeholder || i18n.t("multiselect.select", "Select");
   const allLabel = ms.dataset.allLabel || placeholder;
   const total = ms.querySelectorAll(MS_COUNTABLE).length;
-  const periodAll = ms.querySelector("[data-period-all]");
+  const periodAll = ms.querySelector<HTMLInputElement>("[data-period-all]");
   if (periodAll?.checked) {
     setMultiselectTriggerLabel(ms, allLabel);
     return;
@@ -74,7 +98,7 @@ export function _updateMultiSelectLabel(ms) {
     setMultiselectTriggerLabel(ms, allLabel);
     return;
   }
-  const valueChecked = [...ms.querySelectorAll(MS_VALUE_CHECKBOX)];
+  const valueChecked = Array.from(ms.querySelectorAll<HTMLInputElement>(MS_VALUE_CHECKBOX));
   if (valueChecked.length === 1) {
     setMultiselectTriggerLabel(ms, valueChecked[0].dataset.label || valueChecked[0].value);
     return;
@@ -85,39 +109,131 @@ export function _updateMultiSelectLabel(ms) {
   );
 }
 
-export function applyFilterValues(root, state) {
+export function applyFilterValues(root: Element, state: FilterState): void {
   if (!root || !state) return;
   Object.entries(state).forEach(([param, val]) => {
     if (val == null || val === "") return;
     const values = Array.isArray(val)
       ? val.map(String)
       : String(val).split(",").map((v) => v.trim()).filter(Boolean);
-    root.querySelectorAll("[data-cm-multiselect]").forEach((ms) => {
+    root.querySelectorAll("[data-cm-multiselect]").forEach((msEl) => {
+      const ms = asHTMLElement(msEl);
+      if (!ms) return;
       const msParam = ms.dataset.filterParam || ms.dataset.filterId || "period";
       if (msParam !== param) return;
-      ms.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
-        if (cb.dataset.uiOnly === "1") return;
-        cb.checked = values.includes(cb.value);
+      ms.querySelectorAll('input[type="checkbox"]').forEach((cbEl) => {
+        if (!(cbEl instanceof HTMLInputElement)) return;
+        if (cbEl.dataset.uiOnly === "1") return;
+        cbEl.checked = values.includes(cbEl.value);
       });
       if (typeof ms._cmUpdateLabel === "function") ms._cmUpdateLabel();
       else _updateMultiSelectLabel(ms);
     });
-    root.querySelectorAll("[data-cm-period-multiselect]").forEach((ms) => {
+    root.querySelectorAll("[data-cm-period-multiselect]").forEach((msEl) => {
+      const ms = asHTMLElement(msEl);
+      if (!ms) return;
       const msParam = ms.dataset.filterParam || ms.dataset.filterId || "period";
       if (msParam !== param) return;
-      if (getGlobal().CMPeriodFilter && typeof getGlobal().CMPeriodFilter.applyValues === "function") {
-        getGlobal().CMPeriodFilter.applyValues(ms, values);
+      const periodFilter = getGlobal().CMPeriodFilter;
+      if (periodFilter && typeof periodFilter.applyValues === "function") {
+        periodFilter.applyValues(ms, values);
       }
     });
-    root.querySelectorAll("select[data-filter-id]").forEach((sel) => {
-      const selParam = sel.name || sel.dataset.filterId;
+    root.querySelectorAll("select[data-filter-id]").forEach((selEl) => {
+      if (!(selEl instanceof HTMLSelectElement)) return;
+      const selParam = selEl.name || selEl.dataset.filterId;
       if (selParam !== param) return;
-      sel.value = Array.isArray(val) ? String(val[0] || "") : String(val);
+      selEl.value = Array.isArray(val) ? String(val[0] || "") : String(val);
     });
   });
 }
 
-export function buildFilterUrl(baseUrl, state) {
+export function filterNavigateHref() {
+  const url = new URL(window.location.href);
+  url.pathname = url.pathname.replace(/\/fragment\/?$/, "/");
+  return url.href;
+}
+
+function resolveToolbarGridId(anchor: Element | null | undefined): string {
+  const anchorEl = asHTMLElement(anchor);
+  const root =
+    asHTMLElement(anchorEl?.closest("[data-cm-toolbar-search-root]")) ||
+    asHTMLElement(anchorEl?.closest(".cm-toolbar-unified")?.querySelector("[data-cm-toolbar-search-root]"));
+  return root?.dataset?.cmTableGridId || root?.dataset?.cmPrefGridId || "";
+}
+
+function tableFragmentConfig(gridId: string): {
+  endpoint: string;
+  target: string;
+  swap: string;
+  gridId: string;
+} | null {
+  if (!gridId) return null;
+  const shell = document.getElementById("cm-table-" + gridId);
+  if (!shell) return null;
+  const endpoint = shell.dataset?.cmFragmentEndpoint || "";
+  if (!endpoint) return null;
+  return {
+    endpoint,
+    target: shell.dataset.cmFragmentTarget || "#block-" + gridId,
+    swap: shell.dataset.cmFragmentSwap || "outerHTML",
+    gridId,
+  };
+}
+
+function buildFragmentRequestUrl(fragmentEndpoint, pagePathAndQuery) {
+  const page = new URL(pagePathAndQuery, window.location.origin);
+  const frag = new URL(fragmentEndpoint, window.location.origin);
+  frag.search = page.search;
+  return frag.pathname + frag.search;
+}
+
+function syncToolbarCounterFromTable(gridId: string): void {
+  if (!gridId) return;
+  const block = document.getElementById("block-" + gridId);
+  const counter = asHTMLElement(document.querySelector('[data-cm-count-for="' + gridId + '"]'));
+  if (!block || !counter) return;
+  const footer = asHTMLElement(block.querySelector("[data-cm-pagination-total]"));
+  const total = footer?.dataset?.cmPaginationTotal || counter.dataset.cmCountTotal || "";
+  const shown = block.querySelectorAll("tbody .cm-row:not([hidden])").length;
+  if (total) {
+    counter.textContent = String(shown) + "/" + total;
+    counter.dataset.cmCountTotal = total;
+  } else {
+    counter.textContent = String(shown);
+  }
+}
+
+export function navigateFilterState(
+  state: FilterState,
+  anchorEl: Element | null | undefined,
+  bar: Element | null | undefined
+): boolean {
+  const pageUrl = withActiveTableColumns(
+    buildFilterUrl(filterNavigateHref(), state),
+    anchorEl || bar
+  );
+  const gridId = resolveToolbarGridId(anchorEl || bar);
+  const frag = tableFragmentConfig(gridId);
+  const htmx = getGlobal().htmx;
+  if (frag && htmx && typeof htmx.ajax === "function") {
+    htmx.ajax("GET", buildFragmentRequestUrl(frag.endpoint, pageUrl), {
+      target: frag.target,
+      swap: frag.swap,
+    });
+    window.history.pushState({}, "", pageUrl);
+    window.setTimeout(() => syncToolbarCounterFromTable(frag.gridId), 0);
+    return true;
+  }
+  window.location.href = pageUrl;
+  return false;
+}
+
+function toolbarSearchUsesFragmentNavigation(searchInput: HTMLInputElement): boolean {
+  return !!tableFragmentConfig(resolveToolbarGridId(searchInput));
+}
+
+export function buildFilterUrl(baseUrl: string, state: FilterState): string {
   const url = new URL(baseUrl, window.location.origin);
   Object.entries(state).forEach(([key, val]) => {
     if (val === "" || val == null) {
@@ -130,41 +246,44 @@ export function buildFilterUrl(baseUrl, state) {
   return url.pathname + url.search;
 }
 
-export function activeExportColIds(gridId) {
+export function activeExportColIds(gridId: string): string {
   if (!gridId) return "";
+  const gridView = getGlobal().GridView;
   const handle =
-    getGlobal().GridView && getGlobal().GridView.byId && getGlobal().GridView.byId.get
-      ? getGlobal().GridView.byId.get(gridId)
-      : null;
-  if (handle && handle.adapter && typeof handle.adapter.getDisplayedColumnIds === "function") {
-    return handle.adapter.getDisplayedColumnIds().join(",");
+    gridView?.byId && typeof gridView.byId.get === "function" ? gridView.byId.get(gridId) : null;
+  if (handle && isRecord(handle) && isRecord(handle.adapter)) {
+    const getDisplayed = handle.adapter.getDisplayedColumnIds;
+    if (typeof getDisplayed === "function") {
+      const ids = getDisplayed.call(handle.adapter);
+      if (Array.isArray(ids)) return ids.map(String).join(",");
+    }
   }
   try {
     const raw = localStorage.getItem("cmColState_" + gridId);
     if (!raw) return "";
-    const state = JSON.parse(raw);
+    const state: unknown = JSON.parse(raw);
     if (!Array.isArray(state)) return "";
     return state
-      .filter((col) => col && !col.hide)
-      .map((col) => col.colId)
+      .filter((col): col is Record<string, unknown> => isRecord(col) && !col.hide)
+      .map((col) => String(col.colId || ""))
       .filter(Boolean)
       .join(",");
-  } catch (e) {
+  } catch {
     return "";
   }
 }
 
-export function withActiveTableColumns(urlString, scopeEl) {
+export function withActiveTableColumns(urlString: string, scopeEl: Element | null | undefined): string {
   const url = new URL(urlString, window.location.origin);
   const anchor =
     scopeEl && scopeEl.closest
       ? scopeEl.closest("[data-cm-toolbar-search-root], .cm-dashboard-page, .cm-page-table-layout")
       : null;
-  const gridId =
-    anchor?.querySelector?.("[data-cm-toolbar-search-root][data-cm-table-grid-id]")?.dataset
-      .cmTableGridId ||
-    anchor?.querySelector?.("[data-cm-table-shell][data-grid-id]")?.dataset?.gridId ||
-    "";
+  const toolbarRoot = asHTMLElement(
+    anchor?.querySelector("[data-cm-toolbar-search-root][data-cm-table-grid-id]")
+  );
+  const tableShell = asHTMLElement(anchor?.querySelector("[data-cm-table-shell][data-grid-id]"));
+  const gridId = toolbarRoot?.dataset.cmTableGridId || tableShell?.dataset.gridId || "";
   const cols = activeExportColIds(gridId);
   if (cols) url.searchParams.set("export_cols", cols);
   else url.searchParams.delete("export_cols");
@@ -174,7 +293,9 @@ export function withActiveTableColumns(urlString, scopeEl) {
   return url.pathname + url.search;
 }
 
-export function initMultiSelectWidget(root) {
+export function initMultiSelectWidget(rootEl: Element): void {
+  const root = asHTMLElement(rootEl);
+  if (!root) return;
   if (root.dataset.cmMsBound) return;
   root.dataset.cmMsBound = "1";
   const panel = root.querySelector(".cm-multiselect-panel");
@@ -186,10 +307,12 @@ export function initMultiSelectWidget(root) {
     }
   };
   root._cmFlushPendingAutoApply = flushPendingAutoApply;
-  const regularCheckboxes = () => Array.from(root.querySelectorAll(MS_COUNTABLE));
-  const selectAllCheckbox = () => root.querySelector('input[type="checkbox"][data-select-all]');
+  const regularCheckboxes = () =>
+    Array.from(root.querySelectorAll<HTMLInputElement>(MS_COUNTABLE));
+  const selectAllCheckbox = () =>
+    root.querySelector<HTMLInputElement>('input[type="checkbox"][data-select-all]');
   const soloCheckboxes = () =>
-    Array.from(root.querySelectorAll('[data-select-all], [data-exclusive-solo]'));
+    Array.from(root.querySelectorAll<HTMLInputElement>('[data-select-all], [data-exclusive-solo]'));
   const syncSelectAllState = () => {
     const allCb = selectAllCheckbox();
     if (!allCb) return;
@@ -209,7 +332,7 @@ export function initMultiSelectWidget(root) {
     if (open) panel?.classList.add("is-open");
   });
   panel?.addEventListener("click", (e) => e.stopPropagation());
-  const applyBtn = panel?.querySelector("[data-cm-multiselect-apply]");
+  const applyBtn = asHTMLElement(panel?.querySelector("[data-cm-multiselect-apply]"));
   if (applyBtn && !applyBtn.dataset.cmBound) {
     applyBtn.dataset.cmBound = "1";
     applyBtn.addEventListener("click", (e) => {
@@ -219,11 +342,13 @@ export function initMultiSelectWidget(root) {
       panel?.classList.remove("is-open");
     });
   }
-  root.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+  root.querySelectorAll('input[type="checkbox"]').forEach((cbEl) => {
+    if (!(cbEl instanceof HTMLInputElement)) return;
+    const cb = cbEl;
     cb.addEventListener("change", () => {
       if (root.dataset.cmSingleselect === "1" && cb.checked && cb.dataset.selectAll !== "1") {
-        root.querySelectorAll('input[type="checkbox"]').forEach((other) => {
-          if (other !== cb) other.checked = false;
+        root.querySelectorAll('input[type="checkbox"]').forEach((otherEl) => {
+          if (otherEl instanceof HTMLInputElement && otherEl !== cb) otherEl.checked = false;
         });
         if (panel?.classList.contains("is-open")) {
           panel.classList.remove("is-open");
@@ -233,15 +358,15 @@ export function initMultiSelectWidget(root) {
         (cb.dataset.selectAll === "1" || cb.dataset.exclusiveSolo === "1") &&
         cb.checked
       ) {
-        root.querySelectorAll('input[type="checkbox"]').forEach((o) => {
-          if (o !== cb) o.checked = false;
+        root.querySelectorAll('input[type="checkbox"]').forEach((oEl) => {
+          if (oEl instanceof HTMLInputElement && oEl !== cb) oEl.checked = false;
         });
       } else if (root.dataset.exclusiveAll === "1" && cb.dataset.periodAll === "1" && cb.checked) {
-        root.querySelectorAll('input[type="checkbox"]:not([data-period-all])').forEach((o) => {
-          o.checked = false;
+        root.querySelectorAll('input[type="checkbox"]:not([data-period-all])').forEach((oEl) => {
+          if (oEl instanceof HTMLInputElement) oEl.checked = false;
         });
       } else if (cb.dataset.periodAll !== "1" && cb.checked) {
-        const allCb = root.querySelector("[data-period-all]");
+        const allCb = root.querySelector<HTMLInputElement>("[data-period-all]");
         if (allCb) allCb.checked = false;
       }
       if (
@@ -256,7 +381,7 @@ export function initMultiSelectWidget(root) {
       }
       if (cb.dataset.selectAll !== "1") syncSelectAllState();
       updateLabel();
-      if (root.closest("[data-cm-filter-bar]")?.dataset.autoApply === "1") {
+      if (asHTMLElement(root.closest("[data-cm-filter-bar]"))?.dataset.autoApply === "1") {
         root._cmPendingAutoApply = true;
       }
     });
@@ -267,33 +392,45 @@ export function initMultiSelectWidget(root) {
   if (!window.__cmMultiSelectCloseBound) {
     window.__cmMultiSelectCloseBound = true;
     document.addEventListener("click", () => {
-      document.querySelectorAll("[data-cm-multiselect]").forEach((widget) => {
-        if (typeof widget._cmFlushPendingAutoApply === "function") widget._cmFlushPendingAutoApply();
+      document.querySelectorAll("[data-cm-multiselect]").forEach((widgetEl) => {
+        const widget = asHTMLElement(widgetEl);
+        if (widget && typeof widget._cmFlushPendingAutoApply === "function") {
+          widget._cmFlushPendingAutoApply();
+        }
       });
       document.querySelectorAll(".cm-multiselect-panel.is-open").forEach((p) => p.classList.remove("is-open"));
     });
   }
 }
 
-export function bindFilterBar(bar, opts) {
-  opts = opts || {};
+export function bindFilterBar(barEl: Element, opts?: FilterBarOptions) {
+  const bar = asHTMLElement(barEl);
+  if (!bar) return { getState: () => ({} as FilterState), buildUrl: buildFilterUrl };
+  const options = opts || {};
+  const navigateOnChange =
+    options.navigate !== false && bar.dataset.navigateOnChange !== "0";
   bar.querySelectorAll("[data-cm-multiselect]").forEach(initMultiSelectWidget);
-  if (getGlobal().CMPeriodFilter && typeof getGlobal().CMPeriodFilter.bind === "function") {
-    getGlobal().CMPeriodFilter.bind(bar);
+  const periodFilter = getGlobal().CMPeriodFilter;
+  if (periodFilter && typeof periodFilter.bind === "function") {
+    periodFilter.bind(bar);
   }
   const onChange = () => {
     const state = selectedFilterValues(bar);
+    state.page = "1";
     document.dispatchEvent(new CustomEvent("cm-filter-change", { detail: { state, bar } }));
-    if (typeof opts.onChange === "function") opts.onChange(state);
-    else if (opts.navigate !== false) {
-      window.location.href = withActiveTableColumns(buildFilterUrl(window.location.href, state), bar);
+    if (typeof options.onChange === "function") options.onChange(state);
+    else if (navigateOnChange) {
+      navigateFilterState(state, bar, bar);
+    } else {
+      const nextUrl = withActiveTableColumns(buildFilterUrl(filterNavigateHref(), state), bar);
+      window.history.replaceState({}, "", nextUrl);
     }
   };
   bar.addEventListener("cm-filter-change", onChange);
-  bar.querySelectorAll("select[data-filter-scope='server']").forEach((sel) => {
-    sel.addEventListener("change", onChange);
+  bar.querySelectorAll("select[data-filter-scope='server']").forEach((selEl) => {
+    if (selEl instanceof HTMLSelectElement) selEl.addEventListener("change", onChange);
   });
-  const search = bar.querySelector("[data-cm-search]");
+  const search = asHtmlInput(bar.querySelector("[data-cm-search]"));
   if (search) {
     search.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && search.dataset.searchScope === "server") onChange();
@@ -333,36 +470,40 @@ export function setSavedSearchPanelOpen(dropdown, open) {
 
 /** Saved toolbar searches — one contract: scope_id (DOM), pref_grid_id (GridPreference). */
 export const ToolbarSearch = {
-  ctx: function (scopeId, wrap) {
-    if (!wrap || !wrap.matches || !wrap.matches("[data-cm-toolbar-search-root]")) {
+  ctx: function (scopeId: string, wrap?: Element | null): ToolbarSearchContext | null {
+    let root = asHTMLElement(wrap ?? null);
+    if (!root || !root.matches("[data-cm-toolbar-search-root]")) {
       if (!scopeId) return null;
       var esc =
         typeof CSS !== "undefined" && CSS.escape
           ? CSS.escape(scopeId)
           : scopeId.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-      wrap = document.querySelector(
-        '[data-cm-toolbar-search-root][data-cm-search-scope-id="' + esc + '"]'
+      root = asHTMLElement(
+        document.querySelector(
+          '[data-cm-toolbar-search-root][data-cm-search-scope-id="' + esc + '"]'
+        )
       );
     }
-    if (!wrap) return null;
-    var scope = wrap.dataset.cmSearchScopeId || scopeId || "";
-    var prefId = wrap.dataset.cmPrefGridId || scope;
-    var backend = wrap.dataset.cmSearchBackend || "";
-    var input =
+    if (!root) return null;
+    var scope = root.dataset.cmSearchScopeId || scopeId || "";
+    var prefId = root.dataset.cmPrefGridId || scope;
+    var backend = root.dataset.cmSearchBackend || "";
+    var inputEl =
       backend === "ag_grid"
         ? document.getElementById("ag-quick-filter-" + scope)
         : document.getElementById("cm-toolbar-search-" + scope);
+    const input = inputEl instanceof HTMLInputElement ? inputEl : null;
     return {
-      root: wrap,
+      root,
       scopeId: scope,
       prefId: prefId,
       backend: backend,
-      input: input,
-      dropdown: document.getElementById("cm-saved-searches-dropdown-" + scope),
-      container: document.getElementById("cm-saved-searches-container-" + scope),
+      input,
+      dropdown: asHTMLElement(document.getElementById("cm-saved-searches-dropdown-" + scope)),
+      container: asHTMLElement(document.getElementById("cm-saved-searches-container-" + scope)),
     };
   },
-  load: function (ctx) {
+  load: function (ctx: ToolbarSearchContext | null): string[] {
     if (!ctx) return [];
     var raw = ctx.root.dataset.cmSavedSearches;
     if (raw) {
@@ -393,7 +534,7 @@ export const ToolbarSearch = {
     }
     return [];
   },
-  persist: function (ctx, items) {
+  persist: function (ctx: ToolbarSearchContext | null, items: string[]): void {
     if (!ctx) return;
     ctx.root.dataset.cmSavedSearches = JSON.stringify(items);
     try {
@@ -415,24 +556,34 @@ export const ToolbarSearch = {
       body: JSON.stringify({ grid_id: ctx.prefId, searches: items }),
     }).catch(function () {});
   },
-  apply: function (ctx, text, onPick) {
+  apply: function (ctx: ToolbarSearchContext | null, text: string, onPick?: (text: string) => void): void {
     if (!ctx || !ctx.input) return;
     ctx.input.value = text;
     syncToolbarSearchChrome(ctx.input);
     if (ctx.backend === "ag_grid") {
       var host = byId.get(ctx.scopeId);
       if (host) {
-        if (host.gridApi) host.gridApi.setFilterModel(null);
-        if (typeof host.onQuickFilterChanged === "function") host.onQuickFilterChanged();
+        if (host.gridApi && typeof host.gridApi.setFilterModel === "function") {
+          host.gridApi.setFilterModel(null);
+        }
+        const onQuickFilterChanged = host.onQuickFilterChanged;
+        if (typeof onQuickFilterChanged === "function") {
+          onQuickFilterChanged();
+        }
       }
     } else if (typeof onPick === "function") {
       onPick(text);
     }
     setSavedSearchPanelOpen(ctx.dropdown, false);
   },
-  render: function (ctx, items, onPick) {
+  render: function (
+    ctx: ToolbarSearchContext | null,
+    items: string[],
+    onPick?: ((text: string) => void) | null
+  ): void {
     if (!ctx || !ctx.container) return;
-    ctx.container.innerHTML = "";
+    const container = ctx.container;
+    container.innerHTML = "";
     if (!items.length) {
       setSavedSearchPanelOpen(ctx.dropdown, false);
       if (ctx.input) syncToolbarSearchChrome(ctx.input);
@@ -447,7 +598,7 @@ export const ToolbarSearch = {
       item.appendChild(label);
       item.addEventListener("mousedown", function (e) {
         e.preventDefault();
-        self.apply(ctx, text, onPick);
+        self.apply(ctx, text, onPick ?? undefined);
       });
       var del = document.createElement("button");
       del.type = "button";
@@ -463,11 +614,11 @@ export const ToolbarSearch = {
         self.render(ctx, next, onPick);
       });
       item.appendChild(del);
-      ctx.container.appendChild(item);
+      container.appendChild(item);
     });
     if (ctx.input) syncToolbarSearchChrome(ctx.input);
   },
-  save: function (scopeId) {
+  save: function (scopeId: string): void {
     var ctx = ToolbarSearch.ctx(scopeId);
     if (!ctx || !ctx.input) return;
     var val = ctx.input.value.trim();
@@ -482,7 +633,7 @@ export const ToolbarSearch = {
         : null;
     ToolbarSearch.render(ctx, items, onPick);
   },
-  toggle: function (scopeId) {
+  toggle: function (scopeId: string): void {
     var ctx = ToolbarSearch.ctx(scopeId);
     if (!ctx || !ctx.dropdown) return;
     var opening = ctx.dropdown.classList.contains("is-hidden");
@@ -495,7 +646,7 @@ export const ToolbarSearch = {
     }
     setSavedSearchPanelOpen(ctx.dropdown, opening);
   },
-  mount: function (scopeId, initialItems) {
+  mount: function (scopeId: string, initialItems?: string[]): void {
     var ctx = ToolbarSearch.ctx(scopeId);
     if (!ctx) return;
     if (initialItems && initialItems.length) {
@@ -509,8 +660,9 @@ export const ToolbarSearch = {
     document.addEventListener("click", function (e) {
       document
         .querySelectorAll('[id^="cm-saved-searches-dropdown-"]')
-        .forEach(function (dd) {
-          if (dd.classList.contains("is-hidden")) return;
+        .forEach(function (ddEl) {
+          const dd = asHTMLElement(ddEl);
+          if (!dd || dd.classList.contains("is-hidden")) return;
           var scopeFor = dd.dataset.cmSavedDropdownFor || "";
           var esc =
             typeof CSS !== "undefined" && CSS.escape
@@ -520,15 +672,18 @@ export const ToolbarSearch = {
           var root = document.querySelector(
             '[data-cm-toolbar-search-root][data-cm-search-scope-id="' + esc + '"]'
           );
-          if (root && !root.contains(e.target)) setSavedSearchPanelOpen(dd, false);
+          const target = e.target;
+          if (root instanceof HTMLElement && target instanceof Node && !root.contains(target)) {
+            setSavedSearchPanelOpen(dd, false);
+          }
         });
     });
   },
 };
 ToolbarSearch.bindDismiss();
 
-export function syncToolbarSearchChrome(input) {
-  const wrap = input?.closest("[data-cm-toolbar-search-root]");
+export function syncToolbarSearchChrome(input: HTMLInputElement | null | undefined): void {
+  const wrap = asHTMLElement(input?.closest("[data-cm-toolbar-search-root]"));
   if (!wrap || !input) return;
   const ctx = ToolbarSearch.ctx(wrap.dataset.cmSearchScopeId || "", wrap);
   const val = (input.value || "").trim();
@@ -541,8 +696,9 @@ export function syncToolbarSearchChrome(input) {
   saveBtn?.classList.toggle("is-active", !!(val && saved.includes(val)));
 }
 
-export function serverToolbarSearchNavigate(searchInput) {
-  const scopeId = searchInput.closest("[data-cm-toolbar-search-root]")?.dataset.cmSearchScopeId || "";
+export function serverToolbarSearchNavigate(searchInput: HTMLInputElement): () => void {
+  const scopeId =
+    asHTMLElement(searchInput.closest("[data-cm-toolbar-search-root]"))?.dataset.cmSearchScopeId || "";
   const shell =
     searchInput.closest(".cm-dashboard-page, .cm-page-table-layout, .cm-simple-wrapper, .cm-table-shell") ||
     document;
@@ -558,16 +714,15 @@ export function serverToolbarSearchNavigate(searchInput) {
     const q = value.trim();
     if (q) state[searchName] = q;
     else state[searchName] = "";
-    window.location.href = withActiveTableColumns(
-      buildFilterUrl(window.location.href, state),
-      searchInput
-    );
+    state.page = "1";
+    navigateFilterState(state, searchInput, filterBar);
   };
 }
 
 /** Live SimpleTable filter for server-toolbar pages (Enter still navigates via serverToolbarSearchNavigate). */
-export function serverToolbarSearchApplyClient(searchInput) {
-  const scopeId = searchInput.closest("[data-cm-toolbar-search-root]")?.dataset.cmSearchScopeId || "";
+export function serverToolbarSearchApplyClient(searchInput: HTMLInputElement): () => void {
+  const scopeId =
+    asHTMLElement(searchInput.closest("[data-cm-toolbar-search-root]"))?.dataset.cmSearchScopeId || "";
   const shell =
     searchInput.closest(".cm-dashboard-page, .cm-page-table-layout, .cm-simple-wrapper, .cm-table-shell") ||
     document;
@@ -587,59 +742,114 @@ export function serverToolbarSearchApplyClient(searchInput) {
   };
 }
 
-export function initToolbarSearch(scope) {
-  const root = scope && scope.querySelectorAll ? scope : document;
-  root.querySelectorAll('[data-cm-search-backend="server"][data-cm-toolbar-search]').forEach((searchInput) => {
+let _fragmentCounterBound = false;
+
+function bindFragmentCounterSync() {
+  if (_fragmentCounterBound || typeof document.body === "undefined") return;
+  _fragmentCounterBound = true;
+  document.body.addEventListener("htmx:afterSwap", (event) => {
+    const target = (event as CustomEvent<{ target?: Element }>).detail?.target;
+    const id = target?.id || "";
+    if (!id.startsWith("block-")) return;
+    syncToolbarCounterFromTable(id.slice("block-".length));
+  });
+}
+
+export function initToolbarSearch(scope: Document | Element | null | undefined): void {
+  bindFragmentCounterSync();
+  const root = scope && "querySelectorAll" in scope ? scope : document;
+  root.querySelectorAll('[data-cm-search-backend="server"][data-cm-toolbar-search]').forEach((searchEl) => {
+    const searchInput = asHtmlInput(searchEl);
+    if (!searchInput) return;
     if (searchInput.dataset.cmToolbarSearchBound) return;
     searchInput.dataset.cmToolbarSearchBound = "1";
-    const wrap = searchInput.closest("[data-cm-toolbar-search-root]");
+    const input = searchInput;
+    const wrap = asHTMLElement(input.closest("[data-cm-toolbar-search-root]"));
     const scopeId = wrap?.dataset.cmSearchScopeId || "";
     const clearBtn = wrap?.querySelector(".cm-toolbar-search-clear");
 
     function syncStateUi() {
-      const value = searchInput.value || "";
+      const value = input.value || "";
       if (clearBtn) clearBtn.classList.toggle("is-visible", value.trim().length > 0);
     }
 
-    const navigate = serverToolbarSearchNavigate(searchInput);
-    const applyClient = serverToolbarSearchApplyClient(searchInput);
+    const navigate = serverToolbarSearchNavigate(input);
+    const applyClient = serverToolbarSearchApplyClient(input);
+    const fragmentSearch = toolbarSearchUsesFragmentNavigation(input);
     const ctx = ToolbarSearch.ctx(scopeId, wrap);
-    if (ctx) ToolbarSearch.render(ctx, ToolbarSearch.load(ctx), applyClient);
+    if (ctx) ToolbarSearch.render(ctx, ToolbarSearch.load(ctx), fragmentSearch ? navigate : applyClient);
 
-    searchInput.addEventListener("input", () => {
+    let searchNavigateTimer = 0;
+    input.addEventListener("input", () => {
       syncStateUi();
+      if (fragmentSearch) {
+        window.clearTimeout(searchNavigateTimer);
+        searchNavigateTimer = window.setTimeout(navigate, 400);
+        return;
+      }
       applyClient();
     });
-    searchInput.addEventListener("keydown", (event) => {
+    input.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") return;
       event.preventDefault();
       navigate();
     });
     clearBtn?.addEventListener("click", (e) => {
       e.preventDefault();
-      searchInput.value = "";
+      input.value = "";
       syncStateUi();
       applyClient();
       navigate();
     });
     syncStateUi();
-    syncToolbarSearchChrome(searchInput);
+    syncToolbarSearchChrome(input);
   });
 
-  root.querySelectorAll('[data-cm-search-backend="ag_grid"][data-cm-toolbar-search]').forEach((searchInput) => {
-    if (searchInput.dataset.cmToolbarSearchChromeBound) return;
-    searchInput.dataset.cmToolbarSearchChromeBound = "1";
-    syncToolbarSearchChrome(searchInput);
-    searchInput.addEventListener("input", () => syncToolbarSearchChrome(searchInput));
+  root.querySelectorAll('[data-cm-search-backend="ag_grid"][data-cm-toolbar-search]').forEach((searchEl) => {
+    const searchInput = asHtmlInput(searchEl);
+    if (!searchInput) return;
+    if (searchInput.dataset.cmToolbarSearchBound) return;
+    searchInput.dataset.cmToolbarSearchBound = "1";
+    const input = searchInput;
+    const wrap = asHTMLElement(input.closest("[data-cm-toolbar-search-root]"));
+    const tableGridId = wrap?.dataset.cmTableGridId || wrap?.dataset.cmSearchScopeId || "";
+    const clearBtn = wrap?.querySelector(".cm-toolbar-search-clear");
+    let searchReloadTimer = 0;
+
+    function reloadGridSearch() {
+      if (!tableGridId) return;
+      invokeGridAction(tableGridId, "onQuickFilterChanged");
+    }
+
+    input.addEventListener("input", () => {
+      syncToolbarSearchChrome(input);
+      window.clearTimeout(searchReloadTimer);
+      searchReloadTimer = window.setTimeout(reloadGridSearch, 300);
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      window.clearTimeout(searchReloadTimer);
+      invokeGridAction(tableGridId, "reloadData");
+    });
+    clearBtn?.addEventListener("click", (event) => {
+      event.preventDefault();
+      input.value = "";
+      syncToolbarSearchChrome(input);
+      invokeGridAction(tableGridId, "clearSearch");
+    });
+    syncToolbarSearchChrome(input);
   });
 }
 
-export function initFilterBars(scope) {
-  const root = scope && scope.querySelectorAll ? scope : document;
-  root.querySelectorAll("[data-cm-filter-bar]").forEach((bar) => {
+export function initFilterBars(scope: Document | Element | null | undefined): void {
+  const root = scope && "querySelectorAll" in scope ? scope : document;
+  root.querySelectorAll("[data-cm-filter-bar]").forEach((barEl) => {
+    const bar = asHTMLElement(barEl);
+    if (!bar) return;
     if (!bar.dataset.cmFbBound) {
       bar.dataset.cmFbBound = "1";
-      bindFilterBar(bar);
+      bindFilterBar(bar, { navigate: bar.dataset.navigateOnChange !== "0" });
     }
   });
   initToolbarSearch(root);
@@ -648,23 +858,60 @@ export function initFilterBars(scope) {
 /** Re-bind grid-view widgets after HTMX swaps (Phase 7: unified runtime boot). */
 export { bootGridViewScope } from "../runtime/boot";
 
-export function initTabGroups(scope) {
-  const root = scope && scope.querySelectorAll ? scope : document;
-  root.querySelectorAll("[data-cm-tab-group]").forEach((group) => {
+export function initTabGroups(scope: Document | Element | null | undefined): void {
+  const root = scope && "querySelectorAll" in scope ? scope : document;
+  root.querySelectorAll("[data-cm-tab-group]").forEach((groupEl) => {
+    const group = asHTMLElement(groupEl);
+    if (!group) return;
     if (group.dataset.cmTabBound) return;
     group.dataset.cmTabBound = "1";
     group.addEventListener("click", (e) => {
-      const btn = e.target.closest("[data-cm-tab-target]");
+      const btn = (e.target as Element | null)?.closest("[data-cm-tab-target]");
       if (!btn || !group.contains(btn)) return;
       const targetId = btn.getAttribute("data-cm-tab-target");
       if (!targetId) return;
-      group.querySelectorAll("[data-cm-tab-target]").forEach((b) => b.classList.remove("is-active"));
-      btn.classList.add("is-active");
-      const container = group.parentElement;
-      if (!container) return;
-      container.querySelectorAll(".cm-card-tab-pane").forEach((pane) => {
-        pane.classList.toggle("hidden", pane.id !== targetId);
+      group.querySelectorAll("[data-cm-tab-target]").forEach((b) => {
+        b.classList.remove("is-active");
+        b.setAttribute("aria-selected", "false");
+        b.setAttribute("tabindex", "-1");
       });
+      btn.classList.add("is-active");
+      btn.setAttribute("aria-selected", "true");
+      btn.removeAttribute("tabindex");
+      const specRoot =
+        group.closest("[data-cm-grid-view-spec]") ||
+        group.closest(".cm-dashboard-page") ||
+        group.parentElement;
+      if (!specRoot) return;
+      const isPageTabs = group.hasAttribute("data-cm-tabs-block");
+      const paneHost = isPageTabs
+        ? group.closest(".cm-area")
+        : group.closest(".cm-area[data-cm-tab-pane]") || group.closest(".cm-area");
+      if (!paneHost) return;
+      const panes = paneHost.querySelectorAll(
+        ":scope > .cm-area[data-cm-tab-pane], :scope > .cm-block[data-cm-tab-pane]"
+      );
+      let shownPane: Element | null = null;
+      panes.forEach((pane) => {
+        const paneId =
+          pane.getAttribute("data-cm-tab-pane") ||
+          pane.id.replace(/^tab-pane-/, "") ||
+          pane.id.replace(/^tab-/, "");
+        const visible = paneId === targetId;
+        pane.classList.toggle("hidden", !visible);
+        if (visible) shownPane = pane;
+      });
+      const urlParam = group.getAttribute("data-cm-tab-url-param");
+      const tabSlug = btn.getAttribute("data-cm-tab-id");
+      if (urlParam && tabSlug) {
+        const url = new URL(window.location.href);
+        url.searchParams.set(urlParam, tabSlug);
+        window.history.replaceState({}, "", url.toString());
+      }
+      const gv = (window as Window & { GridView?: { bootScope?: (el: Element) => void } }).GridView;
+      if (shownPane && gv?.bootScope) {
+        gv.bootScope(shownPane);
+      }
     });
   });
 }

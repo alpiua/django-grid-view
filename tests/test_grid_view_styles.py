@@ -1,4 +1,4 @@
-"""Tests for grid_view_styles deduplication."""
+"""Tests for grid_view_spec_assets CSS deduplication."""
 
 from __future__ import annotations
 
@@ -18,22 +18,18 @@ def anon_request() -> HttpRequest:
 
 def test_grid_view_styles_included_once(anon_request: HttpRequest) -> None:
     html = Template(
-        "{% load django_grid_view %}{% grid_view_styles %}{% grid_view_styles %}"
+        "{% load grid_view_spec %}"
+        "{% grid_view_spec_assets part='css' %}"
+        "{% grid_view_spec_assets part='css' %}"
     ).render(RequestContext(anon_request))
 
-    assert html.count("grid-view.min.css") == 1
+    assert html.count("gridviewspec.min.css") == 1
 
 
-def test_host_styles_skip_inclusion_tag_duplicate(anon_request: HttpRequest) -> None:
-    from django_grid_view.tables import Column, SimpleTableConfig
-
-    config = SimpleTableConfig(
-        grid_id="t",
-        columns=[Column(key="name", label="Name")],
-        data=[{"name": "A"}],
-    )
+def test_grid_view_spec_assets_css_alias(anon_request: HttpRequest) -> None:
     html = Template(
-        "{% load django_grid_view %}{% grid_view_styles %}{% render_simple_table config %}"
-    ).render(RequestContext(anon_request, {"config": config}))
+        "{% load grid_view_spec %}"
+        "{% grid_view_spec_assets part='css' %}{% grid_view_spec_assets part='css' %}"
+    ).render(RequestContext(anon_request))
 
-    assert html.count("grid-view.min.css") == 1
+    assert html.count("gridviewspec.min.css") == 1

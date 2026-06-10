@@ -25,6 +25,7 @@ from grid_view_spec.types.actions import (
     GridViewOverlayAction,
 )
 from grid_view_spec.types.assets import GRIDVIEW_TEMPLATE_ASSET_KINDS, GridViewTemplateAsset
+from grid_view_spec.types.chart_server import KpiAggregate
 from grid_view_spec.types.content import (
     GRIDVIEW_CARD_TONES,
     GRIDVIEW_CARDS_PRESENTATIONS,
@@ -37,7 +38,10 @@ from grid_view_spec.types.content import (
     GRIDVIEW_KPI_TONES,
     GRIDVIEW_TABS_PRESENTATIONS,
     GRIDVIEW_TEMPLATE_MODES,
+    ColumnFormat,
     GridViewCard,
+    GridViewCardGroup,
+    GridViewCardGroups,
     GridViewCards,
     GridViewChart,
     GridViewCharts,
@@ -113,6 +117,12 @@ from grid_view_spec.types.overlay import (
     GRIDVIEW_OVERLAY_SIZES,
     GridViewOverlay,
 )
+from grid_view_spec.types.semantic import (
+    GridViewActionVariant,
+    GridViewSemanticTone,
+    wire_action_variant,
+    wire_semantic_tone,
+)
 from grid_view_spec.types.spec import GridViewBlock, GridViewSpec
 from grid_view_spec.types.spec_meta import GridViewConfig, GridViewMeta
 from grid_view_spec.types.table_v2 import (
@@ -124,6 +134,7 @@ from grid_view_spec.types.table_v2 import (
     GRIDVIEW_SORT_DIRECTIONS,
     GRIDVIEW_TABLE_BACKENDS,
     GRIDVIEW_TABLE_EDIT_MODES,
+    GRIDVIEW_TABLE_PAGINATION_MODES,
     GRIDVIEW_TABLE_SEARCH_MODES,
     GridViewColumn,
     GridViewColumnGroup,
@@ -135,6 +146,7 @@ from grid_view_spec.types.table_v2 import (
     GridViewTableEdit,
     GridViewTableFooter,
     GridViewTableHeader,
+    GridViewTablePagination,
     GridViewTableSettings,
 )
 from grid_view_spec.types.toolbar import (
@@ -239,12 +251,25 @@ def _template_assets(value: object) -> tuple[GridViewTemplateAsset, ...]:
 # --- actions -----------------------------------------------------------------
 
 
+def _decode_action_semantic(
+    raw: Mapping[str, object],
+) -> tuple[str, GridViewActionVariant, GridViewSemanticTone]:
+    """Return ``(icon, variant, tone)`` for any action wire object."""
+    icon = wire_str(raw.get("icon"))
+    variant = wire_action_variant(raw.get("variant"))
+    tone = wire_semantic_tone(raw.get("tone"))
+    return icon, variant, tone
+
+
 def decode_link_action(raw: Mapping[str, object]) -> GridViewLinkAction:
     """Decode a link action (also used inside entity headers and menus)."""
+    icon, variant, tone = _decode_action_semantic(raw)
     return GridViewLinkAction(
         id=wire_str(raw.get("id")),
         label=wire_str(raw.get("label")),
-        icon=wire_str(raw.get("icon")),
+        icon=icon,
+        variant=variant,
+        tone=tone,
         target=wire_str(raw.get("target")),
         disabled=wire_bool(raw.get("disabled")),
         reason=wire_str(raw.get("reason")),
@@ -259,7 +284,7 @@ def decode_action(raw: Mapping[str, object]) -> GridViewAction:
     action_type = wire_str(raw.get("type"))
     action_id = wire_str(raw.get("id"))
     label = wire_str(raw.get("label"))
-    icon = wire_str(raw.get("icon"))
+    icon, variant, tone = _decode_action_semantic(raw)
     target = wire_str(raw.get("target"))
     disabled = wire_bool(raw.get("disabled"))
     reason = wire_str(raw.get("reason"))
@@ -269,6 +294,8 @@ def decode_action(raw: Mapping[str, object]) -> GridViewAction:
             id=action_id,
             label=label,
             icon=icon,
+            variant=variant,
+            tone=tone,
             target=target,
             disabled=disabled,
             reason=reason,
@@ -282,6 +309,8 @@ def decode_action(raw: Mapping[str, object]) -> GridViewAction:
             id=action_id,
             label=label,
             icon=icon,
+            variant=variant,
+            tone=tone,
             target=target,
             disabled=disabled,
             reason=reason,
@@ -295,6 +324,8 @@ def decode_action(raw: Mapping[str, object]) -> GridViewAction:
             id=action_id,
             label=label,
             icon=icon,
+            variant=variant,
+            tone=tone,
             target=target,
             disabled=disabled,
             reason=reason,
@@ -306,6 +337,8 @@ def decode_action(raw: Mapping[str, object]) -> GridViewAction:
             id=action_id,
             label=label,
             icon=icon,
+            variant=variant,
+            tone=tone,
             target=target,
             disabled=disabled,
             reason=reason,
@@ -422,11 +455,17 @@ def decode_search(raw: Mapping[str, object]) -> GridViewSearch:
 
 def decode_counter(raw: Mapping[str, object]) -> GridViewCounter:
     """Decode a toolbar counter badge."""
+    field_raw = raw.get("field")
+    field = wire_str(field_raw) if field_raw not in (None, "") else None
+    total_raw = raw.get("total")
+    total = max(0, wire_int(total_raw)) if total_raw not in (None, "") else None
     return GridViewCounter(
         id=wire_str(raw.get("id")),
         label=wire_str(raw.get("label")),
         value=wire_number(raw.get("value")),
         tone=wire_literal(raw.get("tone"), GRIDVIEW_COUNTER_TONES, ""),
+        field=field,
+        total=total,
     )
 
 
@@ -511,6 +550,27 @@ def decode_table_footer(raw: Mapping[str, object]) -> GridViewTableFooter:
         row=wire_bool(raw.get("row")),
         label=wire_str(raw.get("label")),
         label_span=wire_int(raw.get("label_span")),
+    )
+
+
+def decode_table_pagination(raw: Mapping[str, object]) -> GridViewTablePagination:
+    """Decode server/client/fragment paging for a simple table."""
+    return GridViewTablePagination(
+        page=max(1, wire_int(raw.get("page"), default=1)),
+        page_size=wire_int(raw.get("page_size"), default=25),
+        total=max(0, wire_int(raw.get("total"), default=0)),
+        mode=wire_literal(raw.get("mode"), GRIDVIEW_TABLE_PAGINATION_MODES, "server"),
+        page_param=wire_str(raw.get("page_param")) or "page",
+        page_size_param=wire_str(raw.get("page_size_param")) or "page_size",
+        fragment_endpoint=wire_str(raw.get("fragment_endpoint")),
+        fragment_target=wire_str(raw.get("fragment_target")),
+        fragment_swap=wire_str(raw.get("fragment_swap")) or "outerHTML",
+        page_endpoint=wire_str(raw.get("page_endpoint")),
+        page_size_options=tuple(
+            max(1, wire_int(item))
+            for item in _objects(raw.get("page_size_options"))
+            if wire_int(item) > 0
+        ),
     )
 
 
@@ -623,6 +683,18 @@ def decode_image_source(raw: Mapping[str, object]) -> GridViewImageSource:
 # --- blocks ------------------------------------------------------------------
 
 
+def _card_group_count(value: object) -> str | int:
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        return value
+    return 0
+
+
 def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
     """Decode any block variant, dispatching on the ``type`` field."""
     block_id = wire_str(raw.get("id"))
@@ -689,6 +761,7 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
             state=decode_filter_state(wire_object(raw.get("state", {}), label="filter state")),
             target=wire_optional_str(raw.get("target")),
             auto_apply=wire_bool(raw.get("auto_apply", True)),
+            navigate_on_change=wire_bool(raw.get("navigate_on_change", True)),
         )
     if block_type == "actions":
         return GridViewActions(
@@ -746,6 +819,11 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
             ),
             empty_message=wire_str(raw.get("empty_message")),
             per_page=wire_int(raw.get("per_page")),
+            pagination=(
+                decode_table_pagination(wire_object(raw["pagination"], label="pagination"))
+                if is_wire_mapping(raw.get("pagination"))
+                else None
+            ),
             striped=wire_bool(raw.get("striped")),
         )
     if block_type == "charts":
@@ -784,8 +862,12 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
             items=tuple(
                 KpiSpec(
                     label=wire_str(item.get("label")),
-                    format=wire_literal(item.get("format"), GRIDVIEW_COLUMN_FORMATS, "number"),
-                    aggregate=wire_literal(item.get("aggregate"), GRIDVIEW_KPI_AGGREGATES, "count"),
+                    format=wire_literal(
+                        item.get("format"), GRIDVIEW_COLUMN_FORMATS, ColumnFormat.NUMBER
+                    ),
+                    aggregate=wire_literal(
+                        item.get("aggregate"), GRIDVIEW_KPI_AGGREGATES, KpiAggregate.COUNT
+                    ),
                     column_key=wire_optional_str(item.get("column_key")),
                     tone=wire_literal(item.get("tone"), GRIDVIEW_KPI_TONES, "default"),
                     icon=wire_optional_str(item.get("icon")),
@@ -819,6 +901,26 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
                 raw.get("presentation"), GRIDVIEW_CARDS_PRESENTATIONS, "grid"
             ),
         )
+    if block_type == "card_groups":
+        return GridViewCardGroups(
+            id=block_id,
+            title=title,
+            extra=extra,
+            style=style,
+            trusted_style=trusted_style,
+            lazy=lazy,
+            groups=tuple(
+                GridViewCardGroup(
+                    id=wire_str(item.get("id")),
+                    title=wire_str(item.get("title")),
+                    tone=wire_literal(item.get("tone"), GRIDVIEW_KPI_TONES, "default"),
+                    items=tuple(wire_str(v) for v in _objects(item.get("items"))),
+                    count=_card_group_count(item.get("count", 0)),
+                    empty_message=wire_str(item.get("empty_message", "—")),
+                )
+                for item in _objects(raw.get("groups"))
+            ),
+        )
     if block_type == "tabs":
         return GridViewTabs(
             id=block_id,
@@ -836,6 +938,7 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
                     active=wire_bool(item.get("active")),
                     disabled=wire_bool(item.get("disabled")),
                     badge=wire_str(item.get("badge")),
+                    badge_tone=wire_semantic_tone(item.get("badge_tone")),
                 )
                 for item in _objects(raw.get("tabs"))
             ),
@@ -872,6 +975,8 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
             lazy=lazy,
             role=wire_literal(raw.get("role"), GRIDVIEW_CONTENT_ROLES, "text"),
             body=wire_str(raw.get("body")),
+            tone=wire_semantic_tone(raw.get("tone")),
+            dismissible=wire_bool(raw.get("dismissible")),
         )
     if block_type == "form":
         return GridViewForm(

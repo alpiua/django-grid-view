@@ -1,4 +1,4 @@
-/** Mirror of django_grid_view.types.chart_bind (maintainer contract). */
+/** Mirror of grid_view_spec.types.chart_bind (maintainer contract). */
 
 export interface ChartOverlayDict {
   title: string;

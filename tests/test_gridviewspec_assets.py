@@ -12,7 +12,7 @@ from grid_view_spec.types.wire import is_object_list, is_wire_mapping
 from tests.gridviewspec_fixtures import rich_spec
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-STATIC_DIR = REPO_ROOT / "src/django_grid_view/static/django_grid_view"
+STATIC_DIR = REPO_ROOT / "src/grid_view_spec/static/grid_view_spec"
 MANIFEST_PATH = REPO_ROOT / "frontend/asset-manifest.json"
 
 
@@ -65,7 +65,7 @@ def test_rich_spec_manifest_bundles_reference_existing_static_files() -> None:
     static_js = _static_js_files()
 
     assert ctx.assets.manifest_bundles
-    assert "grid-view" in ctx.assets.manifest_bundles
+    assert "gridviewspec" in ctx.assets.manifest_bundles
 
     for bundle_id in ctx.assets.manifest_bundles:
         min_file = f"{bundle_id}.min.js"

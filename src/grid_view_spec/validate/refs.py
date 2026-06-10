@@ -27,6 +27,7 @@ BLOCK_TYPES: frozenset[str] = frozenset(
         "charts",
         "kpi",
         "cards",
+        "card_groups",
         "gallery",
         "image",
         "tabs",

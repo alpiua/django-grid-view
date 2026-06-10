@@ -660,152 +660,6 @@ wheels = [
 ]
 
 [[package]]
-name = "django-grid-view"
-version = "2.0.0a1"
-source = { editable = "." }
-dependencies = [
-    { name = "django" },
-    { name = "jinja2" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "basedpyright" },
-    { name = "build" },
-    { name = "django-stubs" },
-    { name = "jinja2" },
-    { name = "jsonschema" },
-    { name = "matplotlib" },
-    { name = "matplotlib-stubs" },
-    { name = "mkdocs" },
-    { name = "mkdocs-material" },
-    { name = "openpyxl" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-django" },
-    { name = "ruff" },
-    { name = "twine" },
-    { name = "typing-extensions" },
-    { name = "weasyprint" },
-    { name = "xlsxwriter" },
-]
-django = [
-    { name = "django" },
-]
-docs = [
-    { name = "mkdocs" },
-    { name = "mkdocs-material" },
-]
-fastapi = [
-    { name = "fastapi" },
-    { name = "starlette" },
-]
-mcp = [
-    { name = "fastmcp" },
-]
-pdf = [
-    { name = "jinja2" },
-    { name = "weasyprint" },
-]
-starlette = [
-    { name = "starlette" },
-]
-static-charts = [
-    { name = "matplotlib" },
-]
-xlsx = [
-    { name = "xlsxwriter" },
-]
-xlsx-all = [
-    { name = "openpyxl" },
-    { name = "xlsxwriter" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "basedpyright" },
-    { name = "build" },
-    { name = "django-stubs" },
-    { name = "fastmcp" },
-    { name = "jinja2" },
-    { name = "jsonschema" },
-    { name = "matplotlib" },
-    { name = "matplotlib-stubs" },
-    { name = "mkdocs" },
-    { name = "mkdocs-material" },
-    { name = "openpyxl" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-django" },
-    { name = "ruff" },
-    { name = "twine" },
-    { name = "typing-extensions" },
-    { name = "weasyprint" },
-    { name = "xlsxwriter" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "basedpyright", marker = "extra == 'dev'", specifier = ">=1.28.0" },
-    { name = "build", marker = "extra == 'dev'", specifier = ">=1.2.0" },
-    { name = "django", specifier = ">=4.2,<6.0" },
-    { name = "django", marker = "extra == 'django'", specifier = ">=4.2,<6.0" },
-    { name = "django-stubs", marker = "extra == 'dev'", specifier = ">=5.1.0" },
-    { name = "fastapi", marker = "extra == 'fastapi'", specifier = ">=0.115" },
-    { name = "fastmcp", marker = "extra == 'mcp'", specifier = ">=2.0.0" },
-    { name = "jinja2", specifier = ">=3.1" },
-    { name = "jinja2", marker = "extra == 'dev'", specifier = ">=3.1" },
-    { name = "jinja2", marker = "extra == 'pdf'", specifier = ">=3.1" },
-    { name = "jsonschema", marker = "extra == 'dev'", specifier = ">=4.23.0" },
-    { name = "matplotlib", marker = "extra == 'dev'", specifier = ">=3.8" },
-    { name = "matplotlib", marker = "extra == 'static-charts'", specifier = ">=3.8" },
-    { name = "matplotlib-stubs", marker = "extra == 'dev'", specifier = ">=0.3.11" },
-    { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.6" },
-    { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6" },
-    { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.5" },
-    { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.5" },
-    { name = "openpyxl", marker = "extra == 'dev'", specifier = ">=3.1" },
-    { name = "openpyxl", marker = "extra == 'xlsx-all'", specifier = ">=3.1" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
-    { name = "pytest-django", marker = "extra == 'dev'", specifier = ">=4.8.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.0" },
-    { name = "starlette", marker = "extra == 'fastapi'", specifier = ">=0.40" },
-    { name = "starlette", marker = "extra == 'starlette'", specifier = ">=0.40" },
-    { name = "twine", marker = "extra == 'dev'", specifier = ">=5.0.0" },
-    { name = "typing-extensions", marker = "extra == 'dev'", specifier = ">=4.12.0" },
-    { name = "weasyprint", marker = "extra == 'dev'", specifier = ">=62" },
-    { name = "weasyprint", marker = "extra == 'pdf'", specifier = ">=62" },
-    { name = "xlsxwriter", marker = "extra == 'dev'", specifier = ">=3.2.0" },
-    { name = "xlsxwriter", marker = "extra == 'xlsx'", specifier = ">=3.2.0" },
-    { name = "xlsxwriter", marker = "extra == 'xlsx-all'", specifier = ">=3.2.0" },
-]
-provides-extras = ["django", "mcp", "starlette", "fastapi", "static-charts", "pdf", "xlsx", "xlsx-all", "docs", "dev"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "basedpyright", specifier = ">=1.28.0" },
-    { name = "build", specifier = ">=1.2.0" },
-    { name = "django-stubs", specifier = ">=5.1.0" },
-    { name = "fastmcp", specifier = ">=2.0.0" },
-    { name = "jinja2", specifier = ">=3.1" },
-    { name = "jsonschema", specifier = ">=4.23.0" },
-    { name = "matplotlib", specifier = ">=3.8" },
-    { name = "matplotlib-stubs", specifier = ">=0.3.11" },
-    { name = "mkdocs", specifier = ">=1.6" },
-    { name = "mkdocs-material", specifier = ">=9.5" },
-    { name = "openpyxl", specifier = ">=3.1" },
-    { name = "pre-commit", specifier = ">=4.0.0" },
-    { name = "pytest", specifier = ">=8.0.0" },
-    { name = "pytest-django", specifier = ">=4.8.0" },
-    { name = "ruff", specifier = ">=0.8.0" },
-    { name = "twine", specifier = ">=5.0.0" },
-    { name = "typing-extensions", specifier = ">=4.12.0" },
-    { name = "weasyprint", specifier = ">=62" },
-    { name = "xlsxwriter", specifier = ">=3.2.0" },
-]
-
-[[package]]
 name = "django-stubs"
 version = "6.0.5"
 source = { registry = "https://pypi.org/simple" }
@@ -1048,6 +902,154 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/d9/29/d40217cbe2f6b1359e00c6c307bb3fc876ba74068cbab3dde77f03ca0dc4/ghp-import-2.1.0.tar.gz", hash = "sha256:9c535c4c61193c2df8871222567d7fd7e5014d835f97dc7b7439069e2413d343", size = 10943, upload-time = "2022-05-02T15:47:16.11Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f7/ec/67fbef5d497f86283db54c22eec6f6140243aae73265799baaaa19cd17fb/ghp_import-2.1.0-py3-none-any.whl", hash = "sha256:8337dd7b50877f163d4c0289bc1f1c7f127550241988d568c1db512c4324a619", size = 11034, upload-time = "2022-05-02T15:47:14.552Z" },
+]
+
+[[package]]
+name = "grid-view-spec"
+version = "2.0.0"
+source = { editable = "." }
+dependencies = [
+    { name = "jinja2" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "basedpyright" },
+    { name = "build" },
+    { name = "django" },
+    { name = "django-stubs" },
+    { name = "jinja2" },
+    { name = "jsonschema" },
+    { name = "matplotlib" },
+    { name = "matplotlib-stubs" },
+    { name = "mkdocs" },
+    { name = "mkdocs-material" },
+    { name = "openpyxl" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-django" },
+    { name = "ruff" },
+    { name = "twine" },
+    { name = "typing-extensions" },
+    { name = "weasyprint" },
+    { name = "xlsxwriter" },
+]
+django = [
+    { name = "django" },
+]
+docs = [
+    { name = "mkdocs" },
+    { name = "mkdocs-material" },
+]
+fastapi = [
+    { name = "fastapi" },
+    { name = "starlette" },
+]
+mcp = [
+    { name = "fastmcp" },
+]
+pdf = [
+    { name = "jinja2" },
+    { name = "weasyprint" },
+]
+starlette = [
+    { name = "starlette" },
+]
+static-charts = [
+    { name = "matplotlib" },
+]
+xlsx = [
+    { name = "xlsxwriter" },
+]
+xlsx-all = [
+    { name = "openpyxl" },
+    { name = "xlsxwriter" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "basedpyright" },
+    { name = "build" },
+    { name = "django" },
+    { name = "django-stubs" },
+    { name = "fastmcp" },
+    { name = "jinja2" },
+    { name = "jsonschema" },
+    { name = "matplotlib" },
+    { name = "matplotlib-stubs" },
+    { name = "mkdocs" },
+    { name = "mkdocs-material" },
+    { name = "openpyxl" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-django" },
+    { name = "ruff" },
+    { name = "twine" },
+    { name = "typing-extensions" },
+    { name = "weasyprint" },
+    { name = "xlsxwriter" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "basedpyright", marker = "extra == 'dev'", specifier = ">=1.28.0" },
+    { name = "build", marker = "extra == 'dev'", specifier = ">=1.2.0" },
+    { name = "django", marker = "extra == 'dev'", specifier = ">=4.2,<6.0" },
+    { name = "django", marker = "extra == 'django'", specifier = ">=4.2,<6.0" },
+    { name = "django-stubs", marker = "extra == 'dev'", specifier = ">=5.1.0" },
+    { name = "fastapi", marker = "extra == 'fastapi'", specifier = ">=0.115" },
+    { name = "fastmcp", marker = "extra == 'mcp'", specifier = ">=2.0.0" },
+    { name = "jinja2", specifier = ">=3.1" },
+    { name = "jinja2", marker = "extra == 'dev'", specifier = ">=3.1" },
+    { name = "jinja2", marker = "extra == 'pdf'", specifier = ">=3.1" },
+    { name = "jsonschema", marker = "extra == 'dev'", specifier = ">=4.23.0" },
+    { name = "matplotlib", marker = "extra == 'dev'", specifier = ">=3.8" },
+    { name = "matplotlib", marker = "extra == 'static-charts'", specifier = ">=3.8" },
+    { name = "matplotlib-stubs", marker = "extra == 'dev'", specifier = ">=0.3.11" },
+    { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.6" },
+    { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6" },
+    { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.5" },
+    { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.5" },
+    { name = "openpyxl", marker = "extra == 'dev'", specifier = ">=3.1" },
+    { name = "openpyxl", marker = "extra == 'xlsx-all'", specifier = ">=3.1" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
+    { name = "pytest-django", marker = "extra == 'dev'", specifier = ">=4.8.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.0" },
+    { name = "starlette", marker = "extra == 'fastapi'", specifier = ">=0.40" },
+    { name = "starlette", marker = "extra == 'starlette'", specifier = ">=0.40" },
+    { name = "twine", marker = "extra == 'dev'", specifier = ">=5.0.0" },
+    { name = "typing-extensions", marker = "extra == 'dev'", specifier = ">=4.12.0" },
+    { name = "weasyprint", marker = "extra == 'dev'", specifier = ">=62" },
+    { name = "weasyprint", marker = "extra == 'pdf'", specifier = ">=62" },
+    { name = "xlsxwriter", marker = "extra == 'dev'", specifier = ">=3.2.0" },
+    { name = "xlsxwriter", marker = "extra == 'xlsx'", specifier = ">=3.2.0" },
+    { name = "xlsxwriter", marker = "extra == 'xlsx-all'", specifier = ">=3.2.0" },
+]
+provides-extras = ["django", "mcp", "starlette", "fastapi", "static-charts", "pdf", "xlsx", "xlsx-all", "docs", "dev"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "basedpyright", specifier = ">=1.28.0" },
+    { name = "build", specifier = ">=1.2.0" },
+    { name = "django", specifier = ">=4.2,<6.0" },
+    { name = "django-stubs", specifier = ">=5.1.0" },
+    { name = "fastmcp", specifier = ">=2.0.0" },
+    { name = "jinja2", specifier = ">=3.1" },
+    { name = "jsonschema", specifier = ">=4.23.0" },
+    { name = "matplotlib", specifier = ">=3.8" },
+    { name = "matplotlib-stubs", specifier = ">=0.3.11" },
+    { name = "mkdocs", specifier = ">=1.6" },
+    { name = "mkdocs-material", specifier = ">=9.5" },
+    { name = "openpyxl", specifier = ">=3.1" },
+    { name = "pre-commit", specifier = ">=4.0.0" },
+    { name = "pytest", specifier = ">=8.0.0" },
+    { name = "pytest-django", specifier = ">=4.8.0" },
+    { name = "ruff", specifier = ">=0.8.0" },
+    { name = "twine", specifier = ">=5.0.0" },
+    { name = "typing-extensions", specifier = ">=4.12.0" },
+    { name = "weasyprint", specifier = ">=62" },
+    { name = "xlsxwriter", specifier = ">=3.2.0" },
 ]
 
 [[package]]

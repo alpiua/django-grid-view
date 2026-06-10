@@ -1,28 +1,26 @@
 ---
 name: gridview-mcp
-description: Use GridViewSpec MCP tools when authoring or migrating dashboard pages to vNext GridViewSpec.
+description: Use GridViewSpec MCP tools when authoring dashboard pages with GridViewSpec.
 ---
 
 # gridview-mcp — GridViewSpec MCP
 
-Setup: [docs/guides/mcp-server.md](../../docs/guides/mcp-server.md)
+Setup: [docs/tools/mcp-server.md](../../docs/tools/mcp-server.md)
 
 ## When to use
 
-- Migrating a page from `GridArtifact` / `SimpleTableConfig` / legacy template tags
 - Authoring `GridViewSpec` JSON or Python dataclasses for a new dashboard page
 - LLM/chat output that must become a valid spec before merge
 
 ## Workflow (strict order)
 
 1. **`gridview_catalog`** — block types, area types, rules
-2. **`gridview_migration_hints`** — pass legacy patterns (`render_grid_view`, `SimpleTableConfig`, …)
-3. **`gridview_examples`** — `minimal_valid_spec` or rich fixture as a starting skeleton
-4. **`gridview_schema`** — when you need field-level JSON Schema for a block type
-5. Build spec in host `page_data` (Python) or wire JSON
-6. **`gridview_validate`** — stop until `ok: true` (no error diagnostics)
-7. **`gridview_normalize`** — apply before committing wire JSON
-8. **`gridview_apply_patch`** — small incremental edits only; always re-validate
+2. **`gridview_examples`** — `minimal_valid_spec` or rich fixture as a starting skeleton
+3. **`gridview_schema`** — when you need field-level JSON Schema for a block type
+4. Build spec in host `page_data` (Python) or wire JSON
+5. **`gridview_validate`** — stop until `ok: true` (no error diagnostics)
+6. **`gridview_normalize`** — apply before committing wire JSON
+7. **`gridview_apply_patch`** — small incremental edits only; always re-validate
 
 ## Do not
 

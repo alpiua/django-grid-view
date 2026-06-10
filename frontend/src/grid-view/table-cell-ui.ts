@@ -63,6 +63,7 @@ function bindHeaderHoverExpand(table: HTMLTableElement) {
     let restoreMinWidth = "";
 
     const expand = function () {
+      if (table.classList.contains("cm-table--resizing")) return;
       window.requestAnimationFrame(function () {
         const need = headerInnerScrollWidth(th) + 4;
         const current = th.getBoundingClientRect().width;

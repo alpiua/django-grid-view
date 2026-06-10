@@ -1,41 +1,29 @@
 {
   "bundles": [
     {
-      "id": "grid-view",
+      "id": "gridviewspec",
       "source": "src/spec-boot.ts",
       "bundle": true,
       "banner": true
     },
     {
-      "id": "ag-grid-cdn",
+      "id": "gridviewspec-charts",
+      "source": "src/charts-boot.ts",
+      "bundle": true
+    },
+    {
+      "id": "gridviewspec-ag-grid-cdn",
       "source": "src/ag-grid-cdn.ts"
     },
     {
-      "id": "ag-grid-host",
-      "source": "src/ag-grid-host.ts"
-    },
-    {
-      "id": "ag-grid-boot",
-      "source": "src/ag-grid-boot.ts"
-    },
-    {
-      "id": "ag-grid-smart-filter",
-      "source": "src/ag-grid-smart-filter.ts",
+      "id": "gridviewspec-ag-grid",
+      "source": "src/ag-grid-plugins.ts",
       "bundle": true
-    },
-    {
-      "id": "ag-grid-advanced-search",
-      "source": "src/ag-grid-advanced-search.ts",
-      "bundle": true
-    },
-    {
-      "id": "ag-grid-tooltip",
-      "source": "src/ag-grid-tooltip.ts"
     }
   ],
   "stylesheets": [
     {
-      "id": "grid-view",
+      "id": "gridviewspec",
       "source": "styles/grid-view.css"
     }
   ]

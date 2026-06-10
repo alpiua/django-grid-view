@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contextunity.dev/schema/grid-view-spec.v1.json",
   "title": "GridViewSpec",
-  "description": "Declarative view specification for django-grid-view. Rows are supplied separately by Python; this schema describes layout, columns, KPIs, and charts only.",
+  "description": "Declarative view specification for grid-view-spec. Rows are supplied separately by Python; this schema describes layout, columns, KPIs, and charts only.",
   "type": "object",
   "required": ["grid_id", "columns"],
   "additionalProperties": false,

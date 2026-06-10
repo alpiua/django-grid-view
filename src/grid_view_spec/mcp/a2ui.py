@@ -96,7 +96,7 @@ def run_a2ui_catalog() -> McpEnvelope:
     return envelope(
         TOOL_CATALOG,
         {
-            "catalog": "django-grid-view",
+            "catalog": "grid-view-spec",
             "source_contract": "GridViewSpec",
             "version": catalog.version,
             "block_types": list(catalog.block_types),

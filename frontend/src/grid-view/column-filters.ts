@@ -10,7 +10,12 @@
 
 import { i18n } from "./i18n";
 import { getGlobal } from "./dom-utils";
-import { selectedFilterValues, buildFilterUrl, withActiveTableColumns } from "./filter-bar";
+import {
+  selectedFilterValues,
+  buildFilterUrl,
+  withActiveTableColumns,
+  filterNavigateHref,
+} from "./filter-bar";
 import {
   tableFilterShell,
   parseColumnFiltersFromUrl,
@@ -33,6 +38,7 @@ import {
   columnFilterPlaceholderKey,
 } from "./search/contract";
 import { appendSearchSyntaxHelp, refreshSearchSyntaxHelp } from "./search-help-ui";
+import { asHTMLElement, asHtmlInput } from "./dom-guards";
 
 let activeSetPanel: SetFilterPanel | null = null;
 let exprFilterTimer: ReturnType<typeof setTimeout> | null = null;
@@ -108,7 +114,7 @@ export function columnFilterPortalForTable(table: Element | null | undefined): H
   inp.autocomplete = "off";
   inp.placeholder = i18n.t("column_filter.placeholder", "Search: >10, %name%");
   exprRow.appendChild(inp);
-  appendSearchSyntaxHelp(exprRow, SearchProfile.ColumnDefault);
+  appendSearchSyntaxHelp(exprRow, SearchProfile.Default);
   portal.appendChild(exprRow);
   if (viewport) {
     viewport.insertAdjacentElement("afterend", portal);
@@ -123,17 +129,17 @@ function openPortal(): HTMLElement | null {
   return portal instanceof HTMLElement ? portal : null;
 }
 
-export function updateTableFilterUrl(anchorEl: Element | null | undefined) {
-  var shell = tableFilterShell(anchorEl);
+export function updateTableFilterUrl(anchorEl: Element | null | undefined): void {
+  var shell = asHTMLElement(tableFilterShell(anchorEl) ?? null);
   var page = shell?.closest(".cm-page-table-layout, .cm-dashboard-page");
   var filterBar = page?.querySelector("[data-cm-filter-bar]");
-  var url = window.location.href;
+  var url = filterNavigateHref();
   if (filterBar) {
     var state = selectedFilterValues(filterBar);
     var toolbarSearch =
       page?.querySelector("[data-cm-toolbar-search]") ||
       document.getElementById(
-        "cm-toolbar-search-" + (shell?.dataset?.gridId || page?.dataset?.gridId || "")
+        "cm-toolbar-search-" + (shell?.dataset?.gridId || asHTMLElement(page)?.dataset?.gridId || "")
       );
     if (toolbarSearch instanceof HTMLInputElement) {
       var qName = toolbarSearch.name || "q";
@@ -143,25 +149,25 @@ export function updateTableFilterUrl(anchorEl: Element | null | undefined) {
     }
     url = buildFilterUrl(window.location.href, state);
   }
-  url = withActiveTableColumns(url, anchorEl || shell || document);
+  url = withActiveTableColumns(url, anchorEl || shell || undefined);
   window.history.replaceState({}, "", url);
-  var gridId = shell && shell.dataset && shell.dataset.gridId;
-  if (gridId && getGlobal().GridView?.AgGrid?.syncExportLinks) {
-    getGlobal().GridView.AgGrid.syncExportLinks(gridId);
-  }
+  var gridId = shell?.dataset?.gridId;
+  getGlobal().GridView?.AgGrid?.syncExportLinks?.(gridId || "");
 }
 
 export function closeColumnFilterPortals() {
   var openPortals = document.querySelectorAll("[data-cm-col-filter-portal]:not(.is-hidden)");
-  openPortals.forEach(function (portal) {
-    flushExprFilterPortal(portal);
+  openPortals.forEach(function (portalEl) {
+    flushExprFilterPortal(portalEl);
   });
   activeSetPanel = null;
-  document.querySelectorAll("[data-cm-col-filter-portal]").forEach(function (portal) {
+  document.querySelectorAll("[data-cm-col-filter-portal]").forEach(function (portalEl) {
+    const portal = asHTMLElement(portalEl);
+    if (!portal) return;
     portal.classList.add("is-hidden");
     portal.classList.remove("is-set");
     portal.setAttribute("aria-hidden", "true");
-    var setHost = portal.querySelector("[data-cm-col-filter-set-host]");
+    var setHost = asHTMLElement(portal.querySelector("[data-cm-col-filter-set-host]"));
     if (setHost) {
       setHost.innerHTML = "";
       setHost.hidden = true;
@@ -190,7 +196,7 @@ export function positionColumnFilterPortal(
   portal.style.width = width + "px";
 }
 
-export function handleColumnFilterScroll(event: Event) {
+export function handleColumnFilterScroll(event: Event): void {
   var portal = openPortal();
   if (!portal) return;
   if (event.target instanceof Node && portal.contains(event.target)) return;
@@ -198,6 +204,10 @@ export function handleColumnFilterScroll(event: Event) {
   if (openBtn instanceof HTMLElement) {
     var th = openBtn.closest("th");
     var kind = th ? headerFilterKind(th) : "expr";
+    if (kind === "none") {
+      closeColumnFilterPortals();
+      return;
+    }
     positionColumnFilterPortal(portal, openBtn, kind);
     return;
   }
@@ -297,10 +307,10 @@ function openExprFilter(
   portal: HTMLElement,
   portalInput: HTMLInputElement,
   th: HTMLElement,
-  table: HTMLTableElement,
+  _table: HTMLTableElement,
   btn: HTMLElement
-) {
-  var setHost = portal.querySelector("[data-cm-col-filter-set-host]");
+): void {
+  var setHost = asHTMLElement(portal.querySelector("[data-cm-col-filter-set-host]"));
   if (setHost) {
     setHost.innerHTML = "";
     setHost.hidden = true;
@@ -330,9 +340,9 @@ function openSetFilter(
   portalInput: HTMLInputElement,
   th: HTMLElement,
   table: HTMLTableElement,
-  shell: Element,
+  _shell: Element,
   btn: HTMLElement
-) {
+): void {
   var colKey = th.dataset.cmColKey || "";
   var match = headerFilterMatch(th);
   var setHost = portal.querySelector("[data-cm-col-filter-set-host]");
@@ -435,8 +445,10 @@ export function initColumnFilters(scope: Document | Element | null | undefined) 
   bindGlobalDismissHandlers();
 
   var root = scope && "querySelectorAll" in scope ? scope : document;
-  root.querySelectorAll("[data-cm-table][data-cm-col-filters]").forEach(function (table) {
-    if (!table.matches || !table.matches("[data-cm-table][data-cm-col-filters]")) return;
+  root.querySelectorAll("[data-cm-table][data-cm-col-filters]").forEach(function (tableEl) {
+    if (!(tableEl instanceof HTMLTableElement)) return;
+    if (!tableEl.matches("[data-cm-table][data-cm-col-filters]")) return;
+    const table = tableEl;
     if (table.dataset.cmColFiltersBound) return;
     table.dataset.cmColFiltersBound = "1";
 
@@ -447,18 +459,24 @@ export function initColumnFilters(scope: Document | Element | null | undefined) 
     if (portal && gridId && !portal.dataset.cmColFilterTable) {
       portal.dataset.cmColFilterTable = gridId;
     }
-    var portalInput = portal?.querySelector("[data-cm-col-filter-input]");
-    if (!portalInput || portalInput.tagName !== "INPUT") return;
+    var portalInput = asHtmlInput(portal?.querySelector("[data-cm-col-filter-input]"));
+    if (!portal || !portalInput) return;
+    const boundPortalInput = portalInput;
 
     var urlFilters = parseColumnFiltersFromUrl();
-    table.querySelectorAll("th[data-cm-col-key]").forEach(function (th) {
-      if (!(th instanceof HTMLElement)) return;
-      var key = th.dataset.cmColKey;
-      if (key && urlFilters[key]) th.dataset.cmColFilterValue = urlFilters[key];
+    table.querySelectorAll("th[data-cm-col-key]").forEach(function (thEl) {
+      if (!(thEl instanceof HTMLElement)) return;
+      var key = thEl.dataset.cmColKey;
+      const filterVal = key ? urlFilters[key] : undefined;
+      if (key && filterVal) {
+        thEl.dataset.cmColFilterValue = Array.isArray(filterVal) ? filterVal.join(",") : filterVal;
+      }
     });
     syncColumnFilterChrome(table);
 
-    table.querySelectorAll("[data-cm-col-filter-clear]").forEach(function (btn) {
+    table.querySelectorAll("[data-cm-col-filter-clear]").forEach(function (btnEl) {
+      const btn = asHTMLElement(btnEl);
+      if (!btn) return;
       if (btn.dataset.cmColFilterClearBound) return;
       btn.dataset.cmColFilterClearBound = "1";
       btn.addEventListener("click", function (e) {
@@ -473,7 +491,9 @@ export function initColumnFilters(scope: Document | Element | null | undefined) 
       });
     });
 
-    table.querySelectorAll("[data-cm-col-filter-trigger]").forEach(function (btn) {
+    table.querySelectorAll("[data-cm-col-filter-trigger]").forEach(function (btnEl) {
+      const btn = asHTMLElement(btnEl);
+      if (!btn) return;
       if (btn.dataset.cmColFilterTriggerBound) return;
       btn.dataset.cmColFilterTriggerBound = "1";
       btn.addEventListener("click", function (e) {
@@ -488,9 +508,9 @@ export function initColumnFilters(scope: Document | Element | null | undefined) 
         closeColumnFilterPortals();
         if (reopen) return;
         if (headerFilterKind(th) === "set") {
-          openSetFilter(portal, portalInput, th, table, shell, btn);
+          openSetFilter(portal, boundPortalInput, th, table, shell, btn);
         } else {
-          openExprFilter(portal, portalInput, th, table, btn);
+          openExprFilter(portal, boundPortalInput, th, table, btn);
         }
       });
     });
@@ -498,9 +518,7 @@ export function initColumnFilters(scope: Document | Element | null | undefined) 
     if (Object.keys(urlFilters).length) {
       applyTableFilters(table);
     }
-    var shellGridId = shell instanceof HTMLElement ? shell.dataset.gridId : "";
-    if (shellGridId && getGlobal().GridView?.AgGrid?.syncExportLinks) {
-      getGlobal().GridView.AgGrid.syncExportLinks(shellGridId);
-    }
+    var shellGridId = asHTMLElement(shell)?.dataset.gridId || "";
+    getGlobal().GridView?.AgGrid?.syncExportLinks?.(shellGridId);
   });
 }

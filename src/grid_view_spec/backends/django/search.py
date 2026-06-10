@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING
 
+from django.db.models import Q
 from django.http import HttpRequest
-from django_grid_view.search.params import COL_FILTERS_PARAM
-from django_grid_view.search.smart import QuerySetLike, apply_smart_queryset_search
+from grid_view_spec.backends.django.queryset_search import (
+    QuerySetLike,
+    apply_smart_queryset_search,
+)
+from grid_view_spec.search.column import parse_column_filters
+from grid_view_spec.search.params import COL_FILTERS_PARAM
 
 if TYPE_CHECKING:
-    from django_grid_view.search.engine import ColumnFilterEntry
+    from grid_view_spec.search.engine import ColumnFilterEntry
 
 __all__ = [
     "apply_queryset_search",
@@ -23,9 +28,15 @@ def apply_queryset_search(
     query: str,
     *,
     fields: Sequence[str],
+    term_q: Callable[[str], Q] | None = None,
 ) -> QuerySetLike:
     """Apply canonical smart toolbar search semantics across ORM *fields*."""
-    return apply_smart_queryset_search(qs, query, fields=tuple(fields))
+    return apply_smart_queryset_search(
+        qs,
+        query,
+        fields=tuple(fields),
+        term_q=term_q,
+    )
 
 
 def parse_column_filters_from_request(
@@ -33,6 +44,4 @@ def parse_column_filters_from_request(
 ) -> dict[str, ColumnFilterEntry]:
     if request is None:
         return {}
-    from django_grid_view.search.column import parse_column_filters
-
     return parse_column_filters(request.GET.get(COL_FILTERS_PARAM))

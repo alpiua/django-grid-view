@@ -1,0 +1,25 @@
+<div id="col-selector-panel-{{ block_id | e }}" class="cm-col-selector-panel is-hidden" data-cm-col-selector-panel>
+  <div class="cm-col-selector-backdrop" data-cm-col-selector-backdrop></div>
+  <div class="cm-col-selector-dialog">
+    <div class="cm-col-selector-header">
+      <span class="cm-col-selector-title">{{ host.translate('column_settings.title') | e }}</span>
+      <span class="cm-col-selector-hint">{{ host.translate('column_settings.hint') | e }}</span>
+      <div class="cm-col-selector-header-actions">
+        <button type="button" data-cm-col-action="reset" data-cm-grid-id="{{ block_id | e }}" class="cm-col-selector-reset">{{ host.translate('column_settings.reset') | e }}</button>
+        <button type="button" data-cm-col-action="toggle" data-cm-grid-id="{{ block_id | e }}" class="cm-col-selector-close">&times;</button>
+      </div>
+    </div>
+    <div class="cm-col-selector-order">
+      <div id="col-order-list-{{ block_id | e }}" class="cm-col-order-list"></div>
+    </div>
+    <div class="cm-col-selector-body">
+      <div id="col-checkboxes-{{ block_id | e }}" class="cm-col-checkboxes"></div>
+      <div class="cm-col-selector-presets">
+        <div class="cm-col-selector-presets-header">{{ host.translate('column_settings.presets') | e }}</div>
+        <input type="text" id="preset-name-{{ block_id | e }}" placeholder="{{ host.translate('column_settings.preset_placeholder') | e }}" class="cm-col-preset-name-input">
+        <button type="button" data-cm-col-action="savePreset" data-cm-grid-id="{{ block_id | e }}" class="cm-col-preset-save">{{ host.translate('column_settings.save_preset') | e }}</button>
+        <div id="presets-container-{{ block_id | e }}" class="cm-col-presets-list"></div>
+      </div>
+    </div>
+  </div>
+</div>

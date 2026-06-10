@@ -1,0 +1,263 @@
+/* Semantic tone tokens and UI surfaces (buttons, badges, callouts, period pills). */
+
+:root {
+    --cm-tone-info-bg: color-mix(in srgb, #3b82f6 18%, transparent);
+    --cm-tone-info-fg: #60a5fa;
+    --cm-tone-info-border: color-mix(in srgb, #3b82f6 45%, transparent);
+
+    --cm-tone-success-bg: color-mix(in srgb, #10b981 18%, transparent);
+    --cm-tone-success-fg: #34d399;
+    --cm-tone-success-border: color-mix(in srgb, #10b981 45%, transparent);
+
+    --cm-tone-warning-bg: color-mix(in srgb, #f59e0b 20%, transparent);
+    --cm-tone-warning-fg: #fbbf24;
+    --cm-tone-warning-border: color-mix(in srgb, #f59e0b 45%, transparent);
+
+    --cm-tone-danger-bg: color-mix(in srgb, #ef4444 22%, transparent);
+    --cm-tone-danger-fg: #f87171;
+    --cm-tone-danger-border: color-mix(in srgb, #ef4444 45%, transparent);
+}
+
+/* ── Tone surfaces ─────────────────────────────────────────────────────── */
+.cm-tone-info {
+    --cm-tone-bg: var(--cm-tone-info-bg);
+    --cm-tone-fg: var(--cm-tone-info-fg);
+    --cm-tone-border: var(--cm-tone-info-border);
+}
+.cm-tone-success {
+    --cm-tone-bg: var(--cm-tone-success-bg);
+    --cm-tone-fg: var(--cm-tone-success-fg);
+    --cm-tone-border: var(--cm-tone-success-border);
+}
+.cm-tone-warning {
+    --cm-tone-bg: var(--cm-tone-warning-bg);
+    --cm-tone-fg: var(--cm-tone-warning-fg);
+    --cm-tone-border: var(--cm-tone-warning-border);
+}
+.cm-tone-danger {
+    --cm-tone-bg: var(--cm-tone-danger-bg);
+    --cm-tone-fg: var(--cm-tone-danger-fg);
+    --cm-tone-border: var(--cm-tone-danger-border);
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+.cm-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    border: 1px solid var(--cm-border, rgba(148, 163, 184, 0.35));
+    border-radius: 8px;
+    background: var(--cm-surface, transparent);
+    color: var(--cm-text, inherit);
+    font: inherit;
+    line-height: 1.2;
+    cursor: pointer;
+    text-decoration: none;
+    box-sizing: border-box;
+}
+.cm-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+.cm-btn-icon {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+}
+.cm-btn-label {
+    white-space: nowrap;
+}
+.cm-btn-default {
+    padding: 0.35rem 0.75rem;
+    min-height: 2rem;
+}
+.cm-btn-primary {
+    padding: 0.35rem 0.85rem;
+    min-height: 2rem;
+    background: var(--cm-primary, #2563eb);
+    border-color: transparent;
+    color: #fff;
+}
+.cm-btn-ghost {
+    padding: 0.35rem 0.75rem;
+    min-height: 2rem;
+    border-color: transparent;
+    background: transparent;
+}
+.cm-btn-ghost.cm-tone-warning {
+    color: var(--cm-tone-fg, var(--cm-tone-warning-fg));
+}
+.cm-btn-ghost.cm-tone-warning .cm-btn-icon {
+    color: var(--cm-tone-fg, var(--cm-tone-warning-fg));
+}
+.cm-btn-ghost.cm-tone-warning:hover {
+    background: var(--cm-tone-bg, var(--cm-tone-warning-bg));
+}
+.cm-btn-segment {
+    gap: 6px;
+    padding: 0 12px;
+    height: 28px;
+    min-height: 28px;
+    font-weight: 600;
+    border-radius: 8px;
+    border-color: transparent;
+    background: transparent;
+}
+.cm-btn-segment.is-active {
+    background: color-mix(in srgb, var(--cm-primary, #2563eb) 14%, var(--cm-surface, #fff));
+    color: var(--cm-text, inherit);
+}
+.cm-btn-soft {
+    padding: 5px 12px;
+    min-height: 28px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--cm-primary, #2563eb) 35%, transparent);
+    background: color-mix(in srgb, var(--cm-primary, #2563eb) 12%, transparent);
+    color: var(--cm-primary, #2563eb);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.cm-btn-soft:hover {
+    background: color-mix(in srgb, var(--cm-primary, #2563eb) 20%, transparent);
+    border-color: var(--cm-primary, #2563eb);
+}
+.cm-btn-soft.cm-tone-success {
+    border-color: var(--cm-tone-success-border);
+    background: var(--cm-tone-success-bg);
+    color: var(--cm-tone-success-fg);
+}
+.cm-btn-soft.cm-tone-success:hover {
+    background: color-mix(in srgb, #10b981 28%, transparent);
+    border-color: var(--cm-tone-success-fg);
+}
+.cm-btn-shadow {
+    padding: 5px 12px;
+    min-height: 28px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--cm-muted, #64748b) 35%, transparent);
+    background: color-mix(in srgb, var(--cm-muted, #64748b) 10%, var(--cm-surface, #fff));
+    color: var(--cm-muted, #64748b);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.cm-btn-shadow:hover {
+    background: color-mix(in srgb, var(--cm-muted, #64748b) 16%, var(--cm-surface, #fff));
+    border-color: var(--cm-muted, #64748b);
+}
+.cm-btn-shadow.cm-tone-warning {
+    border-color: var(--cm-tone-warning-border);
+    background: var(--cm-tone-warning-bg);
+    color: var(--cm-tone-warning-fg);
+}
+.cm-btn-shadow.cm-tone-warning:hover {
+    background: color-mix(in srgb, #f59e0b 24%, transparent);
+    border-color: var(--cm-tone-warning-fg);
+}
+.cm-bulk-action-group--leading {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-right: 0.5rem;
+}
+.cm-row-select {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    cursor: pointer;
+}
+.cm-row-select input {
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+}
+
+/* Tab badges in generic (non-paired) nav */
+.cm-callout,
+.cm-banner {
+    position: relative;
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    background: var(--cm-surface, #fff);
+    border: 1px solid var(--cm-border, rgba(148, 163, 184, 0.35));
+}
+.cm-callout.cm-tone-info,
+.cm-callout.cm-tone-success,
+.cm-callout.cm-tone-warning,
+.cm-callout.cm-tone-danger,
+.cm-banner.cm-tone-info,
+.cm-banner.cm-tone-success,
+.cm-banner.cm-tone-warning,
+.cm-banner.cm-tone-danger {
+    border-color: var(--cm-tone-border);
+    background: color-mix(in srgb, var(--cm-tone-bg) 55%, var(--cm-surface, #fff));
+}
+.cm-callout {
+    border-left-width: 4px;
+    border-left-color: var(--cm-tone-border, var(--cm-primary, #2563eb));
+}
+.cm-banner {
+    width: 100%;
+    border-top-width: 3px;
+    border-top-color: var(--cm-tone-border, var(--cm-primary, #2563eb));
+}
+.cm-callout-title,
+.cm-banner-title {
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+}
+.cm-content-dismiss {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.35rem;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.65;
+}
+.cm-content-dismiss:hover {
+    opacity: 1;
+}
+
+/* ── Period pills ──────────────────────────────────────────────────────── */
+.cm-period-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+.cm-period-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid var(--cm-tone-border, var(--cm-border));
+    background: var(--cm-tone-bg, color-mix(in srgb, #ef4444 12%, transparent));
+    color: var(--cm-tone-fg, inherit);
+}
+.cm-period-pill:hover {
+    filter: brightness(1.05);
+}
+.cm-period-pill-count {
+    font-variant-numeric: tabular-nums;
+    opacity: 0.9;
+}
+
+/* Legacy pill_class shims (one release) */
+.cm-period-pill-red { --cm-tone-bg: var(--cm-tone-danger-bg); --cm-tone-fg: var(--cm-tone-danger-fg); --cm-tone-border: var(--cm-tone-danger-border); }
+.cm-period-pill-amber { --cm-tone-bg: var(--cm-tone-warning-bg); --cm-tone-fg: var(--cm-tone-warning-fg); --cm-tone-border: var(--cm-tone-warning-border); }
+.cm-period-pill-emerald { --cm-tone-bg: var(--cm-tone-success-bg); --cm-tone-fg: var(--cm-tone-success-fg); --cm-tone-border: var(--cm-tone-success-border); }
+.cm-period-pill-violet { --cm-tone-bg: var(--cm-tone-info-bg); --cm-tone-fg: var(--cm-tone-info-fg); --cm-tone-border: var(--cm-tone-info-border); }
+
+/* ── Callout / banner ──────────────────────────────────────────────────── */

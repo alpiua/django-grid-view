@@ -1,76 +1,51 @@
-# Django Grid View
+# Grid View Spec
 
-[![PyPI](https://img.shields.io/pypi/v/django-grid-view.svg?label=PyPI)](https://pypi.org/project/django-grid-view/)
-[![Python](https://img.shields.io/pypi/pyversions/django-grid-view.svg)](https://pypi.org/project/django-grid-view/)
-[![CI](https://github.com/alpiua/django-grid-view/actions/workflows/ci.yml/badge.svg)](https://github.com/alpiua/django-grid-view/actions/workflows/ci.yml)
-[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-2563eb)](https://alpiua.github.io/django-grid-view/)
+[![PyPI](https://img.shields.io/pypi/v/grid-view-spec.svg?label=PyPI)](https://pypi.org/project/grid-view-spec/)
+[![Python](https://img.shields.io/pypi/pyversions/grid-view-spec.svg)](https://pypi.org/project/grid-view-spec/)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-2563eb)](https://alpiua.github.io/grid-view-spec/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-**Declarative grid views for Django** — server tables, AG-Grid dashboards, KPI strips, and ECharts from one typed package. You own the data (`rows` from SQL/ORM); the library owns layout, formatting, and front-end wiring.
+**Declarative dashboard pages for Django and other hosts** — tables, filters, KPI strips, charts, and export from one typed **`GridViewSpec`** contract. You own SQL/ORM rows; the package owns layout, templates, browser runtime, and PDF/XLSX pipelines.
 
-**[Documentation](https://alpiua.github.io/django-grid-view/)** · **[LLM context bundle](https://alpiua.github.io/django-grid-view/llm/django-grid-view-llm-context.md)** · **[PyPI](https://pypi.org/project/django-grid-view/)**
-
----
-
-## Why this package
-
-Building dashboards and chat analytics in Django usually means stitching together three different stacks: hand-rolled HTML tables, AG-Grid boilerplate, and ad‑hoc chart JSON. **django-grid-view** unifies them behind a single contract:
-
-| Principle | What it means for you |
-|-----------|------------------------|
-| **Structure ≠ data** | Specs (`GridViewSpec`, wire JSON) describe columns, KPIs, and charts — never row values or aggregates from an LLM. |
-| **One render path** | `GridRenderer.build(spec, rows)` → `GridArtifact` → templates + `grid-view.min.js`. No parallel chart/table code paths. |
-| **Typed boundaries** | `py.typed`, strict-friendly `django_grid_view.types`, JSON Schema for wire specs — host apps keep pyright/mypy honest. |
-| **Production habits** | HTMX-safe AG-Grid lifecycle, saved grid preferences, uk/en i18n, optional matplotlib PNG export for PDFs. |
+**[Documentation](https://alpiua.github.io/grid-view-spec/)** · **[MCP server](docs/tools/mcp-server.md)** · **[PyPI](https://pypi.org/project/grid-view-spec/)**
 
 ---
 
-## What you get
+## Core idea
 
-### Simple Table
-
-Server-rendered tables with sort, search, CSV/XLSX export, grouped headers — no SPA required.
+| Layer | Owner |
+|-------|--------|
+| **Data** | Host — querysets, aggregates, authorization |
+| **Spec** | `GridViewSpec` — blocks (`GridViewTable`, `GridViewFilters`, …) + layout |
+| **Render** | Package — Jinja/Django HTML, `gridviewspec.min.js`, export |
 
 ```python
-from django_grid_view.tables import Column, SimpleTableConfig
+from grid_view_spec import GridViewSpec, validate_spec
+from grid_view_spec.types.layout import GridViewArea, GridViewLayout
+from grid_view_spec.types.table_v2 import GridViewColumn, GridViewTable
 
-config = SimpleTableConfig(
-    grid_id="products",
-    columns=[Column(key="sku", label="SKU"), Column(key="name", label="Name")],
-    data=rows,
+spec = GridViewSpec(
+    id="orders",
+    blocks=(
+        GridViewTable(
+            id="orders_table",
+            backend="simple",
+            columns=(
+                GridViewColumn(id="name", label="Customer", field="name"),
+                GridViewColumn(id="amount", label="Amount", field="amount", type="currency"),
+            ),
+        ),
+    ),
+    layout=GridViewLayout(root=GridViewArea(id="root", blocks=("orders_table",))),
 )
+validate_spec(spec)
 ```
 
 ```django
-{% load django_grid_view %}
-{% render_simple_table config %}
-```
-
-### AG-Grid helpers
-
-Scripts, toolbar, advanced search plugins, and `GridPreference` storage for large or infinite grids. The package does **not** own your `gridApi` — you keep control of the grid instance; we supply the integration layer.
-
-### Grid View — KPI, charts, and table together
-
-One `GridViewSpec` drives KPI cards, ECharts blocks, and tabular layout. Ideal for dashboard pages and chat “visualizer” UIs fed by analytics SQL.
-
-```python
-from django_grid_view import GridViewSpec, RowDict, build_artifact_from_view
-from django_grid_view.types import ColumnSpec, KpiSpec, KpiAggregate
-
-artifact = build_artifact_from_view(
-    {
-        "grid_id": "overview",
-        "columns": [{"key": "name", "label": "Name"}],
-        "kpis": [{"label": "Total", "column_key": "amount", "aggregate": "sum"}],
-    },
-    rows,
-)
-```
-
-```django
-{% grid_view_bundle %}
-{% render_grid_view artifact %}
+{% load grid_view_spec %}
+{% grid_view_spec_assets part='css' %}
+{% render_grid_view_spec spec rows %}
+{% grid_view_spec_assets part='js' force_core=True %}
 ```
 
 ---
@@ -78,110 +53,70 @@ artifact = build_artifact_from_view(
 ## Install
 
 ```bash
-pip install django-grid-view
-# optional: static chart PNG export for PDF pipelines
-pip install "django-grid-view[static-charts]"
+pip install "grid-view-spec[django]"
+# optional:
+pip install "grid-view-spec[django,pdf,xlsx,mcp]"
 ```
 
-```python
-# settings.py
-INSTALLED_APPS = ["django_grid_view"]
-```
+**Django**
 
 ```python
-# settings.py
-DJANGO_GRID_VIEW_EXPORT_PDF_URL = "api_export_pdf"
-DJANGO_GRID_VIEW_EXPORT_XLSX_URL = "api_export_xlsx"
-
-# api/urls.py — mount under path("api/", include(...))
-from django_grid_view.export.pdf_view import export_pdf
-from django_grid_view.export.xlsx_view import export_xlsx
-from django_grid_view.views import save_grid_settings
-
-urlpatterns = [
-    path("grid/preferences/", save_grid_settings, name="api_grid_preferences"),
-    path("export/pdf/", export_pdf, name="api_export_pdf"),
-    path("export/xlsx/", export_xlsx, name="api_export_xlsx"),
-]
+INSTALLED_APPS = ["grid_view_spec.backends.django"]
 ```
 
 ```bash
-python manage.py migrate django_grid_view
+python manage.py migrate grid_view_spec_django
 ```
 
-Full walkthrough: **[Getting started](https://alpiua.github.io/django-grid-view/getting-started/)**.
+```python
+urlpatterns = [
+    path("", include("grid_view_spec.backends.django.urls")),
+]
+```
+
+See [Getting started](docs/getting-started.md) and [Django integration](docs/integration/django.md).
 
 ---
 
-## Documentation
+## Export
 
-| Topic | Link |
-|-------|------|
-| Simple Table | [Guide](https://alpiua.github.io/django-grid-view/simple-table/) |
-| AG-Grid + HTMX | [Guide](https://alpiua.github.io/django-grid-view/ag-grid/) |
-| KPI & ECharts | [Guide](https://alpiua.github.io/django-grid-view/charts-and-kpis/) |
-| `GridViewSpec` → artifact | [Grid View artifacts](https://alpiua.github.io/django-grid-view/grid-view-artifacts/) |
-| Python types for host apps | [Reference](https://alpiua.github.io/django-grid-view/reference/python-types/) |
-| JSON Schema (wire) | `schema/grid-view-spec.v1.json` |
-| Agents & coding tools | [LLM bundle](https://alpiua.github.io/django-grid-view/llm/django-grid-view-llm-context.md) · [Agent skill](https://alpiua.github.io/django-grid-view/llm/skill/) |
-| Changelog | [1.0.0 notes](https://alpiua.github.io/django-grid-view/changelog/) |
+Register builders that return **`GridViewExportJob(spec, rows, table_id=…)`**:
+
+```python
+from grid_view_spec.export.registry import register_pdf_export, register_xlsx_export
+from grid_view_spec.export.registry import GridViewExportJob
+
+def register_exports():
+    def builder(host, ctx):
+        page = load_orders_page(ctx)  # same loader as HTML view
+        return GridViewExportJob(spec=page.spec, rows=page.rows, table_id="orders_table")
+
+    register_pdf_export("orders", builder)
+    register_xlsx_export("orders", builder)
+```
+
+Browser links use `?builder=orders` plus current filter query params. Details: [Export page pattern](docs/export/page-pattern.md).
 
 ---
 
-## Roadmap — A2UI & AG-UI
+## AG-Grid, charts, MCP
 
-**1.0 (shipped)** is the **renderer**: tables, KPI strip, ECharts, i18n, and `GridRenderer` in this repo.
-
-Next step for host applications is protocol alignment, not replacing the renderer:
-
-- **A2UI** — treat `GridViewSpec` as the declarative UI catalog (structure-only JSON agents and planners emit).
-- **AG-UI** — stream resolved `grid_view` artifacts over an application event channel (router, SSE, chat, dashboard, or another host transport).
-
-django-grid-view stays the single place that turns **rows + spec → `GridArtifact`**. Presenter and transport logic live in consumer apps.
+- **AG-Grid** — `GridViewTable(backend="ag_grid")` + host JSON API; helpers in `grid_view_spec.backends.django.ag_grid`
+- **Charts / KPI** — spec blocks + ECharts; values always from host `rows`
+- **MCP** — `gridviewspec-mcp` for validation, catalog, migration hints ([tools/mcp-server.md](docs/tools/mcp-server.md))
 
 ---
 
 ## Development
 
-Requires [uv](https://docs.astral.sh/uv/). CI uses `uv sync --frozen --group dev`.
-
-Install git hooks (strips `Co-authored-by: Cursor` from commit messages):
-
 ```bash
-./scripts/install-git-hooks.sh
+uv sync
+uv run pytest -q
+uv run basedpyright --warnings src/grid_view_spec tests
+cd frontend && npm run build && npm run typecheck
 ```
 
-```bash
-uv sync --group dev
-uv run pytest
-uv run ruff check . && uv run ruff format --check .
-uv run basedpyright --warnings src/django_grid_view tests
-./scripts/docs_serve.sh   # MkDocs + LLM bundle
-```
-
-### JavaScript (maintainers only)
-
-Browser bundles are built from TypeScript in `frontend/src/` and written to `src/django_grid_view/static/django_grid_view/` (`.js` + `.min.js`). **PyPI consumers do not need Node** — the wheel ships pre-built static files.
-
-```
-frontend/src/
-  spec-boot.ts            # esbuild entry (IIFE bundle → grid-view.js)
-  runtime/                # unified boot: tables, filters, KPI, charts, spec roots
-  grid-view/              # modules: charts, kpi, filter-bar, search/, …
-  types/                  # chart-bind, kpi-bind (mirror Python contracts)
-```
-
-```bash
-cd frontend && npm ci && npm run build   # transpile + minify
-npm run typecheck && npm run lint        # strict types on search/ + contracts; eslint on all src/
-npm run test:conformance                 # Python↔JS filter/search parity (shared JSON fixtures)
-```
-
-After editing `frontend/src/*.ts`, commit the regenerated static artifacts (CI verifies `git diff --exit-code src/django_grid_view/static/`).
-
-**Load order for host pages:** `{% grid_view_bundle %}` once → `grid-view.min.js` (unified runtime). AG-Grid pages add `scripts.html` partials. Details: [Architecture](https://alpiua.github.io/django-grid-view/architecture/#front-end-bundle) · [JavaScript API](https://alpiua.github.io/django-grid-view/reference/javascript/).
-
-Release: tag `v*` on `main` → PyPI via trusted publishing (`environment: pypi`). Docs deploy from `main` via GitHub Actions.
+Pre-commit hooks: ruff, basedpyright, frontend typecheck/eslint, pytest.
 
 ---
 

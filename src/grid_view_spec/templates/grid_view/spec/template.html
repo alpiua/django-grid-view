@@ -1,5 +1,7 @@
 {% if block.mode == 'raw' %}
 <div class="cm-template cm-template-raw">{{ block.html | safe }}</div>
+{% elif block.template %}
+<div class="cm-template cm-template-file">{{ host.render_host_template(block.template, block.context) | safe }}</div>
 {% else %}
 <div class="cm-template cm-template-file" data-template="{{ block.template | e }}"></div>
 {% endif %}

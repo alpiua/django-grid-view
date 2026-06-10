@@ -25,7 +25,7 @@ jobs:
       - run: uv sync --frozen --group dev
       - run: uv run ruff check .
       - run: uv run ruff format --check .
-      - run: uv run basedpyright --warnings src/django_grid_view src/grid_view_spec tests
+      - run: uv run basedpyright --warnings src/grid_view_spec tests
       - run: uv run python -m pytest
 
   docs:
@@ -39,10 +39,10 @@ jobs:
       - run: uv sync --frozen --group dev
       - run: uv run python scripts/build_llm_context.py
       - name: Verify committed LLM bundle matches generator
-        run: git diff --exit-code docs/llm/django-grid-view-llm-context.md
+        run: git diff --exit-code docs/llm/grid-view-spec-llm-context.md
       - run: uv run mkdocs build --strict
       - name: Verify downloadable bundle in site output
-        run: test -f site/llm/django-grid-view-llm-context.md
+        run: test -f site/llm/grid-view-spec-llm-context.md
 
   build-js:
     name: Build frontend (TypeScript → static)
@@ -61,7 +61,7 @@ jobs:
       - run: npm run test:conformance --prefix frontend
       - run: npm run test:chart-conformance --prefix frontend
       - name: Verify committed static artifacts match build
-        run: git diff --exit-code src/django_grid_view/static/
+        run: git diff --exit-code src/grid_view_spec/static/
 
   build:
     name: Build package
@@ -72,7 +72,9 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.13"
+      - run: rm -rf build dist *.egg-info src/*.egg-info
       - run: uv build
+      - run: uv run python scripts/check_wheel_contents.py
       - run: uv run --with twine python -m twine check dist/*
       - uses: actions/upload-artifact@v4
         with:

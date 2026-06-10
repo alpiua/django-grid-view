@@ -1,1 +1,9 @@
-<div class="cm-lazy-placeholder" data-endpoint="{{ block.lazy.endpoint | e if block.lazy else '' }}"></div>
+{% set _lazy_endpoint = block.lazy.endpoint or host.url_for("lazy", page=spec.id, block_id=block.id) %}
+{% set _lazy_method = block.lazy.method or spec.config.lazy.method %}
+{% set _lazy_timeout = block.lazy.timeout_ms or spec.config.lazy.timeout_ms %}
+{% set _lazy_placeholder = block.lazy.placeholder or spec.config.lazy.placeholder %}
+<div class="cm-lazy-placeholder cm-lazy-{{ _lazy_placeholder }}"
+     data-endpoint="{{ _lazy_endpoint | e }}"
+     data-trigger="{{ block.lazy.trigger | e }}"
+     {% if _lazy_method %}data-method="{{ _lazy_method | e }}"{% endif %}
+     {% if _lazy_timeout %}data-timeout="{{ _lazy_timeout }}"{% endif %}></div>

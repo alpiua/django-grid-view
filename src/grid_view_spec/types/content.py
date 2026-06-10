@@ -1,25 +1,73 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from enum import StrEnum
+from typing import Literal, NotRequired, TypedDict
 
 from grid_view_spec.types.assets import GridViewTemplateAsset
 from grid_view_spec.types.block_base import GridViewBlockBase
+from grid_view_spec.types.chart_server import KpiAggregate
 from grid_view_spec.types.json import JsonObject, empty_json_map
+from grid_view_spec.types.semantic import GridViewSemanticTone
 
-ColumnFormat = Literal["text", "number", "currency", "percent"]
-KpiAggregate = Literal["count", "sum", "avg", "min", "max"]
+
+class ColumnFormat(StrEnum):
+    TEXT = "text"
+    NUMBER = "number"
+    CURRENCY = "currency"
+    PERCENT = "percent"
+
+
 KpiTone = Literal["default", "muted", "success", "warning", "danger"]
 
 
 @dataclass(frozen=True, slots=True)
 class KpiSpec:
     label: str
-    format: ColumnFormat = "number"
-    aggregate: KpiAggregate = "count"
+    format: ColumnFormat = ColumnFormat.NUMBER
+    aggregate: KpiAggregate = KpiAggregate.COUNT
     column_key: str | None = None
     tone: KpiTone = "default"
     icon: str | None = None
+
+
+class SeriesSpecWire(TypedDict):
+    key: str
+    label: NotRequired[str]
+    color: NotRequired[str]
+    series_type: NotRequired[str]
+
+
+class ChartOverlayWire(TypedDict):
+    title: str
+    value: str
+    tone: NotRequired[str]
+
+
+class KpiSpecWire(TypedDict):
+    label: str
+    format: NotRequired[str]
+    aggregate: NotRequired[str]
+    column_key: NotRequired[str]
+    tone: NotRequired[str]
+    icon: NotRequired[str]
+
+
+class ChartSpecWire(TypedDict):
+    id: str
+    chart_type: str
+    title: NotRequired[str]
+    x_key: NotRequired[str]
+    series: NotRequired[list[SeriesSpecWire]]
+    label_key: NotRequired[str]
+    value_key: NotRequired[str]
+    group_by: NotRequired[str]
+    aggregate: NotRequired[str]
+    height: NotRequired[int]
+    data_source: NotRequired[str]
+    overlay: NotRequired[ChartOverlayWire]
+    y_axis_format: NotRequired[str]
+    y_axis_symbol: NotRequired[str]
 
 
 GridViewChartType = Literal["bar", "line", "pie", "donut", "area", "scatter"]
@@ -28,7 +76,15 @@ GridViewKpiPresentation = Literal["strip", "cards", "compact"]
 GridViewCardsPresentation = Literal["list", "grid", "tiles", "panel"]
 GridViewCardTone = Literal["", "default", "muted", "primary", "success", "warning", "danger"]
 GridViewTabsPresentation = Literal["tabs", "segmented", "pills"]
-GridViewContentRole = Literal["text", "info", "formula", "empty", "warning"]
+GridViewContentRole = Literal[
+    "text",
+    "info",
+    "formula",
+    "empty",
+    "warning",
+    "callout",
+    "banner",
+]
 GridViewTemplateMode = Literal["file", "raw"]
 
 GRIDVIEW_CHART_TYPES: frozenset[GridViewChartType] = frozenset(
@@ -47,13 +103,11 @@ GRIDVIEW_TABS_PRESENTATIONS: frozenset[GridViewTabsPresentation] = frozenset(
     {"tabs", "segmented", "pills"}
 )
 GRIDVIEW_CONTENT_ROLES: frozenset[GridViewContentRole] = frozenset(
-    {"text", "info", "formula", "empty", "warning"}
+    {"text", "info", "formula", "empty", "warning", "callout", "banner"}
 )
 GRIDVIEW_TEMPLATE_MODES: frozenset[GridViewTemplateMode] = frozenset({"file", "raw"})
-GRIDVIEW_COLUMN_FORMATS: frozenset[ColumnFormat] = frozenset(
-    {"text", "number", "currency", "percent"}
-)
-GRIDVIEW_KPI_AGGREGATES: frozenset[KpiAggregate] = frozenset({"count", "sum", "avg", "min", "max"})
+GRIDVIEW_COLUMN_FORMATS: frozenset[ColumnFormat] = frozenset(ColumnFormat)
+GRIDVIEW_KPI_AGGREGATES: frozenset[KpiAggregate] = frozenset(KpiAggregate)
 GRIDVIEW_KPI_TONES: frozenset[KpiTone] = frozenset(
     {"default", "muted", "success", "warning", "danger"}
 )
@@ -108,6 +162,22 @@ class GridViewCards(GridViewBlockBase):
 
 
 @dataclass(frozen=True, slots=True)
+class GridViewCardGroup:
+    id: str
+    title: str = ""
+    tone: KpiTone = "default"
+    items: tuple[str, ...] = ()
+    count: str | int = 0
+    empty_message: str = "—"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class GridViewCardGroups(GridViewBlockBase):
+    type: Literal["card_groups"] = "card_groups"
+    groups: tuple[GridViewCardGroup, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class GridViewTab:
     id: str
     label: str
@@ -116,6 +186,7 @@ class GridViewTab:
     active: bool = False
     disabled: bool = False
     badge: str = ""
+    badge_tone: GridViewSemanticTone = ""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -130,6 +201,8 @@ class GridViewContent(GridViewBlockBase):
     type: Literal["content"] = "content"
     role: GridViewContentRole = "text"
     body: str = ""
+    tone: GridViewSemanticTone = ""
+    dismissible: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

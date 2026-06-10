@@ -1,0 +1,17 @@
+{# Semantic tone / button class helpers — import with {% from '_semantic.html' import tone_class, btn_classes %} #}
+{% macro tone_class(tone) -%}
+{%- if tone and tone not in ('', 'default') %} cm-tone-{{ tone | e }}{%- endif -%}
+{%- endmacro %}
+
+{% macro btn_classes(variant, tone, legacy_class='') -%}
+cm-btn cm-btn-{{ variant | default('default') | e }}{{ tone_class(tone) }}{% if legacy_class %} {{ legacy_class | e }}{% endif %}
+{%- endmacro %}
+
+{% macro tab_badge_tone(tab, badge_tones) -%}
+{%- if tab.badge_tone and tab.badge_tone not in ('', 'default') -%}
+{{ tab.badge_tone | e }}
+{%- elif badge_tones is mapping -%}
+{%- set legacy = badge_tones.get(tab.id, badge_tones.get('default', '')) -%}
+{%- if legacy == 'warn' -%}warning{%- elif legacy == 'error' -%}danger{%- else -%}{{ legacy | e }}{%- endif -%}
+{%- endif -%}
+{%- endmacro %}

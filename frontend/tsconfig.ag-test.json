@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2018",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noImplicitAny": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "lib": [
+      "ES2018",
+      "DOM"
+    ],
+    "types": []
+  },
+  "include": [
+    "src/globals.d.ts",
+    "src/types/**/*.ts",
+    "src/grid-view/**/*.ts",
+    "src/runtime/**/*.ts",
+    "src/spec-boot.ts",
+    "src/column-settings.ts",
+    "src/column-filters.ts",
+    "src/ag-grid*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

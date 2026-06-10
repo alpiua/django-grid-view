@@ -4,18 +4,6 @@ from __future__ import annotations
 
 import pytest
 
-from django_grid_view.compat.bridge import legacy_simple_table_to_spec
-from django_grid_view.export.registry import (
-    clear_pdf_builders,
-    get_pdf_export_entry,
-    register_pdf_builder,
-)
-from django_grid_view.render import build_artifact_from_view
-from django_grid_view.tables import Column, SimpleTableConfig
-from django_grid_view.types import BlockType, ViewLayout
-from django_grid_view.types import GridViewSpec as LegacyGridViewSpec
-from grid_view_spec.backends.django.export import DjangoExportContext
-from grid_view_spec.backends.django.host import DjangoGridViewHost
 from grid_view_spec.export.columns import (
     ResolvedExportTable,
     resolve_export_column_ids,
@@ -62,17 +50,6 @@ def _translation_host() -> InMemoryHost:
 
 
 def _export_spec() -> GridViewSpec:
-    config = SimpleTableConfig(
-        grid_id="records",
-        columns=[
-            Column(key="name", label="Name"),
-            Column(key="amount", label="Amount", hide=True),
-        ],
-        data=[{"name": "Alpha", "amount": 1}, {"name": "Beta", "amount": 2}],
-        show_toolbar=True,
-        search_mode="global",
-    )
-    spec = legacy_simple_table_to_spec(config)
     filters = GridViewFilters(
         id="page_filters",
         schema=(
@@ -87,7 +64,7 @@ def _export_spec() -> GridViewSpec:
         state=GridViewFilterState(),
     )
     return GridViewSpec(
-        id=spec.id,
+        id="records",
         blocks=(
             GridViewHeader(id="page_header", title="Records"),
             filters,
@@ -123,17 +100,10 @@ def _filtered_export_ctx() -> ExportRequestContext:
     )
 
 
-def test_pipeline_module_has_no_runtime_django_bindings() -> None:
+def test_pipeline_module_has_no_runtime_xlsx_report_binding() -> None:
     import grid_view_spec.export.pipeline as pipeline_mod
 
-    assert "django_grid_view" not in pipeline_mod.__dict__
     assert "XlsxReport" not in pipeline_mod.__dict__
-
-
-def test_compat_module_has_no_runtime_django_bindings() -> None:
-    import grid_view_spec.export.compat as compat_mod
-
-    assert "django_grid_view" not in compat_mod.__dict__
 
 
 def test_django_export_context_delegates_export_context_like() -> None:
@@ -302,82 +272,6 @@ def test_render_xlsx_report_requires_resolved_simple_table() -> None:
     with pytest.raises(ValueError, match="resolved simple table block"):
         render_xlsx_report(host, ctx, get_xlsx_export("empty"))
     clear_xlsx_exports()
-
-
-def test_legacy_pdf_builder_adapter_routes_through_vnext_pipeline() -> None:
-    pytest.importorskip("django")
-    from django.http import HttpRequest
-    from django.test import RequestFactory
-
-    from django_grid_view.types.artifact import GridArtifact
-
-    table = SimpleTableConfig(
-        grid_id="records",
-        columns=[Column(key="name", label="Name")],
-        data=[{"name": "Alpha"}, {"name": "Beta"}],
-        show_toolbar=False,
-        search_mode="disabled",
-    )
-
-    def legacy_builder(request: HttpRequest) -> GridArtifact:
-        legacy_spec = LegacyGridViewSpec(
-            grid_id="records",
-            title="Records",
-            columns=(),
-            layout=ViewLayout(blocks=(BlockType.TITLE, BlockType.TABLE)),
-        )
-        return build_artifact_from_view(legacy_spec, list(table.data), table=table)
-
-    clear_pdf_builders()
-    register_pdf_builder("legacy-demo", legacy_builder)
-    request = RequestFactory().get("/export/pdf/?builder=legacy-demo&export_cols=name&q=Alpha")
-    host = DjangoGridViewHost(request)
-    ctx = DjangoExportContext.from_request(request)
-    entry = get_pdf_export_entry("legacy-demo")
-    html, payload = render_pdf_html(host, ctx, entry)
-    assert payload.resolved is not None
-    assert [col.id for col in payload.resolved.columns] == ["name"]
-    assert payload.resolved.rows[0]["name"] == "Alpha"
-    assert "Alpha" in html
-    assert "Beta" not in html
-    clear_pdf_builders()
-
-
-def test_legacy_xlsx_builder_adapter_routes_through_vnext_pipeline() -> None:
-    pytest.importorskip("django")
-    from django.test import RequestFactory
-
-    from django_grid_view.export.xlsx.layout import XlsxReport, XlsxSheet
-    from django_grid_view.export.xlsx.registry import (
-        clear_xlsx_builders,
-        get_xlsx_export_entry,
-        register_xlsx_builder,
-    )
-    from grid_view_spec.backends.django.export import DjangoExportContext
-    from grid_view_spec.export.pipeline import render_xlsx_report
-
-    def legacy_builder(request: object) -> XlsxReport:
-        _ = request
-        return XlsxReport(
-            sheets=(
-                XlsxSheet(
-                    name="Records",
-                    header_rows=(("Name",),),
-                    data_rows=(("Alpha",),),
-                ),
-            )
-        )
-
-    clear_xlsx_builders()
-    register_xlsx_builder("legacy-xlsx-demo", legacy_builder)
-    request = RequestFactory().get("/export/xlsx/?builder=legacy-xlsx-demo")
-    host = DjangoGridViewHost(request)
-    ctx = DjangoExportContext.from_request(request)
-    entry = get_xlsx_export_entry("legacy-xlsx-demo")
-    report, payload = render_xlsx_report(host, ctx, entry)
-    assert payload.resolved is None
-    assert report.sheets[0].data_rows[0][0] == "Alpha"
-    clear_xlsx_builders()
 
 
 def test_build_export_payload_resolves_simple_table_block() -> None:

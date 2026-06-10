@@ -1,20 +1,325 @@
-<div class="cm-table-host cm-table-{{ block.backend | e }}" data-table-id="{{ block.id | e }}">
-  <table class="cm-table cm-table-grid" data-table-id="{{ block.id | e }}">
-    <thead>
-      <tr>
-        {% for col in block.columns %}
-        <th data-column-id="{{ col.id | e }}">{{ col.label | e }}</th>
-        {% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in resolved.rows %}
-      <tr class="cm-row">
-        {% for col in block.columns %}
-        <td data-cm-col-key="{{ col.id | e }}">{{ row.get(col.field, '') | e }}</td>
-        {% endfor %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+{% set has_settings = block.settings is not none %}
+{% if block.backend == "ag_grid" %}
+{% set ag_spec_json = resolved.extra.get('ag_grid_spec_config_json', '{}') %}
+<div
+  class="cm-ag-grid-shell"
+  id="cm-table-{{ block.id | e }}"
+  data-grid-id="{{ block.id | e }}"
+>
+  <div
+    id="cm-ag-grid-container-{{ block.id | e }}"
+    class="ag-theme-quartz-dark cm-ag-grid-root"
+  ></div>
 </div>
+<script type="application/json" class="cm-ag-grid-spec-config">{{ ag_spec_json | safe }}</script>
+{% else %}
+{% set col_meta_json = resolved.extra.get('column_meta_json', '') %}
+{% set col_groups_json = resolved.extra.get('column_groups_order_json', '[]') %}
+{% set prefs_url = host.url_for('grid_prefs') %}
+{% set edit_config_json = resolved.extra.get('edit_config_json', '') %}
+<div
+  class="cm-table-shell cm-layout-text-left"
+  id="cm-table-{{ block.id | e }}"
+  data-grid-id="{{ block.id | e }}"
+  data-search-mode="{{ block.search_mode | e }}"
+  {% if block.pagination and block.pagination.mode == 'fragment' %}
+  data-cm-fragment-endpoint="{{ block.pagination.fragment_endpoint | e }}"
+  data-cm-fragment-target="{{ block.pagination.fragment_target | e }}"
+  data-cm-fragment-swap="{{ block.pagination.fragment_swap | e }}"
+  {% endif %}
+  {% if edit_config_json %}data-cm-table-edit="{{ edit_config_json | e }}"{% endif %}
+  {% if has_settings and col_meta_json %}
+  data-cm-column-settings="1"
+  data-cm-columns="{{ col_meta_json | e }}"
+  data-cm-groups-order="{{ col_groups_json | e }}"
+  data-cm-presets="[]"
+  data-cm-preferences-url="{{ prefs_url | e }}"
+  {% endif %}
+>
+  <div class="cm-table-viewport">
+    <table class="cm-table{% if block.striped %} cm-striped{% endif %}" data-cm-table data-cm-col-filters="1"{% if block.header.groups %} data-cm-grouped-headers="1"{% endif %}>
+      <thead>
+        <tr>
+          {% for col in block.columns %}
+          {% set cf = column_filter_wire(col) %}
+          <th
+            data-cm-col="{{ loop.index0 }}"
+            data-cm-sort="{{ col.id | e }}"
+            data-cm-col-key="{{ col.id | e }}"
+            data-cm-align="{{ col.align | e }}"
+            {% if cf and cf not in ('default', 'nosearch') %}data-cm-column-filter="{{ cf | e }}"{% endif %}
+            {% if col.extra and col.extra.get('filter_match') %}data-cm-filter-match="{{ col.extra.get('filter_match') | e }}"{% endif %}
+            {% if col.hidden %}data-cm-default-hide="1"{% endif %}
+            {% if col.width %}style="width:{{ col.width | e }}"{% endif %}
+            class="cm-th-filterable{% if col.hidden %} cm-col-hidden{% endif %}"
+          >
+            <div class="cm-th-inner">
+              {% if col.renderer == 'select' %}
+              <label class="cm-row-select cm-row-select--header">
+                <input type="checkbox" data-cm-select-all="{{ block.id | e }}" aria-label="{{ host.translate('table.select_all') | default('Обрати всі') | e }}" />
+              </label>
+              {% else %}
+              <span class="cm-th-label">{{ col.label | e }}</span>
+              <div class="cm-th-rails cm-th-actions-row">
+                <span class="cm-th-rail cm-th-rail--left">
+                  <span class="cm-th-icon-slot cm-th-header-tools" data-cm-th-tools aria-hidden="true"></span>
+                  {% if col.sortable %}
+                  <span class="cm-th-icon-slot">
+                    <button type="button" class="cm-sort-trigger" aria-label="{{ host.translate('column_filter.sort') | e }}">
+                      <span class="cm-sort-arrow">&#8679;</span>
+                    </button>
+                  </span>
+                  {% endif %}
+                </span>
+                {% if cf != 'nosearch' %}
+                <span class="cm-th-rail cm-th-rail--right">
+                  <span class="cm-th-icon-slot cm-th-icon-slot--filter">
+                    <button type="button" class="cm-col-filter-btn" data-cm-col-filter-trigger aria-label="{{ host.translate('column_filter.open') | e }}">
+                      <svg class="cm-col-filter-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                    </button>
+                    <button type="button" class="cm-col-filter-clear" data-cm-col-filter-clear aria-label="{{ host.translate('column_filter.clear') | e }}">
+                      <svg class="cm-col-filter-clear-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                    </button>
+                  </span>
+                </span>
+                {% endif %}
+              </div>
+              {% endif %}
+            </div>
+          </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in resolved.rows %}
+        {% if row.get('__section__') %}
+        <tr class="cm-row-section" data-cm-section="1">
+          <td colspan="{{ block.columns | list | length }}" class="cm-section-label">{{ row.get('section_label', '') | e }}</td>
+        </tr>
+        {% else %}
+        <tr
+          class="cm-row"
+          data-cm-row-id="{{ row.get('id', '') | e }}"
+          {% if row.get('__chart_row_json__') %}data-cm-chart-row="{{ row.get('__chart_row_json__') | e }}"{% endif %}
+          {% if row.get('care') %}data-cm-care="{{ row.get('care') | e }}"{% endif %}
+          {% if row.get('period') %}data-cm-period="{{ row.get('period') | e }}"{% endif %}
+          {% if block.row_action %}
+            {% if block.row_action.type == 'link' and block.row_action.href %}
+          data-cm-row-url="{{ row_link_url(block.row_action.href, row) | e }}"
+            {% elif block.row_action.type == 'button' and block.row_action.action %}
+          data-cm-row-action="{{ block.row_action.action | e }}"
+            {% endif %}
+          {% elif row.get('__row_url__') %}
+          data-cm-row-url="{{ row.get('__row_url__') | e }}"
+          {% endif %}
+        >
+          {% for col in block.columns %}
+          {% set field = col.field or col.id %}
+          {% set val = row.get(field) %}
+          {% set cf = column_filter_wire(col) %}
+          {% set css = col.extra.get('css_class', '') if col.extra else '' %}
+          {% set sort_val = row.get(field ~ '__sort_val', val | string if val is not none else '') %}
+          {% set export_raw = row.get(field ~ '__export_raw', val | string if val is not none else '') %}
+          <td
+            data-cm-col="{{ loop.index0 }}"
+            data-cm-col-key="{{ col.id | e }}"
+            data-cm-align="{{ col.align | e }}"
+            class="{{ css | e }}{% if col.hidden %} cm-col-hidden{% endif %}"
+            data-cm-sort-val="{{ sort_val | e }}"
+            data-cm-export-raw="{{ export_raw | e }}"
+            {% if cf == 'list' %}
+            data-cm-filter-tokens="{{ row.get(field ~ '__filter_tokens', '[]') | e }}"
+            data-cm-filter-match="{{ (col.extra.get('filter_match', 'any_token') if col.extra else 'any_token') | e }}"
+            {% endif %}
+          >
+            {% if col.editable and col.extra and col.extra.get('editor') == 'select' %}
+              {% set display_field = col.extra.get('display_field', field) %}
+              {% set display_val = row.get(display_field, '') %}
+              {% set empty_label = col.extra.get('empty_label', '—') %}
+              {% set skin = col.extra.get('skin', '') %}
+              {% set view_cls = 'cm-dept-view' if skin == 'department' else 'cm-cell-edit-view' %}
+              {% set cell_cls = 'cm-dept-cell' if skin == 'department' else 'cm-cell-edit' %}
+              {% set select_cls = 'cm-dept-edit' if skin == 'department' else 'cm-cell-edit-input' %}
+              {% set wrap_cls = 'cm-dept-select-wrap' if skin == 'department' else 'cm-cell-edit-input-wrap' %}
+              <div
+                class="{{ cell_cls | e }}"
+                data-cm-cell-edit="1"
+                data-cm-editor="select"
+                data-cm-field="{{ field | e }}"
+                data-cm-display-field="{{ display_field | e }}"
+                data-cm-row-id="{{ row.get('id', '') | e }}"
+                onclick="event.stopPropagation()"
+              >
+                <span class="{{ view_cls | e }}">{% if display_val %}{{ display_val | e }}{% else %}{{ empty_label | e }}{% endif %}</span>
+                <div class="{{ wrap_cls | e }}" hidden>
+                  <select
+                    class="{{ select_cls | e }}"
+                    data-cm-inline-edit
+                    aria-label="{{ col.label | e }}"
+                    data-cm-row-id="{{ row.get('id', '') | e }}"
+                  >
+                    {% for opt in col.extra.get('options', []) %}
+                      {% if opt is mapping %}
+                        {% set opt_val = opt.get('value', '') %}
+                        {% set opt_label = opt.get('label', opt_val) %}
+                    <option value="{{ opt_val | e }}"{% if (val is not none and val | string == opt_val | string) or (val is none and opt_val == '') %} selected{% endif %}>{{ opt_label | e }}</option>
+                      {% endif %}
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+            {% elif val is none or val == '' or (val is iterable and val is not string and val | list | length == 0) %}
+            <span class="cm-muted">—</span>
+            {% elif col.renderer == 'select' %}
+              {% set row_pk = row.get('id', '') %}
+              {% if row_pk %}
+              <label class="cm-row-select">
+                <input
+                  type="checkbox"
+                  class="cm-row-select-cb"
+                  data-cm-row-select="{{ row_pk | e }}"
+                  aria-label="Обрати"
+                />
+              </label>
+              {% else %}
+              <span class="cm-muted">—</span>
+              {% endif %}
+            {% elif col.renderer == 'button' %}
+              {% set action_id = col.extra.get('action', '') if col.extra else '' %}
+              {% set btn_label = col.extra.get('label', '') if col.extra else '' %}
+              {% if col.extra and col.extra.get('label_from_field') %}
+                {% set btn_label = val | string if val is not none else btn_label %}
+              {% endif %}
+              {% set btn_class = col.extra.get('button_class', 'cm-record-detail-btn') if col.extra else 'cm-record-detail-btn' %}
+              {% set record_key = col.extra.get('record_key', 'id') if col.extra else 'id' %}
+              {% set record_id = row.get(record_key, '') %}
+              {% if not record_id %}
+            <span class="cm-muted">—</span>
+              {% else %}
+              <button
+                type="button"
+                class="{{ btn_class | e }}"
+                data-cm-cell-action="{{ action_id | e }}"
+                data-cm-row-id="{{ record_id | e }}"
+              >{{ btn_label | e }}</button>
+              {% endif %}
+            {% elif col.renderer == 'chip' %}
+              {% set chip_key = col.extra.get('chip_key', 'chip') if col.extra else 'chip' %}
+              {% set display_key = col.extra.get('display_key', 'name') if col.extra else 'name' %}
+              {% set chips_map = col.extra.get('chips', {}) if col.extra else {} %}
+              {% for item in val %}
+                {% set chip_val = item.get(chip_key, '') %}
+                {% set display_val = item.get(display_key, '') %}
+                {% set chip_cls = chips_map.get(chip_val, '') %}
+                <span class="chip{% if chip_cls %} {{ chip_cls | e }}{% endif %}">{{ display_val | e }}</span>
+              {% endfor %}
+            {% elif col.renderer == 'badge' %}
+              {% set badges_map = col.extra.get('badges', {}) if col.extra else {} %}
+              {% set badge_labels = col.extra.get('badge_labels', {}) if col.extra else {} %}
+              {% set badge_cls = badges_map.get(val | string, 'badge-empty') %}
+              {% set badge_text = badge_labels.get(val | string, val) %}
+              <span class="badge {{ badge_cls | e }}">{{ badge_text | e }}</span>
+            {% elif col.renderer == 'period_pills' %}
+              {% set pill_tone = col.extra.get('tone', '') if col.extra else '' %}
+              {% set pill_class = col.extra.get('pill_class', '') if col.extra else '' %}
+              {% set url_key = col.extra.get('url_field', 'url') if col.extra else 'url' %}
+              <div class="cm-period-pills">
+              {% for item in val %}
+                {% if item is mapping %}
+                {% set pill_url = item.get(url_key, '#') %}
+                {% set pill_label = item.get('label', '') %}
+                {% set pill_count = item.get('count', '') %}
+                <a href="{{ pill_url | e }}" class="cm-period-pill{% if pill_tone %} cm-tone-{{ pill_tone | e }}{% elif pill_class %} {{ pill_class | e }}{% else %} cm-tone-danger{% endif %}" onclick="event.stopPropagation();">
+                  <span>{{ pill_label | e }}</span>
+                  {% if pill_count not in (none, '') %}<span class="cm-period-pill-count">{{ pill_count | e }}</span>{% endif %}
+                </a>
+                {% endif %}
+              {% endfor %}
+              </div>
+            {% elif col.renderer == 'link' or col.type == 'link' %}
+              {% set link_target = col.extra.get('link_target', '') if col.extra else '' %}
+              <a
+                href="{{ row.get(field ~ '__url', '#') | e }}"
+                class="cm-link"
+                {% if link_target %}target="{{ link_target | e }}"{% endif %}
+                {% if link_target == '_blank' %}onclick="event.stopPropagation();"{% endif %}
+              >{{ val | e }}</a>
+            {% elif col.type == 'currency' %}
+              <span class="cm-currency{% if css %} {{ css | e }}{% endif %}">{{ "{:,.0f}".format(val | float) }} ₴</span>
+            {% elif col.type == 'number' %}
+              <span class="cm-number{% if css %} {{ css | e }}{% endif %}">{{ val }}</span>
+            {% else %}
+              <span class="cm-cell">{{ val | e }}</span>
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endif %}
+        {% else %}
+        <tr data-cm-table-empty-server>
+          <td colspan="{{ block.columns | list | length }}" class="cm-empty">
+            {% if block.empty_message %}{{ block.empty_message | e }}{% else %}{{ host.translate('tables.empty') | e }}{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        {% if resolved.rows %}
+        <tr data-cm-table-empty hidden>
+          <td colspan="{{ block.columns | list | length }}" class="cm-empty">{{ host.translate('tables.empty') | e }}</td>
+        </tr>
+        {% endif %}
+      </tbody>
+      {% set footer_row = resolved.extra.get('footer_row') %}
+      {% if footer_row and block.footer %}
+      <tfoot>
+        <tr class="cm-footer-row" data-cm-footer="1">
+          {% set label_span = block.footer.label_span if block.footer.label_span > 0 else 0 %}
+          {% if block.footer.label and label_span > 0 %}
+          <td colspan="{{ label_span }}" class="cm-footer-label">{{ block.footer.label | e }}</td>
+          {% endif %}
+          {% for col in block.columns %}
+          {% if loop.index0 >= label_span %}
+          {% set field = col.field or col.id %}
+          {% set fval = footer_row.get(field) %}
+          {% set fcss = col.extra.get('css_class', '') if col.extra else '' %}
+          <td data-cm-col-key="{{ col.id | e }}" data-cm-align="{{ col.align | e }}" class="{{ fcss | e }}">
+            {% if fval is none or fval == '' %}
+            <span class="cm-muted">—</span>
+            {% elif col.type == 'currency' %}
+            <span class="cm-currency">{{ "{:,.0f}".format(fval | float) }} ₴</span>
+            {% elif col.type == 'number' %}
+            <span class="cm-number">{{ fval }}</span>
+            {% else %}
+            <span class="cm-cell">{{ fval | e }}</span>
+            {% endif %}
+          </td>
+          {% endif %}
+          {% endfor %}
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+  <div
+    class="cm-col-filter-portal is-hidden"
+    data-cm-col-filter-portal
+    data-cm-col-filter-table="{{ block.id | e }}"
+    aria-hidden="true"
+  >
+    <div class="cm-col-filter-set-host" data-cm-col-filter-set-host hidden></div>
+    <div class="cm-col-filter-expr-row">
+      <input
+        type="search"
+        class="cm-col-filter-input"
+        data-cm-col-filter-input
+        autocomplete="off"
+        placeholder="{{ host.translate('column_filter.placeholder') | e }}"
+      >
+    </div>
+  </div>
+  {% include 'table_pagination.html' %}
+</div>
+{% endif %}{# /backend != "ag_grid" #}
+{% if has_settings %}
+{% set block_id = block.id %}
+{% include '_column_settings_panel.html' %}
+{% endif %}

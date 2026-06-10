@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Literal
 
 from grid_view_spec.types.json import JsonObject, empty_json_map
@@ -16,6 +17,7 @@ GridViewBlockType = Literal[
     "charts",
     "kpi",
     "cards",
+    "card_groups",
     "gallery",
     "image",
     "tabs",
@@ -25,6 +27,26 @@ GridViewBlockType = Literal[
     "overlay",
     "template",
 ]
+
+
+class BlockType(StrEnum):
+    HEADER = "header"
+    TOOLBAR = "toolbar"
+    FILTERS = "filters"
+    ACTIONS = "actions"
+    TABLE = "table"
+    CHARTS = "charts"
+    KPI = "kpi"
+    CARDS = "cards"
+    CARD_GROUPS = "card_groups"
+    GALLERY = "gallery"
+    IMAGE = "image"
+    TABS = "tabs"
+    NAV = "nav"
+    CONTENT = "content"
+    FORM = "form"
+    OVERLAY = "overlay"
+    TEMPLATE = "template"
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

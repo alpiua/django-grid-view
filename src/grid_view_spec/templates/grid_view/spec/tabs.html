@@ -1,5 +1,47 @@
-<div class="cm-tabs cm-tabs-{{ block.presentation | e }}">
+{% from '_semantic.html' import tone_class, btn_classes, tab_badge_tone %}
+{% set url_param = block.extra.get('url_param', '') if block.extra else '' %}
+{% set nav_class = block.extra.get('nav_class', '') if block.extra else '' %}
+{% set nav_variant = block.extra.get('nav_variant', '') if block.extra else '' %}
+{% set badge_tones = block.extra.get('badge_tones', {}) if block.extra else {} %}
+{% set actions_ref = block.extra.get('actions', '') if block.extra else '' %}
+{% set actions_resolved = ctx.blocks.get(actions_ref) if actions_ref else none %}
+{% set use_host_nav = nav_class | length > 0 %}
+{% set paired_shell = nav_variant == 'paired' or (use_host_nav and 'cm-export-group--paired' in nav_class) %}
+{% set tab_variant = 'segment' if block.presentation == 'pills' and not paired_shell else 'default' %}
+<div class="cm-tabs-row{% if actions_resolved %} cm-tabs-row--with-actions{% endif %}">
+<nav
+  class="{% if use_host_nav %}{{ nav_class | e }}{% elif paired_shell %}cm-export-group cm-export-group--paired cm-tabs-nav-paired{% else %}cm-tab-group cm-tabs cm-tabs-{{ block.presentation | e }}{% endif %}"
+  data-cm-tab-group
+  data-cm-tabs-block="{{ block.id | e }}"
+  {% if url_param %}data-cm-tab-url-param="{{ url_param | e }}"{% endif %}
+  role="tablist"
+>
   {% for tab in block.tabs %}
-  <button type="button" class="cm-tab{% if tab.active %} is-active{% endif %}" data-tab-id="{{ tab.id | e }}">{{ tab.label | e }}</button>
+  {% set target = tab.area or tab.block %}
+  {% set resolved_badge_tone = tab_badge_tone(tab, badge_tones) %}
+  <button
+    type="button"
+    role="tab"
+    class="{% if paired_shell %}cm-export-btn cm-tab-btn{% else %}{{ btn_classes(tab_variant, '') }} cm-tab-btn cm-tab{% endif %}{% if tab.active %} is-active{% endif %}"
+    data-cm-tab-target="{{ target | e }}"
+    data-cm-tab-id="{{ tab.id | e }}"
+    {% if tab.disabled %}disabled{% endif %}
+    {% if not tab.active %}aria-selected="false" tabindex="-1"{% else %}aria-selected="true"{% endif %}
+  >
+    <span class="{% if paired_shell %}cm-export-btn-label{% else %}cm-btn-label{% endif %}">{{ tab.label | e }}</span>
+    {% if tab.badge %}
+    <span class="cm-tab-badge{% if resolved_badge_tone %} cm-tone-{{ resolved_badge_tone | e }}{% endif %}">{{ tab.badge | e }}</span>
+    {% endif %}
+  </button>
   {% endfor %}
+</nav>
+{% if actions_resolved and actions_resolved.block.items %}
+<div class="cm-tabs-row__actions">
+  {% for action in actions_resolved.block.items %}
+  {% if action.type == 'link' %}
+  {% include '_action_link.html' %}
+  {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
 </div>

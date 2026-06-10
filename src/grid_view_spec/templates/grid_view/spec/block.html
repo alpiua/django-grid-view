@@ -1,5 +1,15 @@
-<div class="cm-block cm-block-{{ block.type | e }}" data-block-id="{{ block.id | e }}" id="block-{{ block.id | e }}">
-  {% if block.type == 'header' %}{% include 'header.html' %}
+{% set tab_panes = tab_panes | default({}) %}
+{% set pane = tab_panes.get(block.id) %}
+{% set tabs_wrap_align = block.extra.get('wrap_align', '') if block.type == 'tabs' and block.extra else '' %}
+{% set content_hidden = block.type == 'content' and block.extra and block.extra.get('initial_hidden') %}
+<div
+  class="cm-block cm-block-{{ block.type | e }}{% if pane %} cm-tab-pane{% endif %}{% if pane and not pane.active %} hidden{% endif %}{% if content_hidden %} hidden{% endif %}{% if tabs_wrap_align %} cm-block-tabs-wrap-{{ tabs_wrap_align | e }}{% endif %}"
+  data-block-id="{{ block.id | e }}"
+  id="block-{{ block.id | e }}"
+  {% if pane %}data-cm-tab-pane="{{ block.id | e }}"{% endif %}
+>
+  {% if spec.config.lazy.enabled and block.lazy and not skip_lazy %}{% include 'lazy_placeholder.html' %}
+  {% elif block.type == 'header' %}{% include 'header.html' %}
   {% elif block.type == 'toolbar' %}{% include 'toolbar.html' %}
   {% elif block.type == 'filters' %}{% include 'filters.html' %}
   {% elif block.type == 'actions' %}{% include 'actions.html' %}
@@ -7,6 +17,7 @@
   {% elif block.type == 'charts' %}{% include 'charts.html' %}
   {% elif block.type == 'kpi' %}{% include 'kpi.html' %}
   {% elif block.type == 'cards' %}{% include 'cards.html' %}
+  {% elif block.type == 'card_groups' %}{% include 'card_groups.html' %}
   {% elif block.type == 'tabs' %}{% include 'tabs.html' %}
   {% elif block.type == 'nav' %}{% include 'nav.html' %}
   {% elif block.type == 'content' %}{% include 'content.html' %}

@@ -14,12 +14,26 @@ from grid_view_spec.export.registry import (
     register_pdf_export,
     register_xlsx_export,
 )
+from grid_view_spec.export.xlsx import (
+    XlsxCell,
+    XlsxColWidth,
+    XlsxMergeRange,
+    XlsxReport,
+    XlsxRow,
+    XlsxSheet,
+)
 
 __all__ = [
     "ExportRequestContext",
     "GridViewExportJob",
     "GridViewExportPayload",
     "ResolvedExportTable",
+    "XlsxCell",
+    "XlsxColWidth",
+    "XlsxMergeRange",
+    "XlsxReport",
+    "XlsxRow",
+    "XlsxSheet",
     "build_export_payload",
     "clear_pdf_exports",
     "clear_xlsx_exports",

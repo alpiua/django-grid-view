@@ -5,20 +5,18 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from grid_view_spec.export.compat import merge_legacy_filter_meta_lines
 from grid_view_spec.export.context import ExportContextLike, ExportRequestContext
 from grid_view_spec.export.html import spec_to_html
 from grid_view_spec.export.payload import GridViewExportPayload, build_export_payload
 from grid_view_spec.export.registry import (
     GridViewExportJob,
-    LegacyFilterSpecsFn,
     PdfExportEntry,
     XlsxExportEntry,
 )
 from grid_view_spec.types.host import GridViewHost
 
 if TYPE_CHECKING:
-    from django_grid_view.export.xlsx.layout import XlsxReport
+    from grid_view_spec.export.xlsx import XlsxReport
 
 
 def _language_code(host: GridViewHost) -> str:
@@ -32,8 +30,6 @@ def build_export_job_payload(
     host: GridViewHost,
     ctx: ExportContextLike,
     job: GridViewExportJob,
-    *,
-    legacy_filter_specs_fn: LegacyFilterSpecsFn | None = None,
 ) -> GridViewExportPayload:
     export_ctx = ExportRequestContext(
         query=ctx.query,
@@ -48,14 +44,13 @@ def build_export_job_payload(
         host=host,
         chart_images=job.chart_images,
     )
-    if legacy_filter_specs_fn is not None:
-        meta = merge_legacy_filter_meta_lines(
-            ctx,
-            payload.meta_lines,
-            legacy_filter_specs_fn=legacy_filter_specs_fn,
-        )
-        return replace(payload, meta_lines=meta)
-    return payload
+    if not job.extra_meta_lines:
+        return payload
+    merged = list(payload.meta_lines)
+    for line in job.extra_meta_lines:
+        if line not in merged:
+            merged.append(line)
+    return replace(payload, meta_lines=tuple(merged))
 
 
 def render_pdf_html(
@@ -68,7 +63,6 @@ def render_pdf_html(
         host,
         ctx,
         job,
-        legacy_filter_specs_fn=entry.legacy_filter_specs_fn,
     )
     html = spec_to_html(
         payload,
@@ -100,48 +94,30 @@ def default_xlsx_filename(
     return f"{builder}_{sheet}.xlsx"
 
 
-def _direct_xlsx_payload(ctx: ExportContextLike, report: XlsxReport) -> GridViewExportPayload:
-    from grid_view_spec.types.layout import GridViewArea, GridViewLayout
-    from grid_view_spec.types.spec import GridViewSpec
-
-    sheet_name = report.sheets[0].name if report.sheets else "export"
-    spec = GridViewSpec(
-        id=sheet_name[:31] or "export",
-        blocks=(),
-        layout=GridViewLayout(root=GridViewArea(id="root", blocks=())),
-    )
-    return GridViewExportPayload(
-        spec=spec,
-        rows=(),
-        title=ctx.subtitle or spec.id,
-        subtitle=ctx.subtitle,
-    )
-
-
 def render_xlsx_report(
     host: GridViewHost,
     ctx: ExportContextLike,
     entry: XlsxExportEntry,
 ) -> tuple[XlsxReport, GridViewExportPayload]:
-    if entry.direct_builder is not None:
-        report = entry.direct_builder(host, ctx)
-        payload = _direct_xlsx_payload(ctx, report)
-        return report, payload
-    if entry.builder is None:
-        msg = "XLSX export entry has no builder"
-        raise ValueError(msg)
+    from grid_view_spec.export.xlsx import report_from_print_context
+
     job = entry.builder(host, ctx)
+    if job.prebuilt_xlsx is not None:
+        payload = GridViewExportPayload(
+            spec=job.spec,
+            rows=job.rows,
+            title=ctx.subtitle or job.spec.id,
+            subtitle=ctx.subtitle,
+        )
+        return job.prebuilt_xlsx, payload
     payload = build_export_job_payload(
         host,
         ctx,
         job,
-        legacy_filter_specs_fn=entry.legacy_filter_specs_fn,
     )
     if payload.resolved is None or payload.table is None:
         msg = "XLSX export requires a resolved simple table block"
         raise ValueError(msg)
-    from django_grid_view.export.xlsx.table import report_from_print_context
-
     report = report_from_print_context(
         payload.table,
         sheet_name=payload.spec.id[:31] or "Data",

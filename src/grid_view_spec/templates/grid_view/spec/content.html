@@ -1,1 +1,15 @@
-<div class="cm-content cm-content-{{ block.role | e }}">{{ block.body | e }}</div>
+{% from '_semantic.html' import tone_class %}
+{% if block.role in ('callout', 'banner') %}
+<div
+  class="cm-{{ block.role | e }}{{ tone_class(block.tone) }}"
+  {% if block.dismissible %}data-cm-content-dismissible data-cm-dismiss-key="cm-dismiss-{{ block.id | e }}"{% endif %}
+>
+  {% if block.dismissible %}
+  <button type="button" class="cm-content-dismiss" data-cm-content-dismiss aria-label="Dismiss">&times;</button>
+  {% endif %}
+  {% if block.title %}<div class="cm-{{ block.role | e }}-title">{{ block.title | e }}</div>{% endif %}
+  <div class="cm-{{ block.role | e }}-body">{{ block.body | e }}</div>
+</div>
+{% else %}
+<div class="cm-content cm-content-{{ block.role | e }}{{ tone_class(block.tone) }}">{{ block.body | e }}</div>
+{% endif %}

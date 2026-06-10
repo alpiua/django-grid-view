@@ -1,106 +1,63 @@
-# django-grid-view — agent skill
+# grid-view-spec — agent skill
 
-Professional brief for coding agents integrating or modifying the **django-grid-view** package (PyPI `django-grid-view`, module `django_grid_view`).
+Professional brief for coding agents working on **grid-view-spec** (PyPI `grid-view-spec`, Python `grid_view_spec`).
 
-**Human docs:** [alpiua.github.io/django-grid-view](https://alpiua.github.io/django-grid-view/)
+**Human docs:** [alpiua.github.io/grid-view-spec](https://alpiua.github.io/grid-view-spec/)
 
----
+## What this pkg is
 
-## What this is
+**grid-view-spec** is a typed library for **declarative dashboard pages**:
 
-**django-grid-view** is a typed Django app for **declarative data views**: server-rendered tables, AG-Grid integration helpers, and unified **KPI + ECharts + table** blocks driven by `GridViewSpec`. Data always comes from Python (`rows` from SQL/ORM); specs and LLM JSON describe **layout only**, never numeric KPI or chart values.
+- **`GridViewSpec`** — blocks (tables, filters, KPI, charts, actions) + layout
+- **Host rows** — plain dicts / ORM output; never embedded in wire JSON
+- **Render** — Django/Jinja2 HTML + `gridviewspec.min.js` runtime
+- **Export** — PDF/XLSX via registered builders returning `GridViewExportJob`
 
----
+## Decision table
 
-## When to use which mode
+| Need | Approach |
+| --- | --- |
+| Server table + filters + export | `GridViewTable(backend="simple")` in spec + page loader |
+| Large/infinite grid | `GridViewTable(backend="ag_grid")` + host JSON API |
+| KPI + charts + table | Multiple blocks in one `GridViewSpec` |
+| PDF/XLSX | Same loader as HTML -> `register_*_export` with `GridViewExportJob` |
+| Validation / MCP | `gridview_validate`, `gridview_catalog` |
 
-| Need | Use | Read more |
-|------|-----|-----------|
-| Sortable/searchable list, CSV/XLSX, no SPA | **Simple Table** — `SimpleTableConfig`, `{% render_simple_table %}` | [Simple Table](https://alpiua.github.io/django-grid-view/simple-table/) |
-| Large/infinite grids, saved searches, HTMX pages | **AG-Grid helpers** — scripts, toolbar, `GridPreference` API (you own `gridApi`) | [AG-Grid integration](https://alpiua.github.io/django-grid-view/ag-grid/) |
-| Dashboard or chat block: KPIs + charts + table from one spec | **Grid View** — `build_artifact_from_view` / `GridRenderer.build`, `{% render_grid_view %}` | [Grid View artifacts](https://alpiua.github.io/django-grid-view/grid-view-artifacts/) · [Charts & KPIs](https://alpiua.github.io/django-grid-view/charts-and-kpis/) |
-| Chat SQL → visualizer UI | App builds `GridViewSpec` + `rows` in Python; optional wire JSON | [Chat visualizer](https://alpiua.github.io/django-grid-view/guides/chat-visualizer/) |
-| Strict types in a host Django app | `django_grid_view.types`, `py.typed` | [Python types](https://alpiua.github.io/django-grid-view/reference/python-types/) |
-| Wire JSON / planner output | `GridViewSpecWire`, JSON Schema | [GridViewSpec reference](https://alpiua.github.io/django-grid-view/reference/grid-view-spec/) · `schema/grid-view-spec.v1.json` |
-
-Use this skill for work that touches the above. Skip it for unrelated app code or cosmetic edits outside grid contracts.
-
----
-
-## Connect (minimal)
-
-```bash
-pip install django-grid-view
-```
+## Django host checklist
 
 ```python
-INSTALLED_APPS = ["django_grid_view"]
-DJANGO_GRID_VIEW_EXPORT_PDF_URL = "api_export_pdf"
-DJANGO_GRID_VIEW_EXPORT_XLSX_URL = "api_export_xlsx"
-# Host api/urls.py: api_grid_preferences, api_export_pdf, api_export_xlsx (see getting-started)
-```
-
-```bash
-python manage.py migrate django_grid_view
+INSTALLED_APPS = ["grid_view_spec.backends.django"]
+urlpatterns = [path("", include("grid_view_spec.backends.django.urls"))]
 ```
 
 ```django
-{% load django_grid_view %}
-{% grid_view_bundle %}   {# once per page for Grid View / charts #}
+{% load grid_view_spec %}
+{% grid_view_spec_assets part='css' %}
+{% render_grid_view_spec page.spec page.rows %}
+{% grid_view_spec_assets part='js' force_core=True %}
 ```
 
-Step-by-step: [Getting started](https://alpiua.github.io/django-grid-view/getting-started/).
+Settings: `GRID_VIEW_SPEC_*` only.
 
----
+Export registration in `AppConfig.ready()` — see [export/page-pattern.md](../export/page-pattern.md).
 
-## Invariants (do not violate)
+## Invariants
 
-| Rule | Detail |
-|------|--------|
-| **Data** | KPI/chart numbers only from Python `rows`, never from LLM or layout JSON |
-| **Resolve** | Call `build_artifact_from_view(view, rows)` or `GridRenderer.build(spec, rows)` before the browser |
-| **AG-Grid** | Package does not create `gridApi`; consumer supplies `GridView.createAgGridAdapter` |
-| **HTMX** | AG Grid CDN + `{% grid_view_bundle %}` outside HTMX-swapped fragments |
-| **Names** | PyPI `django-grid-view`, module `django_grid_view` (not `django_grid_table`) |
+1. **One loader per screen** for HTML + export
+2. **`validate_spec(spec)`** before render
+3. **Filter state in GET** — export reads same params as HTML
+4. **No numbers from LLM in spec JSON** — rows come from host SQL only
+5. Import types from `grid_view_spec.*` — no parallel local type trees
 
-Architecture overview: [Architecture](https://alpiua.github.io/django-grid-view/architecture/).
+## Key modules
 
----
+| Area | Module |
+| --- | --- |
+| Types | `grid_view_spec.types.*` |
+| Validate | `grid_view_spec.validate` |
+| Render | `grid_view_spec.render` |
+| Export | `grid_view_spec.export.*` |
+| Django | `grid_view_spec.backends.django.*` |
+| MCP | `grid_view_spec.mcp` |
 
-## Python entry points
-
-```python
-from django_grid_view.types import GridViewSpec, GridViewSpecWire, JsonObject, RowDict
-from django_grid_view.render import GridRenderer, build_artifact_from_view, parse_grid_view_spec
-from django_grid_view.tables import Column, SimpleTableConfig
-```
-
-Template tags and JS API: [Template tags](https://alpiua.github.io/django-grid-view/reference/template-tags/) · [JavaScript API](https://alpiua.github.io/django-grid-view/reference/javascript/).
-
----
-
-## Full LLM documentation bundle (optional)
-
-| | |
-|--|--|
-| **File** | [django-grid-view-llm-context.md](django-grid-view-llm-context.md) |
-| **Published** | [https://alpiua.github.io/django-grid-view/llm/django-grid-view-llm-context.md](https://alpiua.github.io/django-grid-view/llm/django-grid-view-llm-context.md) |
-| **Size** | ~42 KB (~1,390 lines) — concatenation of the whole user docs site |
-
-Load or @-mention the bundle **only when** you need exhaustive API/template detail (new integration, debugging render pipeline, i18n, preferences). For most tasks, the section links above are enough.
-
-**Use at your own discretion** — avoid stuffing the full bundle into context if a single doc page from the table covers the task.
-
-Regenerate after doc edits: `uv run python scripts/build_llm_context.py` (see [LLM context](context.md)).
-
----
-
-## Install this skill in a consumer repository
-
-Copy or symlink:
-
-```text
-.agents/skills/django-grid-view-docs/SKILL.md
-```
-
-Canonical source in this repo: `.agents/skills/django-grid-view-docs/SKILL.md`.
+Wire schema: `schema/grid-view-spec.v2.json`

@@ -1,10 +1,10 @@
 # grid-view-spec MCP
 
 Reference for the **gridviewspec-mcp** server: tool names, request/response shapes, validation
-codes, and policy flags. User setup: [MCP server guide](guides/mcp-server.md).
+codes, and policy flags. User setup: [MCP server guide](tools/mcp-server.md).
 
 **Scope:** read-mostly tools for `GridViewSpec` wire JSON — catalog, schema, examples, validation,
-normalization, migration hints, and A2UI patches. The server does not render HTML and does not
+normalization, and A2UI patches. The server does not render HTML and does not
 require Django.
 
 ## Role in the stack
@@ -35,7 +35,6 @@ src/grid_view_spec/mcp/
   validate.py        # structural validator (no Django)
   normalize.py       # defaults and stable ordering
   examples.py        # fixture specs by case id
-  migration_hints.py # legacy pattern -> v2 block mapping
   a2ui.py            # A2UI catalog + apply_patch adapters
 ```
 
@@ -52,15 +51,15 @@ CLI:
 gridviewspec-mcp = "grid_view_spec.mcp.server:main"
 ```
 
-Install: `pip install "django-grid-view[mcp]"` registers CLI **`gridviewspec-mcp`** (also
-`python -m grid_view_spec.mcp`). Aliases: `grid-view-spec-mcp`, `django-grid-view-mcp`.
+Install: `pip install "grid-view-spec[mcp]"` registers CLI **`gridviewspec-mcp`** (also
+`python -m grid_view_spec.mcp`).
 
 Policy CLI flags (default off): `--policy-allow-raw-html`, `--policy-allow-trusted-css-vars`,
 `--policy-strict-unknown-config`.
 
 ## Tools
 
-Registered tools (8 total):
+Registered tools (7 total):
 
 | Tool | Role |
 |------|------|
@@ -69,7 +68,6 @@ Registered tools (8 total):
 | `gridview_validate` | Structural + policy validation |
 | `gridview_normalize` | Deterministic defaults and stable ordering |
 | `gridview_examples` | Fixture-backed example specs by case id |
-| `gridview_migration_hints` | Legacy Django tags / 1.x builders → vNext blocks |
 | `gridview_a2ui_catalog` | A2UI projection catalog (`to_a2ui_catalog`) |
 | `gridview_apply_patch` | Atomic A2UI patch ops (`apply_a2ui_patch`) |
 
@@ -154,9 +152,15 @@ Output:
     "GridViewForm is the declarative form; GridViewTemplate is bespoke host content only",
     "spec values must be JSON-serializable (JsonValue); no callables, ORM, or request",
     "GridViewTemplate is trusted file/raw template content"
-  ]
+  ],
+  "schema_targets": ["GridViewSpec", "GridViewToolbar", "..."],
+  "featured_schema_targets": ["GridViewSpec", "GridViewToolbar", "GridViewTable", "..."],
+  "example_cases": ["minimal_valid_spec", "rich_spec", "..."]
 }
 ```
+
+`schema_targets` lists every resolvable `gridview_schema` target (root + all `$defs` keys).
+`featured_schema_targets` is a curated subset for quick discovery.
 
 ### `gridview_schema`
 
@@ -168,23 +172,19 @@ Input:
 { "target": "GridViewSpec" }
 ```
 
-Targets (each must resolve to a `$defs` entry in `schema/grid-view-spec.v2.json`; unknown target =
-error `unknown_schema_target`):
+Resolves the `GridViewSpec` root or **any** `$defs` entry in
+`schema/grid-view-spec.v2.json`. Unknown targets return error `unknown_schema_target`
+with the full `available_targets` list in the diagnostic message.
 
-- `GridViewSpec`
-- `GridViewBlock`
-- `GridViewFilters`
-- `GridViewActions`
-- `GridViewTable`
-- `GridViewForm`
-- `GridViewGallery`
-- `GridViewImage`
-- `GridViewOverlay`
-- `GridViewTemplate`
-- `GridViewLazyDefaults`
-- `GridViewLazyBlock`
-- `GridViewLazyResponse`
-- `A2UIPatch`
+Common targets:
+
+- All layout blocks from `gridview_catalog.blocks` (e.g. `GridViewToolbar`,
+  `GridViewHeader`, `GridViewTable`, `GridViewCharts`)
+- Shared defs: `GridViewFilter`, `GridViewSearch`, `GridViewChartOptions`,
+  `GridViewLazyDefaults`, `GridViewLazyBlock`, `GridViewLazyResponse`, `A2UIPatch`
+
+There is no `GridViewColumn` def — column shape lives under `GridViewTable`.
+Call `gridview_catalog` for the authoritative `schema_targets` list.
 
 ### `gridview_validate`
 
@@ -361,77 +361,6 @@ Cases:
 - `template_file_block` / `template_raw_block`
 - `a2ui_patch_add_chart`
 
-### `gridview_migration_hints`
-
-Map old package/host template patterns and 1.x Python builders to vNext `GridViewSpec`. This is a
-migration aid for host code, not a separate MCP contract version.
-
-Input:
-
-```json
-{
-  "patterns": [
-    "render_toolbar_search",
-    "render_dashboard_filter_bar",
-    "export_paired_buttons",
-    "render_django_grid_view_gear"
-  ]
-}
-```
-
-Output:
-
-```json
-{
-  "hints": [
-    {
-      "old": "render_toolbar_search",
-      "new": "GridViewToolbar(search=GridViewSearch(...))"
-    },
-    {
-      "old": "render_dashboard_filter_bar",
-      "new": "GridViewFilters(schema=..., state=...)"
-    },
-    {
-      "old": "export_paired_buttons",
-      "new": "GridViewActions(items=(GridViewExportAction(...),))"
-    },
-    {
-      "old": "render_django_grid_view_gear",
-      "new": "GridViewTable(settings=GridViewTableSettings(...)); table renderer shows settings control"
-    },
-    {
-      "old": "inline edit JS via GridViewTable.assets / data-cm-edit",
-      "new": "GridViewTable(edit=GridViewTableEdit(mode='cell'|'row', commit_endpoint=...)) + GridViewColumn(editable=True)"
-    },
-    {
-      "old": "custom cellRenderer / render() callable on a column",
-      "new": "GridViewColumn(renderer='<built-in or registered id>')"
-    },
-    {
-      "old": "dynamic price-tier columnDefs built in host JS",
-      "new": "GridViewTable(column_source=GridViewColumnSource(endpoint=..., depends_on=(...), anchor=...))"
-    },
-    {
-      "old": "embedded cm-toolbar inside simple/table.html",
-      "new": "GridViewArea(type='table-card', blocks=[toolbar_id, table_id]) with toolbar.target=table_id"
-    },
-    {
-      "old": "custom POST form template",
-      "new": "GridViewForm(fields=(GridViewField(...),), submit=GridViewExportAction|button, endpoint=...)"
-    },
-    {
-      "old": "product image gallery / carousel in a template (host JS + storage URLs)",
-      "new": "GridViewGallery(images=(GridViewImageSource(url=..., variants=(...)),), lightbox=True); host builder resolves backend URLs in page_data"
-    },
-    {
-      "old": "<img> thumbnail column rendered in a custom table template",
-      "new": "GridViewColumn(renderer='image', extra={'thumb_field': '...', 'size': '...'})"
-    }
-  ]
-}
-```
-
 ### `gridview_a2ui_catalog`
 
 Return A2UI projection catalog for `GridViewSpec`.
@@ -446,7 +375,7 @@ Output:
 
 ```json
 {
-  "catalog": "django-grid-view",
+  "catalog": "grid-view-spec",
   "source_contract": "GridViewSpec",
   "components": [
     { "name": "GridViewTable", "type": "table", "editable": true, "dynamic_columns": true },

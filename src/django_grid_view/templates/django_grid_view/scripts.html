@@ -1,8 +1,0 @@
-{% load static django_grid_view %}
-<script>window.__djangoGridViewCdn=window.__djangoGridViewCdn||{};window.__djangoGridViewCdn.agGridUrl="{{ ag_grid_cdn_url|escapejs }}";</script>
-<script src="{% static 'django_grid_view/ag-grid-cdn.js' %}"></script>
-<script src="{% static 'django_grid_view/ag-grid-host.js' %}"></script>
-<script type="application/json" class="cm-ag-grid-boot-config">
-{"gridId":"{{ grid_id|escapejs }}","containerId":"{{ container_id|escapejs }}","optionsVar":"{{ options_var|escapejs }}","groupsOrder":{{ groups_order|safe }},"presets":{{ ag_grid_presets|safe }},"searches":{{ ag_grid_searches|safe }}}
-</script>
-<script src="{% static 'django_grid_view/ag-grid-boot.js' %}"></script>

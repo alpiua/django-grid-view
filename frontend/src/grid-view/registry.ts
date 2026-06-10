@@ -38,7 +38,8 @@ export function invokeGridAction(
   method: string
 ): void {
   const handle = byId.get(gridId ?? "");
-  const fn = handle?.[method];
+  if (!handle || typeof handle !== "object") return;
+  const fn = Reflect.get(handle, method);
   if (typeof fn === "function") {
     fn.call(handle);
   }

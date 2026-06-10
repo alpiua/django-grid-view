@@ -1,5 +1,17 @@
+{% set tab_panes = tab_panes | default({}) %}
+{% macro area_style_classes(style) -%}
+{%- if style.width %} cm-area-width-{{ style.width | e }}{% endif -%}
+{%- if style.gap %} cm-area-gap-{{ style.gap | e }}{% endif -%}
+{%- if style.padding %} cm-area-pad-{{ style.padding | e }}{% endif -%}
+{%- if style.surface %} cm-area-surface-{{ style.surface | e }}{% endif -%}
+{%- endmacro %}
 {% macro render_area(area) -%}
-<section class="cm-area cm-area-{{ area.type | e }}" data-area-id="{{ area.id | e }}">
+{% set pane = tab_panes.get(area.id) %}
+<section
+  class="cm-area cm-area-{{ area.type | e }}{{ area_style_classes(area.style) }}{% if pane %} cm-tab-pane{% endif %}{% if pane and not pane.active %} hidden{% endif %}"
+  data-area-id="{{ area.id | e }}"
+  {% if pane %}data-cm-tab-pane="{{ area.id | e }}"{% endif %}
+>
   {% for block_id in area.blocks %}
     {% set resolved = ctx.blocks.get(block_id) %}
     {% if resolved %}
@@ -15,3 +27,18 @@
 <div class="cm-grid-view-spec" data-spec-id="{{ spec.id | e }}" data-cm-grid-view-spec>
   {{ render_area(spec.layout.root) }}
 </div>
+{# Package runtime bundles (grid-view, ag-grid-*) are host-loaded via grid_view_spec_assets;
+   only host/domain GridViewTemplateAsset entries are emitted inline here. #}
+{% set _seen_ids = namespace(v=[]) %}
+{% for asset in (ctx.assets.config_assets + ctx.assets.block_assets) %}
+  {% if not asset.id or asset.id not in _seen_ids.v %}
+    {% if asset.id %}{% set _seen_ids.v = _seen_ids.v + [asset.id] %}{% endif %}
+    {% if asset.kind == "script" %}
+<script{% if asset.module %} type="module"{% endif %}{% if asset.defer %} defer{% endif %} src="{{ asset.src | e }}"></script>
+    {% elif asset.kind == "module" %}
+<script type="module" src="{{ asset.src | e }}"></script>
+    {% elif asset.kind == "style" %}
+<link rel="stylesheet" href="{{ asset.src | e }}">
+    {% endif %}
+  {% endif %}
+{% endfor %}

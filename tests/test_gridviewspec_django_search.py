@@ -6,10 +6,12 @@ import pytest
 from django.db.models import Q
 from django.test import RequestFactory
 
-from django_grid_view.search.simple_queryset import apply_simple_queryset_search
-from django_grid_view.search.smart import apply_smart_queryset_search
 from grid_view_spec.backends import django as django_backend
 from grid_view_spec.backends.django import search as django_search
+from grid_view_spec.backends.django.queryset_search import (
+    apply_simple_queryset_search,
+    apply_smart_queryset_search,
+)
 
 pytest.importorskip("django")
 
@@ -34,6 +36,18 @@ def test_apply_queryset_search_delegates_to_smart_engine() -> None:
     django_search.apply_queryset_search(qs, "alpha/beta", fields=("name",))
     assert len(qs.filters) == 1
     assert qs.filters[0].connector == Q.OR
+
+
+def test_apply_queryset_search_forwards_term_q() -> None:
+    qs = _RecordingQuerySet()
+    django_search.apply_queryset_search(
+        qs,
+        "needle",
+        fields=("name",),
+        term_q=lambda term: Q(custom_field__icontains=term),
+    )
+    assert len(qs.filters) == 1
+    assert "custom_field__icontains" in str(qs.filters[0])
 
 
 def test_apply_simple_queryset_search_keeps_legacy_and_terms() -> None:

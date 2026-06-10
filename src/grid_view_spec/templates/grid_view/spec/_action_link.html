@@ -1,0 +1,12 @@
+{# Shared link/button markup for toolbar and tabs row actions #}
+{% from '_semantic.html' import btn_classes %}
+{% from '_icon.html' import render_icon %}
+<a
+  href="{{ action_href(action) | e }}"
+  class="{{ btn_classes(action.variant, action.tone, action.params.get('btn_class', '')) }}"
+  {% if action.params.get('target') == '_blank' %}target="_blank" rel="noopener noreferrer"{% endif %}
+  title="{{ action.label | e }}"
+>
+  {% if action.icon %}{{ render_icon(action.icon) }}{% endif %}
+  <span class="cm-btn-label">{{ action.label | e }}</span>
+</a>

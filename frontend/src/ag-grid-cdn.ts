@@ -1,20 +1,18 @@
-/** Conditional AG Grid CDN loader — URL from Django conf via inline boot in scripts.html. */
+/** Conditional AG Grid CDN loader — URL from ``grid_view_spec_assets`` inline boot config. */
 (function () {
-  var w = window;
-  var cdn = w.__djangoGridViewCdn || {};
-  var defaultUrl =
-    "https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/dist/ag-grid-community.min.js";
-  var src = cdn.agGridUrl || defaultUrl;
+  const w = window;
+  const cdn = w.__djangoGridViewCdn ?? {};
+  const defaultUrl =
+    "https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.4/dist/ag-grid-community.min.js";
+  const src = cdn.agGridUrl ?? defaultUrl;
 
-  function loadScript(url, checkFn) {
+  function loadScript(url: string, checkFn: () => boolean): void {
     if (checkFn()) return;
-    var s = document.createElement("script");
-    s.src = url;
-    s.async = false;
-    document.head.appendChild(s);
+    const script = document.createElement("script");
+    script.src = url;
+    script.async = false;
+    document.head.appendChild(script);
   }
 
-  loadScript(src, function () {
-    return typeof agGrid !== "undefined";
-  });
+  loadScript(src, () => typeof w.agGrid !== "undefined");
 })();

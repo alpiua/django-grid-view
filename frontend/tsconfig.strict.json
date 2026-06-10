@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noImplicitAny": true
+  },
+  "include": [
+    "src/globals.d.ts",
+    "src/grid-view/registry-api.ts",
+    "src/grid-view/table-edit.ts",
+    "src/runtime/table-edit.ts"
+  ]
+}

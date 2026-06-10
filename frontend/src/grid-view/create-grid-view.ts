@@ -4,7 +4,7 @@ import { bindDelegatedGridActions, initSimpleTableColumnSettings } from "./actio
 import { attachSimpleTableGlobals } from "./simple-table";
 import { i18n } from "./i18n";
 import { init } from "./init";
-import { Charts } from "./charts";
+import { ChartsBridge } from "./charts-bridge";
 import { Kpi } from "./kpi";
 import {
   GridAdapter,
@@ -30,7 +30,23 @@ import {
 import { initAllSimpleTables } from "./simple-table";
 import { initButtonEllipsisTips } from "./table-cell-ui";
 import { boot, bootScope } from "../runtime/boot";
+import {
+  invokeAction,
+  invokeCommit,
+  registerAction,
+  registerCommit,
+  registerRenderer,
+} from "./registry-api";
+import { initTableEdit } from "./table-edit";
 import type { GridViewPublic } from "./types";
+
+function mergePluginExports<T extends Record<string, unknown>>(
+  base: T,
+  prior: Record<string, unknown> | undefined,
+): T {
+  if (!prior) return base;
+  return { ...base, ...prior } as T;
+}
 
 export function createGridView(): GridViewPublic {
   const g = getGlobal();
@@ -43,15 +59,16 @@ export function createGridView(): GridViewPublic {
     byId,
     SimpleTable: { initAll: initAllSimpleTables },
     initSimpleTableColumnSettings,
-    Charts,
+    Charts: ChartsBridge,
     Kpi,
     GridAdapter,
     i18n,
-    initChart: Charts.initChart,
-    refreshChartWrap: Charts.refreshChartWrap,
-    initAllCharts: Charts.initAllCharts,
+    initChart: (root, config, rows) =>
+      root ? ChartsBridge.initChart(root, config, rows) : undefined,
+    refreshChartWrap: ChartsBridge.refreshChartWrap,
+    initAllCharts: ChartsBridge.initAllCharts,
     initAllKpi: Kpi.initAllKpi,
-    buildEchartsOption: Charts.buildEchartsOption,
+    buildEchartsOption: ChartsBridge.buildEchartsOption,
     staticRowsAdapter,
     createAgGridAdapter,
     resolveKpis,
@@ -68,18 +85,52 @@ export function createGridView(): GridViewPublic {
     matchAgGridQuickFilter,
     buildFilterUrl,
     initButtonEllipsisTips,
+    initTableEdit,
+    registerRenderer,
+    registerCommit,
+    registerAction,
+    invokeCommit,
+    invokeAction,
   };
 }
 
 export function bootstrapGridView(): GridViewPublic {
   const g = getGlobal();
+  const prior = (g.GridView ?? {}) as Partial<GridViewPublic>;
   const GridView = createGridView();
+
+  // Optional bundles (gridviewspec-ag-grid.min.js, gridviewspec-charts.min.js) may run
+  // before the core bundle when ``load_ag_grid`` / ``load_charts`` are set in ``js.html``.
+  GridView.AgGrid = mergePluginExports(
+    GridView.AgGrid as Record<string, unknown>,
+    prior.AgGrid as Record<string, unknown> | undefined,
+  ) as GridViewPublic["AgGrid"];
+  GridView.Charts = mergePluginExports(
+    GridView.Charts as Record<string, unknown>,
+    prior.Charts as Record<string, unknown> | undefined,
+  ) as GridViewPublic["Charts"];
+  if (prior.assets && typeof prior.assets === "object") {
+    GridView.assets = { ...prior.assets, ...(GridView.assets ?? {}) };
+  }
+
+  // column-settings.ts attaches to a placeholder GridView before bootstrap replaces it.
+  for (const key of [
+    "ColumnSettings",
+    "createColumnSettings",
+    "createDomTableColumnAdapter",
+    "createAgGridColumnAdapter",
+  ] as const) {
+    const fn = prior[key];
+    if (fn != null && GridView[key] == null) {
+      (GridView as Record<string, unknown>)[key] = fn;
+    }
+  }
 
   if (g.GridViewI18n) {
     i18n.initI18n(g.GridViewI18n);
   }
   attachSimpleTableGlobals();
   bindDelegatedGridActions();
-  g.GridView = GridView;
+  (getGlobal() as Window).GridView = GridView;
   return GridView;
 }

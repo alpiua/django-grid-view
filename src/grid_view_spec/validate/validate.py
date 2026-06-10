@@ -35,7 +35,7 @@ from grid_view_spec.validate.refs import (
 )
 
 BUILTIN_RENDERERS = frozenset(
-    {"badge", "tag", "link", "money", "progress", "date", "image", "thumbnail"}
+    {"badge", "tag", "link", "money", "progress", "date", "image", "thumbnail", "button"}
 )
 
 BlockIndex = dict[str, GridViewBlock]

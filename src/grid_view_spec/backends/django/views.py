@@ -8,12 +8,10 @@ from collections.abc import Sequence
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.http import require_GET, require_POST
-from django_grid_view.export.throttle import export_throttle
-from django_grid_view.types.grid_settings import GridSettingsPayload
-from django_grid_view.types.json import is_json_object
 from grid_view_spec.backends.django.export import DjangoExportContext
 from grid_view_spec.backends.django.host import DjangoGridViewHost
 from grid_view_spec.backends.django.lazy import LazyPageLoaderNotFoundError, resolve_lazy_block
+from grid_view_spec.backends.django.throttle import export_throttle
 from grid_view_spec.backends.fragment.html import render_block_fragment
 from grid_view_spec.export.pipeline import (
     default_pdf_filename,
@@ -22,8 +20,10 @@ from grid_view_spec.export.pipeline import (
     render_xlsx_report,
 )
 from grid_view_spec.render.spec_renderer import build_render_context
+from grid_view_spec.types.grid_settings import GridSettingsPayload
 from grid_view_spec.types.host import GridPrefs, GridViewHostConfig
-from grid_view_spec.types.json import RowDict
+from grid_view_spec.types.json import RowDict, is_json_object
+from grid_view_spec.types.narrowing import is_object_list
 from grid_view_spec.types.spec import GridViewSpec
 
 __all__ = [
@@ -59,10 +59,22 @@ def _parse_prefs_payload(body: bytes) -> GridSettingsPayload | None:
     if is_json_object(col_presets):
         payload["colPresets"] = col_presets
     searches = raw.get("searches")
-    if isinstance(searches, list):
-        payload["searches"] = [
-            item for item in searches if isinstance(item, str | int | float | bool) or item is None
-        ]
+    if is_object_list(searches):
+        from grid_view_spec.types.json import JsonScalar
+
+        scalar_items: list[JsonScalar] = []
+        for raw_item in searches:
+            if raw_item is None:
+                scalar_items.append(None)
+            elif isinstance(raw_item, str):
+                scalar_items.append(raw_item)
+            elif isinstance(raw_item, bool):
+                scalar_items.append(raw_item)
+            elif isinstance(raw_item, int):
+                scalar_items.append(raw_item)
+            elif isinstance(raw_item, float):
+                scalar_items.append(raw_item)
+        payload["searches"] = scalar_items
     return payload
 
 
@@ -145,7 +157,7 @@ def export_pdf(
     host: DjangoGridViewHost | None = None,
 ) -> HttpResponse:
     from django.http import Http404
-    from django_grid_view.export.pdf_response import pdf_response_from_html
+    from grid_view_spec.backends.django.pdf_response import pdf_response_from_html
     from grid_view_spec.export.registry import ExportBuilderNotFoundError, get_pdf_export
 
     host = host or django_host(request)
@@ -175,8 +187,8 @@ def export_xlsx(
     host: DjangoGridViewHost | None = None,
 ) -> HttpResponse:
     from django.http import Http404
-    from django_grid_view.export.xlsx_response import xlsx_response_from_report
     from grid_view_spec.export.registry import ExportBuilderNotFoundError, get_xlsx_export
+    from grid_view_spec.export.xlsx import xlsx_response_from_report
 
     host = host or django_host(request)
     ctx = DjangoExportContext.from_request(request)
@@ -185,11 +197,12 @@ def export_xlsx(
     except ExportBuilderNotFoundError as exc:
         raise Http404(str(exc)) from exc
     report, payload = render_xlsx_report(host, ctx, entry)
-    if entry.legacy_filename_fn is not None:
-        filename = entry.legacy_filename_fn(ctx, report)
-    elif entry.filename_fn is not None:
+    if entry.filename_fn is not None:
         filename = entry.filename_fn(host, ctx, payload)
     else:
         filename = default_xlsx_filename(host, ctx, payload)
 
     return xlsx_response_from_report(report, filename)
+
+
+save_grid_settings = save_grid_prefs

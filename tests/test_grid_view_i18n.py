@@ -5,7 +5,7 @@ from __future__ import annotations
 from django.test import SimpleTestCase, override_settings
 from django.utils.translation import gettext
 
-from django_grid_view.i18n import JS_I18N_KEYS, get_js_i18n_catalog
+from grid_view_spec.backends.django.i18n import JS_I18N_KEYS, get_js_i18n_catalog
 
 
 class GridViewI18nTests(SimpleTestCase):

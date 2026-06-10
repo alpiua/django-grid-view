@@ -185,7 +185,7 @@
     padding: 0;
     border: none;
     background: transparent;
-    color: color-mix(in srgb, var(--cm-primary, #818cf8) 92%, white);
+    color: var(--cm-muted);
     border-radius: 6px;
     cursor: default;
     flex: 0 0 auto;

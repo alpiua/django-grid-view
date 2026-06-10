@@ -8,10 +8,15 @@ from importlib import resources
 import pytest
 
 from grid_view_spec.mcp.a2ui import run_a2ui_catalog, run_apply_patch
-from grid_view_spec.mcp.catalog import BLOCKS, RENDERERS, run_catalog
+from grid_view_spec.mcp.catalog import (
+    BLOCKS,
+    HOST_BACKENDS,
+    HTTP_ROUTES,
+    RENDERERS,
+    run_catalog,
+)
 from grid_view_spec.mcp.envelope import envelope
 from grid_view_spec.mcp.examples import FIXTURE_CASE_IDS, run_examples
-from grid_view_spec.mcp.migration_hints import MIGRATION_HINTS, run_migration_hints
 from grid_view_spec.mcp.schema import SCHEMA_TARGETS, get_schema, run_schema
 from grid_view_spec.mcp.validate import run_validate
 from grid_view_spec.types.wire import is_wire_mapping
@@ -71,7 +76,58 @@ def test_gridview_schema_unknown_target_errors() -> None:
     result = run_schema(target="NotARealTarget")
     assert result["ok"] is False
     assert result["data"]["target"] == "NotARealTarget"
+    assert "GridViewTable" in result["data"]["known_targets"]
+    assert "GridViewTable" in result["data"]["available_targets"]
     assert result["diagnostics"][0]["code"] == "unknown_schema_target"
+    assert "available targets" in result["diagnostics"][0]["message"]
+
+
+@pytest.mark.parametrize("target", ["GridViewArea", "GridViewLayout", "SetFilterModel"])
+def test_gridview_schema_resolves_non_featured_defs_targets(target: str) -> None:
+    # Any $defs entry resolves, not only the curated SCHEMA_TARGETS.
+    assert target not in SCHEMA_TARGETS
+    result = run_schema(target=target)
+    assert result["ok"] is True
+    assert result["data"]["target"] == target
+    assert isinstance(result["data"]["schema"], dict)
+
+
+def test_gridview_schema_available_targets_superset_of_featured() -> None:
+    from grid_view_spec.mcp.schema import available_targets
+
+    available = set(available_targets())
+    assert SCHEMA_TARGETS <= available
+    assert len(available) > len(SCHEMA_TARGETS)
+
+
+def test_gridview_catalog_exposes_discovery_pointers() -> None:
+    from grid_view_spec.mcp.schema import available_targets
+
+    data = run_catalog()["data"]
+    assert data["schema_targets"] == list(available_targets())
+    assert "GridViewToolbar" in data["schema_targets"]
+    assert "GridViewTable" in data["featured_schema_targets"]
+    assert list(FIXTURE_CASE_IDS) == data["example_cases"]
+
+
+def test_gridview_catalog_exposes_host_integration() -> None:
+    data = run_catalog()["data"]
+    assert data["host_backends"] == list(HOST_BACKENDS)
+    assert data["http_routes"] == HTTP_ROUTES
+    protocol = data["host_protocol"]
+    assert isinstance(protocol, dict)
+    assert protocol["type"] == "GridViewHost"
+    method_names = [item["name"] for item in protocol["methods"]]
+    assert "get_grid_prefs" in method_names
+    assert "save_grid_prefs" in method_names
+    django_defaults = data["http_routes"]["django_defaults"]
+    assert isinstance(django_defaults, dict)
+    included = django_defaults["included_routes"]
+    assert any(route["name"] == "api_grid_preferences" for route in included)
+    assert any(route["name"] == "api_export_xlsx" for route in included)
+    assert any(route["name"] == "lazy" for route in included)
+    backend_ids = [item["id"] for item in data["host_backends"]]
+    assert backend_ids == ["django", "jinja2", "starlette", "fastapi", "wire"]
 
 
 def test_gridview_validate_minimal_valid_spec() -> None:
@@ -98,29 +154,20 @@ def test_gridview_examples_minimal_valid_spec() -> None:
     assert spec_payload["id"] == "page_records"
 
 
-def test_gridview_migration_hints_known_pattern() -> None:
-    result = run_migration_hints(patterns=["render_toolbar_search"])
+def test_gridview_examples_column_set_filter() -> None:
+    result = run_examples(case="column_set_filter")
     assert result["ok"] is True
-    assert result["tool"] == "gridview_migration_hints"
-    hints = result["data"]["hints"]
-    assert isinstance(hints, list)
-    assert hints[0]["old"] == "render_toolbar_search"
-    assert hints[0]["new"] == MIGRATION_HINTS["render_toolbar_search"]
+    assert result["data"]["case"] == "column_set_filter"
+    spec_payload = result["data"].get("spec")
+    assert isinstance(spec_payload, dict)
+    assert spec_payload["id"] == "column_set_filter"
 
 
-def test_gridview_migration_hints_unknown_pattern() -> None:
-    result = run_migration_hints(patterns=["not_a_real_legacy_pattern"])
-    assert result["ok"] is True
-    hints = result["data"]["hints"]
-    assert hints[0]["old"] == "not_a_real_legacy_pattern"
-    assert hints[0]["new"] is None
-    assert hints[0]["note"] == "no mapping"
-
-
-def test_gridview_migration_hints_export_tags_note_canonical_action() -> None:
-    result = run_migration_hints(patterns=["export_pdf_href", "export_xlsx_href"])
-    hints = result["data"]["hints"]
-    assert all("GridViewExportAction" in str(item["new"]) for item in hints)
+def test_gridview_examples_unknown_case_lists_known() -> None:
+    result = run_examples(case="not_a_case")
+    assert result["ok"] is False
+    assert "minimal_valid_spec" in result["data"]["known_cases"]
+    assert "column_set_filter" in result["data"]["known_cases"]
 
 
 def test_gridview_a2ui_catalog_payload() -> None:
@@ -128,7 +175,7 @@ def test_gridview_a2ui_catalog_payload() -> None:
     assert result["ok"] is True
     assert result["tool"] == "gridview_a2ui_catalog"
     data = result["data"]
-    assert data["catalog"] == "django-grid-view"
+    assert data["catalog"] == "grid-view-spec"
     assert data["source_contract"] == "GridViewSpec"
     components = data.get("components")
     assert isinstance(components, list)
@@ -185,10 +232,9 @@ def test_mcp_modules_have_no_django_imports() -> None:
     import ast
 
     import grid_view_spec.mcp.a2ui as mcp_a2ui
-    import grid_view_spec.mcp.migration_hints as mcp_migration
     import grid_view_spec.mcp.server as mcp_server
 
-    for module in (mcp_a2ui, mcp_migration, mcp_server):
+    for module in (mcp_a2ui, mcp_server):
         source = module.__file__
         assert source is not None
         tree = ast.parse(open(source, encoding="utf-8").read())

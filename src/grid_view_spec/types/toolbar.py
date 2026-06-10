@@ -40,6 +40,8 @@ class GridViewCounter:
     label: str
     value: str | int | float
     tone: GridViewCounterTone = ""
+    field: str | None = None
+    total: int | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

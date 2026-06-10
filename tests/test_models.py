@@ -4,7 +4,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.db import IntegrityError
 
-from django_grid_view.models import GridPreference
+from grid_view_spec.backends.django.models import GridPreference
 
 
 @pytest.mark.django_db

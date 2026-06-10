@@ -1,4 +1,4 @@
-/** Per-term and expression matching — mirror of django_grid_view.search.term_match */
+/** Per-term and expression matching — mirror of grid_view_spec.search.term_match */
 
 const NUMERIC_OPS = [">=", "<=", ">", "<", "="] as const;
 const RANGE_SPLIT = "..";

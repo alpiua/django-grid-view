@@ -1,15 +1,15 @@
 # JavaScript API
 
-Pre-built bundles ship under `django_grid_view/static/`. The main entry is **`grid-view.min.js`**
+Pre-built bundles ship under `grid_view_spec/static/grid_view_spec/`. The main entry is **`gridviewspec.min.js`**
 (global `GridView`). Host projects do not need Node at runtime.
 
 ## Boot
 
-After `{% grid_view_bundle %}`, one script initializes the page:
+After `{% grid_view_spec_assets part='js' force_core=True %}`, one script initializes the page:
 
 | API | Purpose |
 |-----|---------|
-| `GridView.bootScope(scope?)` | Scan a DOM subtree (default `document`) and boot tables, filters, KPI, charts, column settings, GridViewSpec roots, and legacy artifact roots |
+| `GridView.bootScope(scope?)` | Scan a DOM subtree (default `document`) and boot tables, filters, KPI, charts, column settings, and GridViewSpec roots |
 | `GridView.boot(root?)` | Boot one element, or re-run scope boot when omitted |
 
 `DOMContentLoaded` and HTMX `afterSwap` call `GridView.bootScope()`. Do not load separate chart, KPI,
@@ -17,20 +17,19 @@ or artifact boot scripts.
 
 ## Loading scripts
 
-### GridViewSpec, Simple Table, and legacy Grid View
+### GridViewSpec pages
 
 ```django
-{% load django_grid_view %}
-{% grid_view_bundle %}
+{% load grid_view_spec %}
+{% grid_view_spec_assets part='js' force_core=True %}
 ```
 
 Load order:
 
 1. Inline — `GridView.preferencesUrl`, `GridViewI18n`  
-2. `grid-view.min.js` — unified runtime  
+2. `gridviewspec.min.js` — unified runtime  
 
-Inclusion tags (`render_simple_table`, `render_grid_view`, `render_grid_view_spec`, …) can pull in
-the bundle automatically if the host did not call `{% grid_view_bundle %}`.
+Inclusion tags (`render_grid_view_spec`, …) can pull in the bundle automatically if the host did not call `{% grid_view_spec_assets part='js' force_core=True %}`.
 
 **Globals the host must provide** (before the bundle):
 
@@ -43,26 +42,21 @@ Use `{% echarts_cdn_url %}` and `{% sortable_cdn_url %}` or your own CDN links.
 
 ### AG-Grid pages
 
-Load CDN scripts, `ag-grid-host.js`, and boot JSON — see [AG-Grid integration](../ag-grid.md).
-
-### Legacy artifact roots
-
-Pages with `[data-cm-grid-artifact-boot]` still initialize through `GridView.bootScope()`. Older
-per-page boot scripts are no longer shipped; their behaviour is part of `grid-view.min.js`.
+Load CDN scripts, `ag-grid-host.js`, and boot JSON — see [AG-Grid integration](../tables/ag-grid.md).
 
 ## GridView.init
 
-Used by chat panels and SPAs that receive a resolved artifact JSON:
+Used by chat panels and SPAs that receive a resolved spec or table root:
 
 ```javascript
 var disconnect = GridView.init({
   root: document,
-  artifact: artifactJson,
+  artifact: payload,
   gridAdapter: adapter,
 });
 ```
 
-Initializes Simple Tables, KPI strips, charts, and optional AG-Grid bindings. `disconnect()` removes
+Initializes simple tables, KPI strips, charts, and optional AG-Grid bindings. `disconnect()` removes
 listeners.
 
 ## AG-Grid infinite model
@@ -91,7 +85,7 @@ Toolbar markup uses `data-cm-grid-id`, `data-cm-col-action`, `data-cm-grid-actio
 `data-cm-grid-search` — no inline JS required.
 
 `AgGridHost` persists filters, columns, and search to `localStorage` and optionally mirrors them in
-the URL. See [AG-Grid — Persistence](../ag-grid.md#persistence).
+the URL. See [AG-Grid — Persistence](../tables/ag-grid.md#persistence).
 
 ## AG-Grid adapter (filtered KPI / charts)
 
@@ -139,7 +133,7 @@ Usually called automatically from `GridView.bootScope()`.
 
 Client matching must stay aligned with Python search modules. Conformance fixtures live under
 `tests/fixtures/`; run `npm run test:conformance` in `frontend/` and pytest filter tests after
-behaviour changes. See [Filter semantics](../guides/filter-semantics-contract.md).
+behaviour changes. See [Filter semantics](../filtering/semantics.md).
 
 ## i18n
 
@@ -147,8 +141,8 @@ behaviour changes. See [Filter semantics](../guides/filter-semantics-contract.md
 GridView.i18n.t("search.placeholder", "Search…");
 ```
 
-Translations ship in `django_grid_view/locale/`. The bundle injects `window.GridViewI18n` before
-`grid-view.min.js`.
+Translations ship in `grid_view_spec/locale/`. The bundle injects `window.GridViewI18n` before
+`gridviewspec.min.js`.
 
 ## Maintainer build
 
@@ -156,4 +150,4 @@ Translations ship in `django_grid_view/locale/`. The bundle injects `window.Grid
 cd frontend && npm ci && npm run build
 ```
 
-Commit regenerated files under `src/django_grid_view/static/`. CI checks for drift.
+Commit regenerated files under `src/grid_view_spec/static/grid_view_spec/`. CI checks for drift.

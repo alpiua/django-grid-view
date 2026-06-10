@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const OUT_DIR = path.resolve(__dirname, "../src/django_grid_view/static/django_grid_view");
+const OUT_DIR = path.resolve(__dirname, "../src/grid_view_spec/static/grid_view_spec");
 
 /** @typedef {{ id: string, source: string, bundle?: boolean, banner?: boolean }} ManifestBundle */
 /** @typedef {{ id: string, source: string }} ManifestStylesheet */
@@ -17,7 +17,7 @@ async function buildEntry(entry, minify) {
   const { id: name, source, bundle: isBundle = false, banner: withBanner = false } = entry;
   const suffix = minify ? ".min.js" : ".js";
   const banner = withBanner
-    ? `/** django-grid-view — built from frontend/${source} */\n`
+    ? `/** grid-view-spec — built from frontend/${source} */\n`
     : undefined;
 
   await esbuild.build({

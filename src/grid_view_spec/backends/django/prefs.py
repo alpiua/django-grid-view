@@ -28,7 +28,7 @@ class DjangoOrmPrefs:
         return user
 
     def get(self, subject_id: str, grid_id: str) -> GridPrefs:
-        from django_grid_view.models import GridPreference
+        from grid_view_spec.backends.django.models import GridPreference
 
         user = self._user_for_subject(subject_id)
         if user is None:
@@ -42,7 +42,7 @@ class DjangoOrmPrefs:
         return GridPrefs(col_presets=col_presets, searches=searches)
 
     def save(self, subject_id: str, grid_id: str, prefs: GridPrefs) -> None:
-        from django_grid_view.models import GridPreference
+        from grid_view_spec.backends.django.models import GridPreference
 
         user = self._user_for_subject(subject_id)
         if user is None:

@@ -10,7 +10,7 @@ from django.core.cache import cache
 from django.http import HttpRequest, HttpResponse
 from django.test import RequestFactory
 
-from django_grid_view.export.throttle import export_throttle
+from grid_view_spec.backends.django.throttle import export_throttle
 
 
 def _reset_throttle_cache() -> None:

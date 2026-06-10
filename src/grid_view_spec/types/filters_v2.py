@@ -147,3 +147,4 @@ class GridViewFilters(GridViewBlockBase):
     state: GridViewFilterState = field(default_factory=GridViewFilterState)
     target: str | None = None
     auto_apply: bool = True
+    navigate_on_change: bool = True

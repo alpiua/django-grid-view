@@ -1,12 +1,12 @@
-# django-grid-view — Agent Instructions
+# grid-view-spec — Agent Instructions
 
 ## CRITICAL DIRECTIVE
 **NEVER** `git commit`, `git push`, `git checkout <file>`, or `git restore` without explicit user approval.
 
 ## Orientation
-- **Architecture (vNext)**: [docs/gridviewspec-architecture.md](docs/gridviewspec-architecture.md)
-- **Package map**: `src/grid_view_spec/` (framework-agnostic core), `src/django_grid_view/` (Django adapter)
-- **Skill (docs)**: [.agents/skills/django-grid-view-docs/SKILL.md](.agents/skills/django-grid-view-docs/SKILL.md)
+- **Architecture (vNext)**: [docs/maintainers/gridviewspec-architecture.md](docs/maintainers/gridviewspec-architecture.md)
+- **Package map**: `src/grid_view_spec/` (framework-agnostic core + optional Django backend at `backends/django/`)
+- **Skill (docs)**: [.agents/skills/grid-view-spec-docs/SKILL.md](.agents/skills/grid-view-spec-docs/SKILL.md)
 - **TDD workflow**: `contextunity/.agents/skills/tdd/SKILL.md` — Red → Green → Refactor for every behavior change
 - **Code quality (canonical)**: `contextunity/docs/architecture/code-quality.md` — typing, modularization, tooling invariants (adapted below for this repo)
 
@@ -34,13 +34,13 @@ If a constraint seems to require a hack, **stop** and redesign the seam (or ask 
 
 ## Strict static typing (basedpyright)
 
-Config: `[tool.basedpyright]` in `pyproject.toml` — **`typeCheckingMode = "strict"`** on `src/grid_view_spec`, `src/django_grid_view`, `tests`.
+Config: `[tool.basedpyright]` in `pyproject.toml` — **`typeCheckingMode = "strict"`** on `src/grid_view_spec`, `tests`.
 
 ### Mandatory commands (same bar as CI / pre-commit)
 
 ```bash
-uv run ruff check src/grid_view_spec src/django_grid_view tests
-uv run basedpyright --warnings src/grid_view_spec src/django_grid_view tests
+uv run ruff check src/grid_view_spec tests
+uv run basedpyright --warnings src/grid_view_spec tests
 ```
 
 **`--warnings` is required** — warnings fail the hook; “0 errors” without `--warnings` is not sufficient.
@@ -54,7 +54,7 @@ From `contextunity/docs/architecture/code-quality.md` §1, applied here:
 - **Strong returns**: public functions return concrete types, `TypedDict`, dataclasses, or `Protocol` — not untyped `dict` at boundaries.
 - **Narrow `object` / `JsonValue`**: `isinstance` / wire guards (`is_wire_mapping`, etc.) before subscript or attribute use.
 - **`TYPE_CHECKING` imports** for heavy or circular types; never leave forward refs undefined for pyright (import under `TYPE_CHECKING` when quoted aliases need it).
-- **`grid_view_spec` core** stays import-clean: no runtime `django_grid_view` / `django.db` in module namespace (guard: `test_pipeline_module_has_no_runtime_django_bindings`).
+- **`grid_view_spec` core** stays import-clean: no runtime `django.db` in module namespace (guard: `test_pipeline_module_has_no_runtime_django_bindings`).
 
 ### After typing or boundary changes
 
@@ -88,9 +88,9 @@ Large multi-file batches without per-step verification caused: circular imports,
 
 ### Import & layer rules (grid_view_spec)
 
-1. **`grid_view_spec/export/pipeline.py`** — no runtime `django_grid_view` in module namespace. Use `TYPE_CHECKING` + lazy import **inside** functions that need Django types at runtime.
-2. **`grid_view_spec/export/compat.py`** — same; runtime import of `XlsxReport` here can circular-import via `django_grid_view.export.xlsx.registry`.
-3. **Legacy export shims** — mirror PDF: register into vNext registry in `register_*_builder`, views call `get_*_export_entry` + pipeline with `(host, DjangoExportContext)`, not raw `request`-only builders in the view.
+1. **`grid_view_spec/export/pipeline.py`** — no runtime Django imports in module namespace. Use `TYPE_CHECKING` + lazy import **inside** functions that need Django types at runtime.
+2. **`grid_view_spec/export/compat.py`** — same; runtime import of `XlsxReport` here can circular-import via `backends/django/export/xlsx/registry`.
+3. **Legacy export shims** — register into vNext registry via `register_pdf_export` / `register_xlsx_export`; views call `get_*_export_entry` + pipeline with `(host, DjangoExportContext)`, not raw `request`-only builders in the view.
 4. **Host protocol** — render/export paths use `host.filter_state_from_request`, `DjangoExportContext.from_request`; do not discard `host` or `subject_id`.
 5. **Typing** — see **Strict static typing** above; no exceptions for “quick fixes”.
 
@@ -127,14 +127,10 @@ Same error **3 times** → stop, report traceback + attempts, ask user (ContextU
 | Behavior change / bug fix | **TDD skill** (primary) + gates above |
 | Typing / lint / boundary cleanup | `code-quality.md` + **Strict static typing** gates; `contextunity/.agents/skills/type-validation/SKILL.md` for toolchain order |
 | Export / render / host seams | Architecture doc § export + render; export + render test modules |
-| GridViewSpec MCP (migration) | **`gridviewspec-mcp`** skill + [mcp-server.md](docs/guides/mcp-server.md) |
+| GridViewSpec MCP (migration) | **`grid-view-spec-mcp`** skill + [mcp-server.md](docs/tools/mcp-server.md) |
 | Django views / HTMX lazy | `tests/test_gridviewspec_django_views.py` |
 | Public API / types surface | [docs/reference/python-types.md](docs/reference/python-types.md) — import from package, do not copy shapes |
-| Phase 11 migration window | [docs/vnext/phase-11-prep.md](docs/vnext/phase-11-prep.md) — `-m "not compatibility"` for vNext-only pytest |
 
-## Phase 11 migration window (prep)
+## Pytest markers
 
-- **New code:** `import grid_view_spec` — see [phase-11-prep.md](docs/vnext/phase-11-prep.md).
-- **Legacy tests:** auto-marked `compatibility`; run vNext slice: `uv run pytest -q -m "not compatibility"`.
-- **Full rename / shim warnings:** not enabled (`django_grid_view/_vnext_shim.py` → `SHIM_ENABLED = False`).
-- **Do not start Phase 12 deletes** until NSZU + Commerce host gates pass.
+- **New code:** `import grid_view_spec`.

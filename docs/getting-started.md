@@ -1,75 +1,44 @@
 # Getting started
 
-This guide walks through a minimal **GridViewSpec** page. It assumes a Django host because that is
-the most common setup (templates, static files, optional ORM preferences). The same spec API works
-with other backends — see [Architecture](architecture.md).
+Minimal **GridViewSpec** page on Django (same spec API works with Jinja2/Starlette — [Backends](concepts/backends.md)).
 
 ## Install
 
 ```bash
-pip install django-grid-view
+pip install "grid-view-spec[django]"
 ```
 
-Local development:
-
-```bash
-pip install -e /path/to/django-grid-view
-# optional: MCP CLI (`pip install -e ".[mcp]"` or `./scripts/install-mcp-cli.sh`)
-```
-
-## Django backend (optional)
-
-Add the app and migrate once for saved column presets:
+## Django setup
 
 ```python
-INSTALLED_APPS = ["django_grid_view"]
+INSTALLED_APPS = ["grid_view_spec.backends.django"]
 ```
 
 ```bash
-python manage.py migrate django_grid_view
+python manage.py migrate grid_view_spec_django
 ```
 
-Mount export and preference routes in **your** URLconf (the package does not ship a root
-`urls.py` to include):
+Mount routes — [Django integration](integration/django.md):
 
 ```python
-from django.urls import path
-from grid_view_spec.backends.django.views import export_pdf, export_xlsx, save_grid_prefs
-
-urlpatterns = [
-    path("grid/prefs/", save_grid_prefs, name="api_grid_preferences"),
-    path("export/pdf/", export_pdf, name="api_export_pdf"),
-    path("export/xlsx/", export_xlsx, name="api_export_xlsx"),
-]
-```
-
-Register PDF/XLSX builders in `AppConfig.ready()` — [PDF export](guides/pdf-export.md),
-[XLSX export](guides/xlsx-export.md).
-
-Optional settings for URL names used by templates:
-
-```python
-DJANGO_GRID_VIEW_EXPORT_PDF_URL = "api_export_pdf"
-DJANGO_GRID_VIEW_EXPORT_XLSX_URL = "api_export_xlsx"
+path("", include("grid_view_spec.backends.django.urls")),
 ```
 
 ## Page assets
 
-In the site base template, once per page:
-
 ```django
-{% load django_grid_view %}
-{% grid_view_styles %}   {# in <head> #}
+{% load grid_view_spec %}
+{% grid_view_spec_assets part='css' %}
 …
-{% grid_view_bundle %}   {# before </body> — grid-view.min.js + boot config #}
+{% render_grid_view_spec spec rows %}
+{% grid_view_spec_assets part='js' force_core=True %}
 ```
 
-Charts need ECharts in the host template; column drag-reorder needs Sortable. AG-Grid pages load
-additional scripts — [AG-Grid integration](ag-grid.md).
+Charts: load ECharts in the host base template. AG-Grid pages load extra bundles automatically when the spec contains `backend="ag_grid"` tables — [AG-Grid](tables/ag-grid.md).
 
 ## First spec page
 
-**1. Build a spec and rows in the view**
+**1. View**
 
 ```python
 from django.shortcuts import render
@@ -87,7 +56,7 @@ def orders_list(request):
                 backend="simple",
                 columns=(
                     GridViewColumn(id="name", label="Customer", field="name"),
-                    GridViewColumn(id="amount", label="Amount", field="amount", format="currency"),
+                    GridViewColumn(id="amount", label="Amount", field="amount", type="currency"),
                 ),
             ),
         ),
@@ -97,40 +66,35 @@ def orders_list(request):
     return render(request, "orders.html", {"spec": spec, "rows": rows})
 ```
 
-**2. Render in the template**
+**2. Template**
 
 ```django
-{% load django_grid_view %}
+{% load grid_view_spec %}
 {% render_grid_view_spec spec rows %}
 ```
 
-Open the page — client sort, search, and column settings work through the unified
-`grid-view.min.js` runtime.
+Client sort, search, and column settings run via `gridviewspec.min.js` (`GridView.bootScope`).
 
-## Validate before render
+## Validate
 
 ```python
-from grid_view_spec import validate_spec
-
-validate_spec(spec)  # raises GridViewValidationError on structural errors
+validate_spec(spec)
 ```
 
-For IDE workflows, run the [MCP server](guides/mcp-server.md) (`gridview_validate` on wire JSON).
+IDE: [MCP server](tools/mcp-server.md) → `gridview_validate`.
 
-## Python imports
+## Imports
 
 | Need | Import |
 |------|--------|
-| Spec types | `from grid_view_spec import GridViewSpec` |
+| Spec | `from grid_view_spec import GridViewSpec` |
 | Render | `from grid_view_spec.render import render_grid_view_spec` |
-| Wire JSON | `from grid_view_spec.validate import spec_to_wire, spec_from_wire` |
+| Wire | `from grid_view_spec.validate import spec_to_wire, spec_from_wire` |
 | Django host | `from grid_view_spec.backends.django.host import DjangoGridViewHost` |
-
-Public type reference: [Python types](reference/python-types.md).
 
 ## Next steps
 
-- [GridViewSpec reference](reference/grid-view-spec.md) — blocks, layout, schema
-- [Architecture](architecture.md) — responsibilities and bundle layout
-- [Host app page export](guides/host-app-page-export.md) — one loader for HTML and export
-- [Simple Table (previous API)](simple-table.md) — if you maintain older pages
+- [Spec contract](spec/index.md)
+- [Composer checklist](blocks/composer.md)
+- [Page export pattern](export/page-pattern.md)
+- [Architecture reference](maintainers/gridviewspec-architecture.md)

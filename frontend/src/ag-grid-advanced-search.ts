@@ -9,7 +9,8 @@ import { matchAgGridQuickFilter } from "./grid-view/search/filter-engine";
     if (inputSelector === void 0) inputSelector = "#ag-quick-filter";
     return function (_quickFilterParts, rowQuickFilterAggregateText) {
       const inputElement = document.querySelector(inputSelector);
-      const searchExpr = inputElement ? inputElement.value : "";
+      const searchExpr =
+        inputElement instanceof HTMLInputElement ? inputElement.value : "";
       if (!searchExpr) return true;
       return matchAgGridQuickFilter(rowQuickFilterAggregateText, searchExpr);
     };

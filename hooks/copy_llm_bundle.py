@@ -13,9 +13,9 @@ class _MkdocsBuildConfig(Protocol):
 
 
 def on_post_build(config: _MkdocsBuildConfig, **kwargs: object) -> None:
-    src = Path(config.docs_dir) / "llm" / "django-grid-view-llm-context.md"
+    src = Path(config.docs_dir) / "llm" / "grid-view-spec-llm-context.md"
     if not src.is_file():
         return
     dest_dir = Path(config.site_dir) / "llm"
     dest_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src, dest_dir / "django-grid-view-llm-context.md")
+    shutil.copy2(src, dest_dir / "grid-view-spec-llm-context.md")

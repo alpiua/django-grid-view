@@ -1,5 +1,15 @@
 <div class="cm-charts cm-charts-{{ block.presentation | e }}">
-  {% for chart in block.charts %}
-  <div class="cm-chart cm-chart-{{ chart.type | e }}" data-chart-id="{{ chart.id | e }}">{{ chart.title | e }}</div>
+  {% set payloads = resolved.extra.get('chart_payloads', ()) %}
+  {% for payload in payloads %}
+  <div
+    class="cm-chart-wrap"
+    data-cm-chart-config="{{ payload.config_json | e }}"
+    data-cm-chart-rows="{{ payload.rows_json | e }}"
+    data-cm-chart-id="{{ payload.id | e }}"
+    style="height: {{ payload.height }}px;"
+  >
+    <div class="cm-chart-empty is-hidden" data-cm-chart-empty aria-live="polite">{{ host.translate('chart.empty') | e }}</div>
+    <div data-cm-chart-root class="cm-chart-root" style="width:100%;height:100%;"></div>
+  </div>
   {% endfor %}
 </div>

@@ -1,44 +1,48 @@
 import { byId } from "./registry";
 import { getGlobal } from "./dom-utils";
 import { serializeColumnFilters } from "./search/column-filter-state";
+import type { GridHandle } from "./types";
 
-export function getQuickSearchText(gridIdOrHandle) {
-  var handle =
-    typeof gridIdOrHandle === "string"
-      ? byId.get(gridIdOrHandle)
-      : gridIdOrHandle;
-  var id =
-    (handle && handle.gridId) ||
-    (typeof gridIdOrHandle === "string" ? gridIdOrHandle : "");
-  if (handle && handle._searchText) return handle._searchText;
-  var input = id ? document.getElementById("ag-quick-filter-" + id) : null;
-  if (input && input.value) return input.value.trim();
-  if (id) {
-    var esc =
-      typeof CSS !== "undefined" && CSS.escape
-        ? CSS.escape(id)
-        : id.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
-    var toolbarRoot = document.querySelector(
-      '[data-cm-toolbar-search-root][data-cm-table-grid-id="' + esc + '"]'
-    );
-    var toolbarSearch = toolbarRoot && toolbarRoot.querySelector("[data-cm-toolbar-search]");
-    if (toolbarSearch && toolbarSearch.value) return toolbarSearch.value.trim();
-    var wrapper = document.querySelector('[data-grid-id="' + esc + '"]');
-    var localSearch = wrapper && wrapper.querySelector("[data-cm-search]");
-    if (localSearch && localSearch.value) return localSearch.value.trim();
-  }
-  return (new URLSearchParams(window.location.search).get("q") || "").trim();
+export function resolveToolbarSearchInput(gridId: string): HTMLInputElement | null {
+  if (!gridId) return null;
+  const legacy = document.getElementById("ag-quick-filter-" + gridId);
+  if (legacy instanceof HTMLInputElement) return legacy;
+  const esc =
+    typeof CSS !== "undefined" && CSS.escape
+      ? CSS.escape(gridId)
+      : gridId.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const toolbarRoot = document.querySelector(
+    '[data-cm-toolbar-search-root][data-cm-table-grid-id="' + esc + '"]'
+  );
+  const toolbarSearch = toolbarRoot?.querySelector<HTMLInputElement>("[data-cm-toolbar-search]");
+  if (toolbarSearch) return toolbarSearch;
+  const wrapper = document.querySelector('[data-grid-id="' + esc + '"]');
+  const localSearch = wrapper?.querySelector<HTMLInputElement>("[data-cm-search]");
+  return localSearch ?? null;
 }
 
-export function absorbUrlSearchQuery(handle, options) {
-  options = options || {};
-  var paramName = options.urlSearchParam || "q";
-  var urlQ = new URLSearchParams(window.location.search).get(paramName);
+export function getQuickSearchText(gridIdOrHandle: string | GridHandle | null | undefined): string {
+  const handle =
+    typeof gridIdOrHandle === "string" ? byId.get(gridIdOrHandle) : gridIdOrHandle ?? null;
+  const id =
+    handle?.gridId ?? (typeof gridIdOrHandle === "string" ? gridIdOrHandle : "");
+  const input = id ? resolveToolbarSearchInput(id) : null;
+  if (input?.value) return input.value.trim();
+  if (handle?._searchText) return handle._searchText;
+  return (new URLSearchParams(window.location.search).get("q") ?? "").trim();
+}
+
+export function absorbUrlSearchQuery(
+  handle: GridHandle,
+  options: { urlSearchParam?: string } = {}
+): string {
+  const paramName = options.urlSearchParam ?? "q";
+  const urlQ = new URLSearchParams(window.location.search).get(paramName);
   if (!urlQ || handle._urlQAbsorbed) return "";
   handle._searchText = urlQ;
   handle._urlQAbsorbed = true;
-  setTimeout(function () {
-    var searchInput = document.getElementById("ag-quick-filter-" + handle.gridId);
+  window.setTimeout(() => {
+    const searchInput = resolveToolbarSearchInput(handle.gridId ?? "");
     if (searchInput) searchInput.value = urlQ;
   }, 50);
   return urlQ;
@@ -59,7 +63,12 @@ export function buildInfiniteQueryParams(blockParams, gridIdOrHandle, options) {
   var params = new URLSearchParams();
   Object.keys(extra).forEach(function (key) {
     var val = extra[key];
-    if (val != null && val !== "") params.set(key, String(val));
+    if (val == null || val === "") return;
+    if (Array.isArray(val)) {
+      if (val.length) params.set(key, val.join(","));
+      return;
+    }
+    params.set(key, String(val));
   });
   if (blockParams) {
     params.set("startRow", String(blockParams.startRow));
@@ -83,36 +92,48 @@ export function buildInfiniteQueryParams(blockParams, gridIdOrHandle, options) {
   return params;
 }
 
-export function createInfiniteDatasource(options) {
-  var url = options.url;
-  var gridId = options.gridId;
+export function createInfiniteDatasource(options: {
+  url: string;
+  gridId?: string;
+  absorbUrlSearch?: boolean;
+  includeVisibleCols?: boolean;
+  getExtraParams?: () => Record<string, unknown>;
+  onLastRow?: (lastRow: number) => void;
+}) {
+  const url = options.url;
+  const gridId = options.gridId;
   return {
-    getRows: function (blockParams) {
-      var handle = gridId ? byId.get(gridId) : null;
+    getRows: function (blockParams: {
+      startRow: number;
+      endRow: number;
+      filterModel?: Record<string, unknown>;
+      sortModel?: unknown[];
+      failCallback: () => void;
+      successCallback: (rows: unknown[], lastRow: number) => void;
+    }) {
+      const handle = gridId ? byId.get(gridId) : null;
       if (!handle) {
         blockParams.failCallback();
         return;
       }
-      var params = buildInfiniteQueryParams(blockParams, handle, options);
-      handle.showLoading();
+      const params = buildInfiniteQueryParams(blockParams, handle, options);
+      handle.showLoading?.();
       fetch(url + "?" + params.toString())
         .then(function (response) {
           if (!response.ok) throw new Error("HTTP " + response.status);
           return response.json();
         })
-        .then(function (data) {
-          if (handle.gridApi) handle.hideOverlay();
+        .then(function (data: { data: unknown[]; lastRow: number }) {
+          handle.hideOverlay?.();
           blockParams.successCallback(data.data, data.lastRow);
-          if (typeof options.onLastRow === "function") {
-            options.onLastRow(data.lastRow);
-          }
+          options.onLastRow?.(data.lastRow);
         })
         .catch(function (error) {
           console.error("[GridView.AgGrid] infinite fetch failed:", error);
-          if (handle.gridApi) handle.hideOverlay();
+          handle.hideOverlay?.();
           blockParams.failCallback();
         });
-    }
+    },
   };
 }
 
@@ -228,6 +249,7 @@ export function syncExportHref(linkEl, gridIdOrHandle, options) {
 }
 
 export const AgGrid = {
+  resolveToolbarSearchInput: resolveToolbarSearchInput,
   getQuickSearchText: getQuickSearchText,
   buildInfiniteQueryParams: buildInfiniteQueryParams,
   createInfiniteDatasource: createInfiniteDatasource,

@@ -6,11 +6,11 @@ from typing import Literal
 from grid_view_spec.types.actions import GridViewLinkAction
 from grid_view_spec.types.block_base import GridViewBlockBase
 
-GridViewHeaderPresentation = Literal["plain", "entity", "split", "compact", "hero"]
+GridViewHeaderPresentation = Literal["plain", "entity", "split", "compact", "hero", "section"]
 GridViewFactTone = Literal["", "muted", "success", "warning", "danger"]
 
 GRIDVIEW_HEADER_PRESENTATIONS: frozenset[GridViewHeaderPresentation] = frozenset(
-    {"plain", "entity", "split", "compact", "hero"}
+    {"plain", "entity", "split", "compact", "hero", "section"}
 )
 GRIDVIEW_FACT_TONES: frozenset[GridViewFactTone] = frozenset(
     {"", "muted", "success", "warning", "danger"}

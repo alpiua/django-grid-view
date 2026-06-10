@@ -1,6 +1,6 @@
 /**
  * Unified filter semantics — single entry for toolbar q, col_q, and AG-Grid set filters.
- * Python mirror: django_grid_view.search.engine
+ * Python mirror: grid_view_spec.search.engine
  */
 
 import { bindSearchProfileForToolbar } from "./contract";

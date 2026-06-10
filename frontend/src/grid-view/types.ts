@@ -61,9 +61,19 @@ export interface GridHandle {
   _searchText?: string;
   _urlQAbsorbed?: boolean;
   savedQuickSearches?: string[];
+  savedColPresets?: Record<string, unknown>;
+  onQuickFilterChanged?: () => void;
   showLoading?: () => void;
   hideOverlay?: () => void;
-  [key: string]: unknown;
+  toggleColSelector?: () => void;
+  resetColumnsToDefault?: () => void;
+  buildColCheckboxes?: () => void;
+  buildColOrderList?: () => void;
+  saveCurrentPreset?: () => void;
+  renderSavedPresets?: () => void;
+  saveColPresetsToServer?: () => void;
+  syncExportLinks?: () => void;
+  getColumnState?: () => unknown[];
 }
 
 export interface ByIdRegistry {
@@ -104,8 +114,51 @@ export interface GridViewPublic {
   ) => (() => void) | null;
   boot: (root?: Document | Element | null) => void;
   bootScope: (scope?: Document | Element | null) => void;
+  assets?: {
+    ensureAgGrid?: () => Promise<void>;
+    ensureCharts?: () => Promise<void>;
+  };
+  FilterBar?: {
+    selectedFilterValues: (root: Element) => Record<string, unknown>;
+  };
   parseSmartQuery: (text: unknown) => SmartQueryParse;
   buildFilterUrl: (baseUrl: string, state: FilterState) => string;
+  initButtonEllipsisTips: (root: Element) => void;
+  initTableEdit: (scope?: Document | Element) => void;
+  registerRenderer: (
+    name: string,
+    fn: (ctx: Record<string, unknown>) => string | HTMLElement
+  ) => void;
+  registerCommit: (
+    name: string,
+    fn: (ctx: {
+      rowId?: string;
+      gridId?: string;
+      columnId?: string;
+      field?: string;
+      oldValue?: string;
+      newValue?: string;
+    }) => void | boolean | Promise<void | boolean>
+  ) => void;
+  registerAction: (
+    name: string,
+    fn: (ctx: { rowId?: string; gridId?: string; params?: Record<string, unknown>; event?: Event }) => void
+  ) => void;
+  invokeCommit: (
+    name: string,
+    ctx: {
+      rowId?: string;
+      gridId?: string;
+      columnId?: string;
+      field?: string;
+      oldValue?: string;
+      newValue?: string;
+    }
+  ) => Promise<boolean>;
+  invokeAction: (
+    name: string,
+    ctx: { rowId?: string; gridId?: string; params?: Record<string, unknown>; event?: Event }
+  ) => void;
   [key: string]: unknown;
 }
 

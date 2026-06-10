@@ -22,7 +22,15 @@
     </div>
   </div>
   {% else %}
-  <button type="button" class="cm-action cm-action-{{ action.type | e }}" data-action-id="{{ action.id | e }}"{% if action.disabled %} disabled{% endif %}{% if action.action %} data-action="{{ action.action | e }}"{% endif %}>{{ action.label | e }}</button>
+  <button
+    type="button"
+    class="cm-action cm-action-{{ action.type | e }}"
+    data-action-id="{{ action.id | e }}"
+    {% if action.disabled %} disabled{% endif %}
+    {% if action.action %} data-cm-action="{{ action.action | e }}"{% endif %}
+    {% if action.action == 'show_content' and action.target %} data-cm-action-target="{{ action.target | e }}"{% endif %}
+    {% if action.action == 'show_content' and action.params.get('auto_hide_ms') %} data-cm-auto-hide-ms="{{ action.params.get('auto_hide_ms') }}"{% endif %}
+  >{{ action.label | e }}</button>
   {% endif %}
   {% endfor %}
 </div>

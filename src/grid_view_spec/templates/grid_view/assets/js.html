@@ -1,0 +1,52 @@
+{% load static %}
+{% if include_scripts %}
+<script>
+  window.GridView = window.GridView || {};
+  window.GridView.preferencesUrl = '{{ preferences_url|escapejs }}';
+  window.GridViewI18n = {{ grid_view_i18n_catalog|safe }};
+  window.__GridViewAssets = {
+    agGridCdn: '{% if ag_grid_bundled %}{% static "grid_view_spec/vendor/ag-grid-community.min.js" %}{% else %}{{ ag_grid_cdn_url|escapejs }}{% endif %}',
+    agGridPlugin: '{% static "grid_view_spec/gridviewspec-ag-grid.min.js" %}',
+    chartsCdn: '{{ echarts_cdn_url|escapejs }}',
+    chartsPlugin: '{% static "grid_view_spec/gridviewspec-charts.min.js" %}',
+    agGridCss: [
+      {% if ag_grid_bundled %}
+      '{% static "grid_view_spec/vendor/ag-grid.css" %}',
+      '{% static "grid_view_spec/vendor/ag-theme-quartz.css" %}'
+      {% else %}
+      '{{ ag_grid_css_url|escapejs }}',
+      '{{ ag_grid_theme_css_url|escapejs }}'
+      {% endif %}
+    ]
+  };
+</script>
+{% if load_ag_grid %}
+{% if ag_grid_bundled %}
+<script src="{% static 'grid_view_spec/vendor/ag-grid-community.min.js' %}"></script>
+{% else %}
+<script src="{{ ag_grid_cdn_url|escape }}"></script>
+{% endif %}
+{% endif %}
+<script src="{% static 'grid_view_spec/gridviewspec.min.js' %}"></script>
+{% if load_ag_grid %}
+<script src="{% static 'grid_view_spec/gridviewspec-ag-grid.min.js' %}"></script>
+{% endif %}
+{% if load_charts %}
+<script src="{{ echarts_cdn_url|escape }}"></script>
+<script src="{% static 'grid_view_spec/gridviewspec-charts.min.js' %}"></script>
+{% endif %}
+<script>
+  (function () {
+    function bootPage() {
+      if (window.GridView && window.GridView.bootScope) {
+        window.GridView.bootScope(document);
+      }
+    }
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", bootPage);
+    } else {
+      bootPage();
+    }
+  })();
+</script>
+{% endif %}

@@ -27,12 +27,18 @@ class DjangoGridViewHost:
 
     def url_for(self, route: str, /, **params: str) -> str:
         from django.urls import NoReverseMatch, reverse
+        from grid_view_spec.backends.django.conf import (
+            export_pdf_url_name,
+            export_xlsx_url_name,
+            grid_preferences_url_name,
+            lazy_url_name,
+        )
 
         route_names = {
-            "export_pdf": self.config.export_pdf_route,
-            "export_xlsx": self.config.export_xlsx_route,
-            "grid_prefs": self.config.grid_prefs_route,
-            "lazy": self.config.lazy_route,
+            "export_pdf": export_pdf_url_name(),
+            "export_xlsx": export_xlsx_url_name(),
+            "grid_prefs": grid_preferences_url_name(),
+            "lazy": lazy_url_name(),
         }
         name = route_names.get(route, route)
         try:

@@ -1,0 +1,9 @@
+{% load static %}
+{% if include_scripts %}
+{% if ag_grid_bundled %}
+<script src="{% static 'grid_view_spec/vendor/ag-grid-community.min.js' %}"></script>
+{% else %}
+<script src="{{ ag_grid_cdn_url|escape }}"></script>
+{% endif %}
+<script src="{% static 'grid_view_spec/gridviewspec-ag-grid.min.js' %}"></script>
+{% endif %}

@@ -1,0 +1,106 @@
+{% if block.pagination %}
+{% set pag = block.pagination %}
+{% set num_pages = gridview_table_num_pages(pag) %}
+{% set row_range = gridview_table_page_range(pag) %}
+<footer
+  class="cm-table-pagination-footer"
+  aria-label="{{ host.translate('pagination.label') | e }}"
+  data-cm-table-pagination
+  data-cm-table-id="{{ block.id | e }}"
+  data-cm-pagination-total="{{ pag.total | e }}"
+>
+  <div class="cm-table-pagination-meta">
+    {% if pag.total > 0 %}
+    <span class="cm-table-pagination-range">
+      {{ row_range[0] | e }}–{{ row_range[1] | e }} {{ host.translate('pagination.of_total') | e }} {{ pag.total | e }}
+    </span>
+    {% endif %}
+  </div>
+  <nav class="cm-table-pagination-nav">
+    {% if pag.page > 1 %}
+    {% set prev_frag_href = pagination_href(pag, pag.page - 1) %}
+    {% set prev_page_href = pagination_page_href(pag, pag.page - 1) %}
+    <a
+      class="cm-table-pagination-btn"
+      href="{{ prev_page_href | e }}"
+      aria-label="{{ host.translate('pagination.prev') | e }}"
+      {% if pag.mode == 'fragment' %}
+      hx-get="{{ prev_frag_href | e }}"
+      hx-target="{{ pag.fragment_target | e }}"
+      hx-swap="{{ pag.fragment_swap | e }}"
+      hx-push-url="{{ prev_page_href | e }}"
+      {% endif %}
+    >{{ host.translate('pagination.prev') | e }}</a>
+    {% else %}
+    <span class="cm-table-pagination-btn is-disabled" aria-hidden="true">{{ host.translate('pagination.prev') | e }}</span>
+    {% endif %}
+    <div class="cm-table-pagination-pages" role="group" aria-label="{{ host.translate('pagination.pages') | e }}">
+      {% set window_pages = gridview_table_page_window(pag) %}
+      {% set prev_p = 0 %}
+      {% for p in window_pages %}
+      {% if prev_p and p - prev_p > 1 %}
+      <span class="cm-table-pagination-ellipsis" aria-hidden="true">…</span>
+      {% endif %}
+      {% if p == pag.page %}
+      <span class="cm-table-pagination-page is-active" aria-current="page">{{ p | e }}</span>
+      {% else %}
+      {% set page_frag_href = pagination_href(pag, p) %}
+      {% set page_page_href = pagination_page_href(pag, p) %}
+      <a
+        class="cm-table-pagination-page"
+        href="{{ page_page_href | e }}"
+        aria-label="{{ host.translate('pagination.page') | e }} {{ p | e }}"
+        {% if pag.mode == 'fragment' %}
+        hx-get="{{ page_frag_href | e }}"
+        hx-target="{{ pag.fragment_target | e }}"
+        hx-swap="{{ pag.fragment_swap | e }}"
+        hx-push-url="{{ page_page_href | e }}"
+        {% endif %}
+      >{{ p | e }}</a>
+      {% endif %}
+      {% set prev_p = p %}
+      {% endfor %}
+    </div>
+    {% if pag.page < num_pages %}
+    {% set next_frag_href = pagination_href(pag, pag.page + 1) %}
+    {% set next_page_href = pagination_page_href(pag, pag.page + 1) %}
+    <a
+      class="cm-table-pagination-btn"
+      href="{{ next_page_href | e }}"
+      aria-label="{{ host.translate('pagination.next') | e }}"
+      {% if pag.mode == 'fragment' %}
+      hx-get="{{ next_frag_href | e }}"
+      hx-target="{{ pag.fragment_target | e }}"
+      hx-swap="{{ pag.fragment_swap | e }}"
+      hx-push-url="{{ next_page_href | e }}"
+      {% endif %}
+    >{{ host.translate('pagination.next') | e }}</a>
+    {% else %}
+    <span class="cm-table-pagination-btn is-disabled" aria-hidden="true">{{ host.translate('pagination.next') | e }}</span>
+    {% endif %}
+  </nav>
+  {% if pag.page_size_options %}
+  <div class="cm-table-pagination-size" role="group" aria-label="{{ host.translate('pagination.per_page') | e }}">
+    <span class="cm-table-pagination-size-label">{{ host.translate('pagination.per_page') | e }}</span>
+    {% for size in pag.page_size_options %}
+    {% if size == pag.page_size %}
+    <span class="cm-table-pagination-size-btn is-active">{{ size | e }}</span>
+    {% else %}
+    {% set size_frag_href = pagination_size_fragment_href(pag, size) %}
+    {% set size_page_href = pagination_size_page_href(pag, size) %}
+    <a
+      class="cm-table-pagination-size-btn"
+      href="{{ size_page_href | e }}"
+      {% if pag.mode == 'fragment' %}
+      hx-get="{{ size_frag_href | e }}"
+      hx-target="{{ pag.fragment_target | e }}"
+      hx-swap="{{ pag.fragment_swap | e }}"
+      hx-push-url="{{ size_page_href | e }}"
+      {% endif %}
+    >{{ size | e }}</a>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</footer>
+{% endif %}

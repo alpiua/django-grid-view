@@ -11,9 +11,14 @@ from grid_view_spec.types.actions import (
     GridViewOverlayAction,
 )
 from grid_view_spec.types.assets import GridViewTemplateAsset
-from grid_view_spec.types.block_base import GridViewBlockBase, GridViewBlockType
+from grid_view_spec.types.block_base import BlockType, GridViewBlockBase, GridViewBlockType
 from grid_view_spec.types.blocks import GridViewBlock
+from grid_view_spec.types.chart_palette import CHART_PALETTE, chart_palette_color
+from grid_view_spec.types.chart_server import ChartDataSource, ChartType, KpiAggregate
 from grid_view_spec.types.content import (
+    ChartOverlayWire,
+    ChartSpecWire,
+    ColumnFormat,
     GridViewCard,
     GridViewCards,
     GridViewChart,
@@ -24,6 +29,8 @@ from grid_view_spec.types.content import (
     GridViewTabs,
     GridViewTemplate,
     KpiSpec,
+    KpiSpecWire,
+    SeriesSpecWire,
 )
 from grid_view_spec.types.filters_v2 import (
     GridViewFilter,
@@ -60,9 +67,10 @@ from grid_view_spec.types.media import (
 from grid_view_spec.types.nav import GridViewNav, GridViewNavItem
 from grid_view_spec.types.overlay import GridViewOverlay
 from grid_view_spec.types.result import GridViewDiagnostic, GridViewPolicy, GridViewResult
-from grid_view_spec.types.spec import GridViewSpec
+from grid_view_spec.types.spec import GridViewSpec, GridViewSpecWire
 from grid_view_spec.types.spec_meta import GridViewConfig, GridViewMeta
 from grid_view_spec.types.table_v2 import (
+    ColumnSpecWire,
     GridViewColumn,
     GridViewColumnGroup,
     GridViewColumnSource,
@@ -88,6 +96,8 @@ __all__ = [
     "GridViewActions",
     "GridViewArea",
     "GridViewBlock",
+    "CHART_PALETTE",
+    "chart_palette_color",
     "GridViewBlockBase",
     "GridViewBlockType",
     "GridViewButtonAction",
@@ -154,9 +164,20 @@ __all__ = [
     "GridViewToolbar",
     "GridViewTrustedStyle",
     "GridViewValidator",
+    "BlockType",
+    "ChartDataSource",
+    "ChartOverlayWire",
+    "ChartSpecWire",
+    "ChartType",
+    "ColumnFormat",
+    "ColumnSpecWire",
+    "GridViewSpecWire",
     "JsonScalar",
     "JsonValue",
+    "KpiAggregate",
     "KpiSpec",
+    "KpiSpecWire",
     "RowDict",
+    "SeriesSpecWire",
     "SetFilterModel",
 ]

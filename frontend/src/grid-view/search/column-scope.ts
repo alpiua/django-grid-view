@@ -1,4 +1,4 @@
-/** Column label scoping for toolbar ``q`` — mirror of django_grid_view.search.column_scope */
+/** Column label scoping for toolbar ``q`` — mirror of grid_view_spec.search.column_scope */
 
 export interface ColumnSearchMeta {
   key: string;

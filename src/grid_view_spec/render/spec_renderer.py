@@ -4,14 +4,31 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 
-from grid_view_spec.render.action_urls import action_href, export_action_href
-from grid_view_spec.render.bind import (
-    chart_data,
-    charts_block_rows,
-    kpi_block_rows,
-    resolve_kpi_value,
+from grid_view_spec.export.context import ExportRequestContext
+from grid_view_spec.render.action_urls import (
+    action_href,
+    export_action_href,
+    pagination_fragment_href,
+    pagination_page_href,
+    pagination_page_size_fragment_href,
+    pagination_page_size_href,
 )
-from grid_view_spec.render.block_registry import asset_bundles_for_types
+from grid_view_spec.render.ag_grid import ag_grid_spec_config_json
+from grid_view_spec.render.bind import kpi_block_rows, resolve_kpi_value
+from grid_view_spec.render.block_registry import (
+    AG_GRID_BUNDLE_IDS,
+    asset_bundles_for_types,
+    blocks_require_ag_grid,
+)
+from grid_view_spec.render.chart_runtime import (
+    chart_render_payload,
+    chart_rows_for_table,
+    enrich_table_row_chart_payload,
+)
+from grid_view_spec.render.column_settings import (
+    column_filter_wire,
+    table_column_settings_render_extra,
+)
 from grid_view_spec.render.context import (
     GridViewAssetPlan,
     GridViewRenderContext,
@@ -26,13 +43,22 @@ from grid_view_spec.render.request_state import (
     search_value_from_filter_state,
     table_rows_for_render,
 )
+from grid_view_spec.render.row_template import interpolate_row_fields, row_link_url
+from grid_view_spec.render.tab_panes import build_tab_pane_registry
+from grid_view_spec.render.table_edit import table_edit_config_json
 from grid_view_spec.types.actions import GridViewAction, GridViewExportAction
 from grid_view_spec.types.assets import GridViewTemplateAsset
 from grid_view_spec.types.content import GridViewCharts, GridViewKpi
 from grid_view_spec.types.host import GridViewHost
 from grid_view_spec.types.json import JsonObject, JsonValue, RowDict, empty_json_map
 from grid_view_spec.types.spec import GridViewSpec
-from grid_view_spec.types.table_v2 import GridViewTable
+from grid_view_spec.types.table_v2 import (
+    GridViewTable,
+    GridViewTablePagination,
+    gridview_table_num_pages,
+    gridview_table_page_range,
+    gridview_table_page_window,
+)
 from grid_view_spec.types.toolbar import GridViewToolbar
 from grid_view_spec.types.wire import WireObject
 from grid_view_spec.validate.refs import search_bind_target
@@ -50,6 +76,7 @@ def build_render_context(
     export_ctx = export_context_from_filter_state(filter_state)
     source_rows = tuple(rows)
     display_rows = display_rows_for_bind(spec, source_rows, export_ctx, index=index)
+    has_charts = any(isinstance(block, GridViewCharts) for block in index.values())
 
     resolved: dict[str, GridViewResolvedBlock] = {}
     for block_id, block in index.items():
@@ -63,6 +90,20 @@ def build_render_context(
                 export_ctx,
                 search_backend=backend,
             )
+            if block.settings is not None:
+                extra = table_column_settings_render_extra(block)
+            edit_json = table_edit_config_json(block)
+            if edit_json:
+                extra = {**extra, "edit_config_json": edit_json}
+            if block.extra:
+                extra = {**extra, **block.extra}
+            if block.backend == "ag_grid":
+                extra = {
+                    **extra,
+                    "ag_grid_spec_config_json": ag_grid_spec_config_json(block, block_id),
+                }
+            if has_charts:
+                bound_rows = tuple(enrich_table_row_chart_payload(row) for row in bound_rows)
         elif isinstance(block, GridViewKpi):
             bound_rows = kpi_block_rows(block, display_rows)
             kpi_values: list[JsonValue] = [
@@ -70,12 +111,10 @@ def build_render_context(
             ]
             extra = {"kpi_values": tuple(kpi_values)}
         elif isinstance(block, GridViewCharts):
-            bound_rows = charts_block_rows(block, display_rows)
-            charts_payload: list[JsonValue] = []
-            for chart in block.charts:
-                series = chart_data(chart, bound_rows)
-                charts_payload.append(tuple(_chart_row_to_json(row) for row in series))
-            extra = {"charts_data": tuple(charts_payload)}
+            table_rows = _chart_bind_table_rows(spec, index, source_rows, export_ctx)
+            chart_rows = chart_rows_for_table(table_rows)
+            payloads = tuple(chart_render_payload(chart, chart_rows) for chart in block.charts)
+            extra = {"chart_payloads": payloads}
         if isinstance(block, GridViewToolbar) and block.search is not None:
             target_id = search_bind_target(block)
             if target_id:
@@ -97,36 +136,87 @@ def build_render_context(
         if isinstance(block, GridViewTable):
             block_assets_list.extend(block.assets)
     manifest_bundles = asset_bundles_for_types(block_types)
+    if blocks_require_ag_grid(index.values()):
+        manifest_bundles = tuple(dict.fromkeys((*manifest_bundles, *AG_GRID_BUNDLE_IDS)))
     assets = GridViewAssetPlan(
         block_types=block_types,
         manifest_bundles=manifest_bundles,
         config_assets=spec.config.assets,
         block_assets=tuple(block_assets_list),
     )
-    return GridViewRenderContext(spec=spec, blocks=resolved, assets=assets)
+    return GridViewRenderContext(
+        spec=spec,
+        blocks=resolved,
+        assets=assets,
+        tab_panes=build_tab_pane_registry(spec),
+    )
 
 
-def _chart_row_to_json(row: Mapping[str, object]) -> JsonObject:
-    payload: JsonObject = {}
-    for key, value in row.items():
-        if value is None or isinstance(value, (str, int, float, bool)):
-            payload[key] = value
-    return payload
+def _chart_bind_table_rows(
+    spec: GridViewSpec,
+    index: Mapping[str, object],
+    source_rows: tuple[RowDict, ...],
+    export_ctx: ExportRequestContext,
+) -> tuple[RowDict, ...]:
+    """Prefer the first simple-table block's bound rows for chart data."""
+    for block in spec.blocks:
+        if not isinstance(block, GridViewTable):
+            continue
+        backend = search_backend_for_table(spec, block.id, index=index)
+        return table_rows_for_render(
+            block,
+            source_rows,
+            export_ctx,
+            search_backend=backend,
+        )
+    return source_rows
 
 
-def _jinja_action_href_helpers(
+def jinja_action_href_helpers(
     *,
     host: GridViewHost,
     spec: GridViewSpec,
     filter_state: Mapping[str, object],
-) -> tuple[Callable[[GridViewAction], str], Callable[[GridViewExportAction], str]]:
+) -> tuple[
+    Callable[[GridViewAction], str],
+    Callable[[GridViewExportAction], str],
+    Callable[[GridViewTablePagination, int], str],
+    Callable[[GridViewTablePagination, int], str],
+    Callable[[GridViewTablePagination, int], str],
+    Callable[[GridViewTablePagination, int], str],
+]:
     def render_action_href(action: GridViewAction) -> str:
         return action_href(action, host=host, spec=spec, filter_state=filter_state)
 
     def render_export_action_href(action: GridViewExportAction) -> str:
         return export_action_href(action, host=host, spec=spec, filter_state=filter_state)
 
-    return render_action_href, render_export_action_href
+    def render_pagination_href(pagination: GridViewTablePagination, page: int) -> str:
+        return pagination_fragment_href(pagination, page=page, filter_state=filter_state)
+
+    def render_pagination_page_href(pagination: GridViewTablePagination, page: int) -> str:
+        return pagination_page_href(pagination, page=page, filter_state=filter_state)
+
+    def render_pagination_size_page_href(
+        pagination: GridViewTablePagination, page_size: int
+    ) -> str:
+        return pagination_page_size_href(pagination, page_size=page_size, filter_state=filter_state)
+
+    def render_pagination_size_fragment_href(
+        pagination: GridViewTablePagination, page_size: int
+    ) -> str:
+        return pagination_page_size_fragment_href(
+            pagination, page_size=page_size, filter_state=filter_state
+        )
+
+    return (
+        render_action_href,
+        render_export_action_href,
+        render_pagination_href,
+        render_pagination_page_href,
+        render_pagination_size_page_href,
+        render_pagination_size_fragment_href,
+    )
 
 
 def render_grid_view_spec(
@@ -150,7 +240,14 @@ def render_grid_view_spec(
         env = grid_view_jinja_env()
         template = env.get_template("spec.html")
         filter_state = host.filter_state_from_request(spec)
-        render_action_href_fn, render_export_action_href_fn = _jinja_action_href_helpers(
+        (
+            render_action_href_fn,
+            render_export_action_href_fn,
+            render_pagination_href_fn,
+            render_pagination_page_href_fn,
+            render_pagination_size_page_href_fn,
+            render_pagination_size_fragment_href_fn,
+        ) = jinja_action_href_helpers(
             host=host,
             spec=spec,
             filter_state=filter_state,
@@ -159,9 +256,20 @@ def render_grid_view_spec(
             ctx=ctx,
             host=host,
             spec=spec,
+            tab_panes=ctx.tab_panes,
             filter_state=filter_state,
             action_href=render_action_href_fn,
             export_action_href=render_export_action_href_fn,
+            pagination_href=render_pagination_href_fn,
+            pagination_page_href=render_pagination_page_href_fn,
+            pagination_size_page_href=render_pagination_size_page_href_fn,
+            pagination_size_fragment_href=render_pagination_size_fragment_href_fn,
+            gridview_table_num_pages=gridview_table_num_pages,
+            gridview_table_page_range=gridview_table_page_range,
+            gridview_table_page_window=gridview_table_page_window,
+            interpolate_row=interpolate_row_fields,
+            row_link_url=row_link_url,
+            column_filter_wire=column_filter_wire,
         )
     return _placeholder_html(ctx)
 

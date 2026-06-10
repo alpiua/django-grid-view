@@ -1,4 +1,4 @@
-import { num, uiLocale } from "./charts";
+import { num, uiLocale } from "./format";
 import type { KpiSpecDict, ResolvedKpiDict, RowDict } from "./types";
 
 export function formatKpiValue(value, fmt) {
@@ -19,13 +19,14 @@ export function formatKpiValue(value, fmt) {
   }
   return String(value);
 }
-export function aggregateKpi(spec, rows) {
-  var agg = spec.aggregate || "count";
-  var key = spec.columnKey || spec.column_key;
+export function aggregateKpi(spec: KpiSpecDict, rows: RowDict[]): number {
+  const agg = spec.aggregate || "count";
+  const key = spec.columnKey ?? spec.column_key ?? spec.field;
+  if (!key) return 0;
   if (agg === "count") return rows.length;
-  var nums = [];
-  rows.forEach(function (row) {
-    var parsed = num(row[key]);
+  const nums: number[] = [];
+  rows.forEach((row) => {
+    const parsed = num(row[key]);
     if (parsed !== null) nums.push(parsed);
   });
   if (agg === "sum") return nums.reduce(function (a, b) { return a + b; }, 0);

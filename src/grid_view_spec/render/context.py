@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
+from grid_view_spec.render.tab_panes import TabPaneState
 from grid_view_spec.types.assets import GridViewTemplateAsset
 from grid_view_spec.types.blocks import GridViewBlock
 from grid_view_spec.types.json import JsonObject, RowDict, empty_json_map
@@ -39,3 +40,4 @@ class GridViewRenderContext:
     spec: GridViewSpec
     blocks: Mapping[str, GridViewResolvedBlock]
     assets: GridViewAssetPlan
+    tab_panes: Mapping[str, TabPaneState] = field(default_factory=lambda: dict[str, TabPaneState]())

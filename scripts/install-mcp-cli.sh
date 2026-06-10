@@ -9,7 +9,7 @@ EDITABLE="${EDITABLE:-1}"
 if [[ "${EDITABLE}" == "1" ]]; then
   SPEC="-e ${ROOT}[mcp]"
 else
-  SPEC="django-grid-view[mcp]"
+  SPEC="grid-view-spec[mcp]"
 fi
 
 if command -v pipx >/dev/null 2>&1; then

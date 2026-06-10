@@ -4,6 +4,8 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
+    "downlevelIteration": true,
+    "noImplicitAny": false,
     "noEmit": true,
     "skipLibCheck": true,
     "lib": ["ES2018", "DOM"],
@@ -12,12 +14,13 @@
   "include": [
     "src/globals.d.ts",
     "src/types/**/*.ts",
-    "src/grid-view/types.ts",
-    "src/grid-view/dom-utils.ts",
-    "src/grid-view/registry.ts",
-    "src/grid-view/i18n.ts",
-    "src/grid-view/search/**/*.ts",
-    "src/grid-view/resolve-chart.ts"
+    "src/grid-view/**/*.ts",
+    "src/runtime/**/*.ts",
+    "src/spec-boot.ts",
+    "src/column-settings.ts",
+    "src/column-settings/**/*.ts",
+    "src/ag-grid/**/*.ts",
+    "src/ag-grid*.ts"
   ],
   "exclude": ["node_modules"]
 }

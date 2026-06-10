@@ -3,12 +3,12 @@
 from django.contrib.auth.models import User
 from django.test import RequestFactory, TestCase
 
-from django_grid_view.ag_grid.server import (
+from grid_view_spec.backends.django.ag_grid.server import (
     apply_grid_filters,
     apply_grid_sort,
     parse_infinite_params,
 )
-from django_grid_view.models import GridPreference
+from grid_view_spec.backends.django.models import GridPreference
 
 
 class ParseInfiniteParamsTests(TestCase):

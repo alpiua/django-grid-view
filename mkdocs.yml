@@ -1,14 +1,14 @@
-site_name: Django Grid View
+site_name: Grid View Spec
 site_description: GridViewSpec — declarative page layout, tables, KPI, charts; optional Django backend
-site_url: https://alpiua.github.io/django-grid-view/
-repo_url: https://github.com/alpiua/django-grid-view
-repo_name: alpiua/django-grid-view
+site_url: https://alpiua.github.io/grid-view-spec/
+repo_url: https://github.com/alpiua/grid-view-spec
+repo_name: alpiua/grid-view-spec
 edit_uri: edit/main/docs/
 
 strict: true
 
 exclude_docs: |
-  llm/django-grid-view-llm-context.md
+  llm/grid-view-spec-llm-context.md
 
 hooks:
   - hooks/copy_llm_bundle.py
@@ -70,36 +70,59 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting started: getting-started.md
-  - User guide:
-      - Architecture: architecture.md
-      - GridViewSpec: reference/grid-view-spec.md
-      - AG-Grid integration: ag-grid.md
-      - Saved preferences: preferences.md
-      - PDF export: guides/pdf-export.md
-      - XLSX export: guides/xlsx-export.md
-      - MCP server: guides/mcp-server.md
+  - Concepts:
+      - Architecture overview: concepts/overview.md
+      - Data vs spec: concepts/data-vs-spec.md
+      - Backends: concepts/backends.md
+  - Spec contract:
+      - GridViewSpec: spec/index.md
+      - Layout: spec/layout.md
+      - Validation and wire: spec/validation.md
+  - Blocks:
+      - Catalog: blocks/index.md
+      - Composer checklist: blocks/composer.md
+      - Header and navigation: blocks/header-nav.md
+      - Toolbar, filters, actions: blocks/toolbar-filters-actions.md
+      - Forms: blocks/forms.md
+      - Overlays and tabs: blocks/overlays-tabs.md
+      - Template and content: blocks/template-content.md
+      - Content callout and banner: blocks/content-callout.md
+  - Tables:
+      - Overview: tables/index.md
+      - Simple table: tables/simple-table.md
+      - AG-Grid: tables/ag-grid.md
+      - Columns and renderers: tables/columns.md
+      - Inline editing: tables/editing.md
+      - Column settings: tables/settings.md
+  - Filtering:
+      - Semantics: filtering/semantics.md
+      - Server filtering: filtering/server.md
+  - Visualization:
+      - KPI and charts: visualization/kpi-charts.md
+      - Cards and gallery: visualization/cards-gallery.md
+  - Integration:
+      - Host contract: integration/host-contract.md
+      - Django: integration/django.md
+      - Assets and HTMX: integration/htmx-assets.md
+      - JavaScript runtime: integration/runtime.md
+  - Export:
+      - Page pattern: export/page-pattern.md
+      - PDF: export/pdf.md
+      - XLSX: export/xlsx.md
+  - Persistence:
+      - Saved preferences: persistence/preferences.md
+  - Tools:
+      - MCP server: tools/mcp-server.md
+      - Chat visualizer: tools/chat-visualizer.md
   - Reference:
       - Python types: reference/python-types.md
       - Template tags: reference/template-tags.md
       - JavaScript API: reference/javascript.md
-  - Legacy API:
-      - Overview: legacy/index.md
-      - Simple Table: simple-table.md
-      - Grid View artifacts: grid-view-artifacts.md
-      - Charts and KPIs: charts-and-kpis.md
-  - Advanced:
-      - Chat visualizer: guides/chat-visualizer.md
-      - Dashboard builders: guides/dashboard-builders.md
-      - Host app page export: guides/host-app-page-export.md
-      - Filter semantics: guides/filter-semantics-contract.md
-      - Server filtering: guides/server-filtering-contract.md
+      - JSON Schema: reference/json-schema.md
+  - Guides:
       - Internationalization: guides/i18n.md
-  - Maintainers:
-      - Full v2 architecture: gridviewspec-architecture.md
-      - Documentation inventory: maintainers/doc-inventory.md
       - Host dependency policy: guides/host-dependency-policy.md
-      - Phase 11 prep: vnext/phase-11-prep.md
-      - Deprecation targets: vnext/deprecation-targets.md
+  - Architecture (maintainers): maintainers/gridviewspec-architecture.md
   - Changelog: changelog.md
   - LLM context:
       - Download bundle: llm/context.md
@@ -111,6 +134,6 @@ extra_css:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/alpiua/django-grid-view
+      link: https://github.com/alpiua/grid-view-spec
     - icon: fontawesome/brands/python
-      link: https://pypi.org/project/django-grid-view/
+      link: https://pypi.org/project/grid-view-spec/

@@ -5,6 +5,7 @@ from typing import Literal
 
 from grid_view_spec.types.block_base import GridViewBlockBase
 from grid_view_spec.types.json import JsonObject, empty_json_map
+from grid_view_spec.types.semantic import GridViewActionVariant, GridViewSemanticTone
 
 GridViewActionsPresentation = Literal["inline", "menu", "split", "compact"]
 GridViewExportFormat = Literal["pdf", "xlsx", "csv"]
@@ -23,6 +24,8 @@ class GridViewActionBase:
     type: str
     label: str = ""
     icon: str = ""
+    variant: GridViewActionVariant = "default"
+    tone: GridViewSemanticTone = ""
     target: str = ""
     disabled: bool = False
     reason: str = ""

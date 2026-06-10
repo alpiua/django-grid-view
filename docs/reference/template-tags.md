@@ -1,92 +1,48 @@
 # Template tags
 
-Load tags with `{% load django_grid_view %}`.
+Load with `{% load grid_view_spec %}`.
 
-## Page assets
+## Page assets (unified loader)
 
-| Tag | Purpose |
-|-----|---------|
-| `{% grid_view_styles %}` | CSS bundle in `<head>` (`grid-view.min.css`) |
-| `{% grid_view_bundle %}` | i18n boot config + `grid-view.min.js` before `</body>` |
+One tag loads CSS or JS; `render_grid_view_spec` marks AG-Grid/chart requirements on the request.
 
-Call both once per page. Inclusion tags below can auto-load them on first use if the host forgot.
+| Tag | Where |
+|-----|-------|
+| `{% grid_view_spec_assets part='css' %}` | `<head>` |
+| `{% grid_view_spec_assets part='js' force_core=True %}` | before `</body>` — loads `gridviewspec.min.js`, optional AG-Grid/charts |
 
-## GridViewSpec (current)
-
-| Tag | Arguments | Purpose |
-|-----|-----------|---------|
-| `{% render_grid_view_spec spec rows %}` | `GridViewSpec`, row sequence | Full v2 page from blocks + layout |
-| `{% load_lazy_block spec block_id rows %}` | spec, block id, rows | HTMX / lazy fragment for one block |
-
-Example:
+HTMX partial reload after the main JS bundle already ran:
 
 ```django
-{% render_grid_view_spec page.grid rows %}
+{% grid_view_spec_assets part='ag_grid' %}
 ```
 
-See [Getting started](../getting-started.md) and [GridViewSpec reference](grid-view-spec.md).
-
-## Simple Table (legacy)
-
-| Tag | Arguments | Purpose |
-|-----|-----------|---------|
-| `{% render_simple_table config %}` | `SimpleTableConfig` | Server-rendered table |
-
-## Grid View artifact (legacy)
-
-| Tag | Arguments | Purpose |
-|-----|-----------|---------|
-| `{% render_grid_view artifact %}` | `GridArtifact`, optional `interactive=True` | KPI + charts + table from flat spec |
-| `{% render_kpi_strip kpis %}` | resolved KPIs, `columns=4` | Static KPI strip |
-| `{% render_chart chart rows %}` | chart spec, rows | ECharts block |
-| `{% render_grid_kpi_strip specs %}` | `KpiSpec` sequence | AG-Grid KPI (client aggregates) |
-
-## AG-Grid helpers
-
-| Tag | Purpose |
-|-----|---------|
-| `{% django_grid_view_scripts %}` | Mount grid + boot scripts (via include — see below) |
-| `{% render_django_grid_view_toolbar %}` | Toolbar + gear |
-| `{% render_django_grid_view_search %}` | Search bar |
-| `{% render_django_grid_view_gear %}` | Gear button only |
-| `{% render_django_grid_view_modal %}` | Column/search modal |
-| `{% render_filter_bar %}` | Declarative filter bar |
-| `{% render_search_unified %}` | Unified search input |
-| `{% render_toolbar_search %}` | Toolbar search for Simple Table or AG-Grid |
-
-### AG-Grid scripts include
+## GridViewSpec
 
 ```django
-{% include "django_grid_view/scripts.html" with grid_id="products" container_id="products-grid" options_var="gridOptions" %}
+{% render_grid_view_spec page.spec page.rows %}
 ```
 
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `grid_id` | yes | Preference key; must match JS `context.gridId` |
-| `options_var` | yes | Global name for grid options (e.g. `"gridOptions"`) |
-| `container_id` | yes | DOM id of the grid div |
-| `toolbar`, `modal` | no | Include toolbar/modal partials (default true) |
+Lazy HTMX blocks: `/grid/lazy/` — [Django integration](../integration/django.md).
 
-View context may pass `ag_grid_presets` and `ag_grid_searches` as JSON strings for server-stored
-presets.
-
-See [AG-Grid integration](../ag-grid.md).
-
-## Export and CDN helpers
+## CDN helpers
 
 | Tag | Purpose |
 |-----|---------|
-| `{% export_pdf_href builder … %}` | PDF export URL |
-| `{% export_xlsx_href builder … %}` | XLSX export URL |
-| `{% ag_grid_cdn_url %}` | AG-Grid script URL |
-| `{% sortable_cdn_url %}` | Sortable.js URL |
-| `{% echarts_cdn_url %}` | ECharts script URL |
+| `{% sortable_cdn_url %}` | SortableJS (column settings) |
+| `{% ag_grid_cdn_url %}` | AG-Grid Community |
+| `{% echarts_cdn_url %}` | Apache ECharts |
 
-Register builders and mount export views — [PDF export](../guides/pdf-export.md),
-[XLSX export](../guides/xlsx-export.md). For filterable pages, keep query params in sync —
-[Server filtering contract](../guides/server-filtering-contract.md).
+## Export URLs
 
-## Context helper
+| Tag | Purpose |
+|-----|---------|
+| `{% export_pdf_href builder … %}` | PDF export GET URL |
+| `{% export_xlsx_href builder … %}` | XLSX export GET URL |
 
-`get_grid_state(context, grid_id)` returns column preset and saved-search JSON for toolbars
-(`django_grid_view.render.grid_preferences`).
+Prefer **`GridViewExportAction`** in the spec. Python: `grid_view_spec.backends.django.hrefs`.
+
+## Related
+
+- [Getting started](../getting-started.md)
+- [JavaScript reference](javascript.md)

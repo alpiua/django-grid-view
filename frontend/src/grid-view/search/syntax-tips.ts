@@ -1,4 +1,4 @@
-/** Search syntax help rows — mirror of django_grid_view.search.syntax_tips */
+/** Search syntax help rows — mirror of grid_view_spec.search.syntax_tips */
 
 import { SearchProfile } from "./contract";
 

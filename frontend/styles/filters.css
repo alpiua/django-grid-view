@@ -121,6 +121,15 @@
 .cm-toolbar-unified .cm-toolbar-right {
     flex: 0 0 auto;
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--cm-muted);
+}
+.cm-toolbar-unified .cm-toolbar-right .cm-export-group {
+    margin-left: 0;
 }
 .cm-toolbar-filters-block {
     display: inline-flex;
@@ -468,6 +477,22 @@ body.cm-col-resize-active {
 }
 .cm-table--resizing {
     cursor: col-resize;
+}
+/* Keep header tool rails from reflowing columns during resize drag */
+.cm-table.cm-table--resizing thead th.cm-th-filterable .cm-th-rail--left,
+.cm-table.cm-table--resizing thead th.cm-th-filterable .cm-th-icon-slot--filter,
+body.cm-col-resize-active .cm-table thead th.cm-th-filterable .cm-th-rail--left,
+body.cm-col-resize-active .cm-table thead th.cm-th-filterable .cm-th-icon-slot--filter {
+    flex: 0 0 0 !important;
+    width: 0 !important;
+    max-width: 0 !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+.cm-table.cm-table--resizing thead th.cm-th-filterable,
+body.cm-col-resize-active .cm-table thead th.cm-th-filterable {
+    overflow: hidden;
 }
 /* Set filter panel — shared SimpleTable portal + AG-Grid SmartFilter */
 .cm-col-filter-portal.is-set {

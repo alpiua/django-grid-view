@@ -181,6 +181,37 @@
     font-size: 0.75rem;
     padding: 0.15rem 0;
 }
+.cm-card-group-count {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--cm-muted);
+}
+.cm-card-group-empty {
+    color: var(--cm-muted);
+    font-style: italic;
+}
+.cm-header-section {
+    text-align: center;
+}
+.cm-header-section__title {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--cm-text);
+}
+.cm-header-section__icon {
+    color: #f59e0b;
+}
+.cm-header-section__subtitle {
+    margin: 4px 0 0;
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--cm-muted);
+}
 .cm-card-section-title {
     font-size: 0.75rem;
     font-weight: 700;

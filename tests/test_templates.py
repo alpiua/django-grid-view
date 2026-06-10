@@ -1,68 +1,60 @@
 from importlib.resources import files
+from pathlib import Path
 
-from django.template import Context, Engine, Template
+from django.template import Context, Engine
+from django.test import RequestFactory
 
-from django_grid_view.i18n import get_js_i18n_catalog
-from django_grid_view.types import FilterOption, FilterSpec
+from grid_view_spec.backends.django.i18n import get_js_i18n_catalog
+
+_PKG_TEMPLATES = Path(__file__).resolve().parents[1] / "src/grid_view_spec/templates"
+_ENGINE_LIBS = {
+    "grid_view_spec": "grid_view_spec.backends.django.templatetags",
+    "static": "django.templatetags.static",
+}
 
 
-def test_package_templates_compile():
-    engine = Engine.get_default()
+def _test_engine() -> Engine:
+    return Engine(dirs=[str(_PKG_TEMPLATES)], libraries=_ENGINE_LIBS)
 
-    for template_name in [
-        "django_grid_view/plugins/smart_filter.html",
-        "django_grid_view/plugins/advanced_search.html",
-        "django_grid_view/plugins/custom_tooltip.html",
-        "django_grid_view/scripts.html",
-        "django_grid_view/toolbar_and_modal.html",
-        "django_grid_view/simple/table.html",
-        "django_grid_view/bundle.html",
-    ]:
+
+def test_grid_view_asset_templates_compile():
+    engine = _test_engine()
+    for template_name in (
+        "grid_view/assets/css.html",
+        "grid_view/assets/js.html",
+    ):
         assert engine.get_template(template_name)
 
 
 def test_grid_view_bundle_assets_exist():
-    static_root = files("django_grid_view").joinpath("static/django_grid_view")
-    assert (static_root / "grid-view.css").is_file()
-    assert (static_root / "grid-view.min.css").is_file()
-    assert not (static_root / "simple-table.js").is_file()
-    assert not (static_root / "dist").is_dir()
+    static_root = files("grid_view_spec").joinpath("static/grid_view_spec")
+    assert (static_root / "gridviewspec.css").is_file()
+    assert (static_root / "gridviewspec.min.css").is_file()
 
     public_bundles = (
-        "ag-grid-cdn.js",
-        "ag-grid-host.js",
-        "ag-grid-boot.js",
-        "ag-grid-smart-filter.js",
-        "ag-grid-advanced-search.js",
-        "ag-grid-tooltip.js",
-        "grid-view.min.js",
+        "gridviewspec-ag-grid-cdn.js",
+        "gridviewspec-ag-grid.js",
+        "gridviewspec-charts.js",
+        "gridviewspec.min.js",
     )
     for name in public_bundles:
         assert (static_root / name).is_file(), name
 
-    legacy_boots = (
-        "chart-static-boot.js",
-        "chart-static-boot.min.js",
-        "grid-artifact-boot.js",
-        "grid-artifact-boot.min.js",
-        "kpi-static-boot.js",
-        "kpi-static-boot.min.js",
-        "column-settings.js",
-        "column-settings.min.js",
+    removed = (
+        "ag-grid-boot.js",
+        "ag-grid-host.js",
+        "ag-grid-smart-filter.js",
     )
-    for name in legacy_boots:
-        assert not (static_root / name).is_file(), f"stale static asset must be removed: {name}"
+    for name in removed:
+        assert not (static_root / name).is_file(), f"legacy asset must be removed: {name}"
 
-    bundle = static_root / "grid-view.js"
+    bundle = static_root / "gridviewspec.js"
     assert bundle.is_file()
     js = bundle.read_text(encoding="utf-8")
     assert "GridView" in js
-    assert "SimpleTable" in js
     assert "bootScope" in js
-    assert "CmSimpleTable" not in js
-    assert "CmGridView" not in js
 
-    min_bundle = static_root / "grid-view.min.js"
+    min_bundle = static_root / "gridviewspec.min.js"
     assert min_bundle.is_file()
     assert len(min_bundle.read_text(encoding="utf-8")) > 1000
 
@@ -73,32 +65,14 @@ def test_js_i18n_catalog_has_table_keys():
     assert catalog["tables.search"]
 
 
-def test_filter_bar_multiselect_renders_exclusive_solo_option():
-    html = Template(
-        "{% load django_grid_view %}"
-        "{% render_filter_bar filters selected_values=selected_values auto_apply=False %}"
-    ).render(
-        Context(
-            {
-                "filters": (
-                    FilterSpec(
-                        id="period",
-                        label="Period",
-                        type="multiselect",
-                        select_all_option=True,
-                        select_all_value="all",
-                        options=(
-                            FilterOption("future", "Future", exclusive_solo=True),
-                            FilterOption("2026-01", "Jan 2026"),
-                        ),
-                    ),
-                ),
-                "selected_values": {"period": "future"},
-            }
+def test_grid_view_spec_assets_emits_unified_scripts():
+    request = RequestFactory().get("/")
+    html = (
+        _test_engine()
+        .from_string(
+            "{% load grid_view_spec %}{% grid_view_spec_assets part='js' force_core=True %}"
         )
+        .render(Context({"request": request}))
     )
-
-    assert 'class="cm-multiselect-trigger__label"' in html
-    assert 'data-exclusive-solo="1"' in html
-    assert 'value="future"' in html
-    assert "checked" in html
+    assert "gridviewspec.min.js" in html
+    assert "GridViewI18n" in html

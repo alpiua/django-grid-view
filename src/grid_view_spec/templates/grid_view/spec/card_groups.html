@@ -1,0 +1,17 @@
+<div class="cm-card-groups-grid">
+  {% for group in block.groups %}
+  <div class="cm-card-group cm-card-group--{{ group.tone | e }}">
+    <div class="cm-card-group-header">
+      <span>{{ group.title | e }}</span>
+      <span class="cm-card-group-count">{{ group.count | e }}</span>
+    </div>
+    <ul class="cm-card-group-list">
+      {% for item in group.items %}
+      <li>{{ item | e }}</li>
+      {% else %}
+      <li class="cm-card-group-empty">{{ group.empty_message | e }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+</div>

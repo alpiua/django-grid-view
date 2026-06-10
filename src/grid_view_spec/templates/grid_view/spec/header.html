@@ -1,4 +1,51 @@
+{% if block.presentation == 'entity' %}
+<div class="cm-dashboard-page__header cm-doctor-page__header flex items-center justify-between gap-4 min-h-[48px]">
+  <div class="flex-1">
+    {% if block.nav %}
+      {% set nav_resolved = ctx.blocks.get(block.nav) %}
+      {% if nav_resolved and nav_resolved.block.items %}
+        {% set back = nav_resolved.block.items[0] %}
+        <a href="{{ back.href | e }}" class="text-[--cm-muted] hover:text-[--cm-text] text-sm py-1.5 inline-flex items-center gap-2 no-underline transition-colors mt-1">
+          {{ back.label | e }}
+        </a>
+      {% endif %}
+    {% endif %}
+  </div>
+  <div class="cm-doctor-page__identity flex flex-col items-center justify-center gap-0 text-center">
+    {% if block.entity %}
+      <h1 class="cm-page-entity-name cm-doctor-page__name m-0 flex items-center gap-1.5 text-[--cm-text]">
+        {% if block.icon %}{{ block.icon | e }} {% endif %}{{ block.entity.title | e }}
+      </h1>
+      {% if block.entity.subtitle %}
+      <span class="cm-doctor-page__position font-medium text-[--cm-muted]">{{ block.entity.subtitle | e }}</span>
+      {% endif %}
+    {% elif block.title %}
+      <h1 class="cm-page-entity-name cm-doctor-page__name m-0 text-[--cm-text]">{{ block.title | e }}</h1>
+      {% if block.subtitle %}<span class="cm-doctor-page__position font-medium text-[--cm-muted]">{{ block.subtitle | e }}</span>{% endif %}
+    {% endif %}
+  </div>
+  <div class="cm-doctor-page__departments flex min-w-[30%] flex-1 flex-col items-end justify-center text-sm leading-tight text-[--cm-muted]">
+    {% if block.content %}
+      {% set aside_resolved = ctx.blocks.get(block.content) %}
+      {% if aside_resolved and aside_resolved.block.type == 'template' and aside_resolved.block.template %}
+        {{ host.render_host_template(aside_resolved.block.template, aside_resolved.block.context) | safe }}
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+{% else %}
+{% if block.presentation == 'section' %}
+<header class="cm-header cm-header-section">
+  <h2 class="cm-header-section__title">
+    {% if block.icon %}<span class="cm-header-section__icon" aria-hidden="true">{{ block.icon | e }}</span>{% endif %}
+    {{ block.title | e }}
+  </h2>
+  {% if block.subtitle %}<p class="cm-header-section__subtitle">{{ block.subtitle | e }}</p>{% endif %}
+</header>
+{% else %}
 <header class="cm-header cm-header-{{ block.presentation | e }}">
   {% if block.title %}<h1 class="cm-header-title">{{ block.title | e }}</h1>{% endif %}
   {% if block.subtitle %}<p class="cm-header-subtitle">{{ block.subtitle | e }}</p>{% endif %}
 </header>
+{% endif %}
+{% endif %}

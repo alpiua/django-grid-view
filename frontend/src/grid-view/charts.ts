@@ -1,4 +1,5 @@
 import type { ChartBindDict, ChartRuntimeDict } from "../types/chart-bind";
+import { num, uiLocale } from "./format";
 import { i18n } from "./i18n";
 import { resolveChartDataFromRuntime } from "./resolve-chart";
 import type { ResolvedChartData } from "./resolve-chart";
@@ -57,15 +58,7 @@ export function setChartEmptyState(wrap, isEmpty) {
   }
 }
 
-export function num(value) {
-  if (value === null || value === void 0 || value === "") return null;
-  const parsed = Number(String(value).replace(/\s/g, "").replace(",", "."));
-  return Number.isFinite(parsed) ? parsed : null;
-}
-export function uiLocale() {
-  if (typeof document === "undefined" || !document.documentElement) return undefined;
-  return document.documentElement.lang || undefined;
-}
+export { num, uiLocale } from "./format";
 export function packagesTooltip(params, dataRows) {
   const pkg = dataRows[params[0]?.dataIndex ?? -1];
   if (!pkg || !params[0]) return params[0]?.name ?? "";

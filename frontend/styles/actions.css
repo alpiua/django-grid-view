@@ -160,6 +160,13 @@ html:not(.dark) .cm-toolbar-btn:hover {
 .cm-toolbar-actions .cm-export-group {
     margin-left: 0;
 }
+.cm-toolbar-stat-inline {
+    white-space: nowrap;
+}
+.cm-toolbar-counter-value {
+    font-weight: 700;
+    color: var(--cm-text);
+}
 .cm-toolbar-stat-group {
     display: inline-flex;
     align-items: center;

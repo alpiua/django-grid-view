@@ -1,7 +1,189 @@
-<div class="cm-toolbar cm-toolbar-{{ block.presentation | e }}" data-target="{{ block.target or '' | e }}">
-  {% if block.search %}
-  <div class="cm-search" data-param="{{ block.search.param | e }}">
-    <input type="search" name="{{ block.search.param | e }}" value="{{ block.search.value | e }}" placeholder="{{ block.search.placeholder | e }}" />
+{% set filters_resolved = ctx.blocks.get(block.filters) if block.filters else none %}
+{% set filters_block = filters_resolved.block if filters_resolved else none %}
+{% set actions_resolved = ctx.blocks.get(block.actions) if block.actions else none %}
+{% set actions_block = actions_resolved.block if actions_resolved else none %}
+{% set table_resolved = ctx.blocks.get(block.target) if block.target else none %}
+{% set table_block = table_resolved.block if table_resolved else none %}
+{% set has_settings = table_block is not none and table_block.settings is not none %}
+{% set search_value = resolved.extra.get('search_value', block.search.value if block.search else '') %}
+<div class="cm-toolbar-unified cm-toolbar-outside" data-target="{{ block.target or '' | e }}">
+  <div class="cm-toolbar-left">
+    {% if actions_block %}
+    {% set button_items = actions_block.items | selectattr('type', 'equalto', 'button') | list %}
+    {% if button_items %}
+    <div class="cm-bulk-action-group cm-bulk-action-group--leading">
+      {% for action in button_items %}
+      {% include '_action_button.html' %}
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endif %}
+    {% if block.search %}
+    <div
+      class="cm-toolbar-search{% if block.search.compact %} cm-toolbar-search--compact{% endif %}"
+      data-cm-toolbar-search-root
+      data-cm-search-backend="{{ block.search.backend | e }}"
+      data-cm-search-mode="{{ block.search.mode | e }}"
+      data-cm-search-scope-id="{{ block.id | e }}"
+      data-cm-pref-grid-id="{{ block.id | e }}"
+      {% if block.search.bind %}data-cm-table-grid-id="{{ block.search.bind | e }}"{% endif %}
+      {% if block.search.saved %}data-cm-saved-searches='[]'{% endif %}
+    >
+      <div class="cm-toolbar-search-field">
+        <svg class="cm-toolbar-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input
+          type="search"
+          id="cm-toolbar-search-{{ block.id | e }}"
+          name="{{ block.search.param | e }}"
+          value="{{ search_value | e }}"
+          autocomplete="off"
+          class="cm-toolbar-search-input"
+          data-cm-toolbar-search
+          data-cm-search-backend="{{ block.search.backend | e }}"
+          data-cm-search-mode="{{ block.search.mode | e }}"
+          placeholder="{{ host.translate('search.smart_placeholder') | e }}"
+        >
+        <button
+          type="button"
+          class="cm-toolbar-search-clear"
+          data-cm-toolbar-search-clear
+          data-cm-search-scope-id="{{ block.id | e }}"
+          title="{{ host.translate('search.clear') | e }}"
+          aria-label="{{ host.translate('search.clear') | e }}"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+        </button>
+        <button
+          type="button"
+          class="cm-search-help-btn cm-tip-host"
+          data-cm-tip-profile="toolbar"
+          aria-label="{{ host.translate('search.syntax_help') | e }}"
+        >
+          <svg class="cm-search-help-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+            <circle cx="12" cy="8" r="1.35" fill="currentColor" stroke="none"/>
+            <path d="M12 11v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span class="cm-ellipsis-tip cm-ellipsis-tip--search-help" role="tooltip"></span>
+        </button>
+      </div>
+      {% if block.search.saved %}
+      <div class="cm-toolbar-search-saved-actions" role="group" aria-label="{{ host.translate('search.saved_searches') | e }}">
+        <button type="button" class="cm-toolbar-search-action cm-toolbar-search-action--save" data-cm-grid-action="saveSearch" data-cm-grid-id="{{ block.id | e }}" title="{{ host.translate('search.save') | e }}" aria-label="{{ host.translate('search.save') | e }}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        </button>
+        <button type="button" class="cm-toolbar-search-action cm-toolbar-search-action--load" data-cm-grid-action="toggleSavedSearches" data-cm-grid-id="{{ block.id | e }}" id="cm-saved-searches-btn-{{ block.id | e }}" title="{{ host.translate('search.load_saved') | e }}" aria-label="{{ host.translate('search.load_saved') | e }}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        </button>
+      </div>
+      <div id="cm-saved-searches-dropdown-{{ block.id | e }}" class="cm-toolbar-search-saved-panel cm-toolbar-search-saved-panel--detached is-hidden" data-cm-saved-dropdown-for="{{ block.id | e }}">
+        <div class="cm-toolbar-search-saved-title">{{ host.translate('search.saved_searches') | e }}</div>
+        <div id="cm-saved-searches-container-{{ block.id | e }}" class="cm-toolbar-search-saved-list"></div>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
   </div>
-  {% endif %}
+  <div class="cm-toolbar-center">
+    {% if filters_block %}
+    <div class="cm-toolbar-filters-block">
+      <span class="cm-toolbar-filters-label">{{ host.translate('filter_bar.filters_label') | e }}</span>
+      <div class="cm-filter-bar" data-cm-filter-bar{% if filters_block.auto_apply %} data-auto-apply="1"{% endif %}{% if not filters_block.navigate_on_change %} data-navigate-on-change="0"{% endif %}>
+        {% if block.search %}
+        <input type="hidden" data-cm-search name="{{ block.search.param | e }}" value="{{ search_value | e }}">
+        {% endif %}
+        {% for filter in filters_block.schema %}
+        {% set selected = filters_block.state.values.get(filter.param, ()) if filters_block.state else () %}
+        <div
+          class="cm-multiselect cm-period-multiselect{% if filter.type == 'select' %} cm-multiselect--single{% endif %}"
+          data-cm-multiselect
+          data-filter-id="{{ filter.id | e }}"
+          data-filter-param="{{ filter.param | e }}"
+          data-filter-scope="{{ filter.scope | e }}"
+          {% if filter.type == 'select' %}data-cm-singleselect="1"{% endif %}
+          {% if filter.select_all %}data-select-all-option="1" data-select-all-value="{{ filter.select_all_value | e }}"{% endif %}
+          data-all-label="{{ filter.select_all_label or filter.placeholder or filter.label | e }}"
+          data-placeholder="{{ filter.placeholder or filter.label | e }}"
+        >
+          <button type="button" class="cm-multiselect-trigger" aria-haspopup="listbox">
+            <span class="cm-multiselect-trigger__label"></span>
+          </button>
+          <div class="cm-multiselect-panel" role="listbox">
+            {% if filter.select_all %}
+            <label class="cm-multiselect-option">
+              <input type="checkbox" value="{{ filter.select_all_value | e }}" data-label="{{ filter.select_all_label or host.translate('filter_bar.all') | e }}" data-select-all="1"
+                {% if filter.select_all_value in selected %}checked{% endif %}>
+              {{ filter.select_all_label or host.translate('filter_bar.all') | e }}
+            </label>
+            {% endif %}
+            {% for opt in filter.options %}
+            <label class="cm-multiselect-option">
+              <input type="checkbox" value="{{ opt.value | e }}" data-label="{{ opt.label | e }}"
+                {% if opt.exclusive %}data-exclusive-solo="1"{% endif %}
+                {% if opt.value in selected %}checked{% endif %}>
+              {{ opt.label | e }}
+            </label>
+            {% endfor %}
+            <div class="cm-multiselect-apply-wrap">
+              <button type="button" class="cm-multiselect-apply" data-cm-multiselect-apply>{{ host.translate('filter_bar.apply') | e }}</button>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  <div class="cm-toolbar-right">
+    {% for counter in block.counters %}
+    <div class="cm-toolbar-stat-inline">
+      {{ counter.label | e }}: <span class="cm-toolbar-counter-value" data-cm-count data-cm-count-for="{{ block.target or '' | e }}"{% if counter.field %} data-cm-count-field="{{ counter.field | e }}"{% endif %}{% if counter.total is not none %} data-cm-count-total="{{ counter.total | e }}"{% endif %}>{% if counter.total is not none %}{{ counter.value | e }}/{{ counter.total | e }}{% else %}{{ counter.value | e }}{% endif %}</span>
+    </div>
+    {% endfor %}
+    {% if actions_block or has_settings %}
+    <div class="cm-toolbar-actions">
+      {% if actions_block %}
+      {% set export_items = actions_block.items | selectattr('type', 'equalto', 'export') | list %}
+      {% set link_items = actions_block.items | selectattr('type', 'equalto', 'link') | list %}
+      {% if export_items %}
+      <div class="cm-export-group cm-export-group--paired">
+        {% for action in export_items %}
+        {% set href = export_action_href(action) %}
+        <a
+          href="{{ href | e }}"
+          class="cm-export-btn cm-export-btn--{{ action.format | e }}"
+          {% if action.format == 'pdf' %}target="_blank"{% endif %}
+          title="{{ host.translate('export.' ~ action.format) | e }}"
+          data-cm-export-sync="1"
+          data-cm-grid-id="{{ block.target or '' | e }}"
+        >
+          {% if action.format == 'xlsx' %}
+          <svg class="cm-export-btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          {% elif action.format == 'pdf' %}
+          <svg class="cm-export-btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9h4m-4 4h6m-6 4h4"/></svg>
+          {% endif %}
+          <span class="cm-export-btn-label">{{ host.translate('export.' ~ action.format) | e }}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% for action in link_items %}
+      {% include '_action_link.html' %}
+      {% endfor %}
+      {% endif %}
+      {% if has_settings %}
+      <button
+        id="col-selector-btn-{{ block.target | e }}"
+        type="button"
+        data-cm-col-action="toggle"
+        data-cm-grid-id="{{ block.target | e }}"
+        title="{{ host.translate('column_settings.title') | e }}"
+        class="cm-toolbar-btn"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
 </div>

@@ -43,6 +43,10 @@ def _cell_text(row: RowDict, column_id: str, resolved: ResolvedExportTable) -> s
         value = row.get(field)
         if value in (None, ""):
             return "—"
+        if col.renderer == "chip" and isinstance(value, (list, tuple)):
+            display_key = str(col.extra.get("display_key", "name")) if col.extra else "name"
+            parts = [str(item.get(display_key, "")) for item in value if isinstance(item, dict)]
+            return ", ".join(p for p in parts if p) or "—"
         return str(value)
     return "—"
 

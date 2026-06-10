@@ -71,6 +71,26 @@
     width: 100%;
     flex-shrink: 0;
 }
+/* GridViewSpec vNext: toolbar lives inside .cm-grid-view-spec, not a direct page child */
+.cm-page-table-layout .cm-grid-view-spec .cm-toolbar-unified.cm-toolbar-outside {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: clamp(20px, 3.5vw, 56px);
+    overflow: visible;
+    width: 100%;
+    min-width: min(100%, var(--cm-page-layout-width));
+    max-width: 100%;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+.cm-page-table-layout .cm-grid-view-spec .cm-toolbar-unified.cm-toolbar-outside:has(.cm-toolbar-search--compact) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+}
+.cm-page-table-layout .cm-grid-view-spec .cm-toolbar-unified.cm-toolbar-outside:has(.cm-toolbar-search--compact) .cm-toolbar-center {
+    justify-self: stretch;
+    min-width: 0;
+}
 .cm-page-table-layout > .cm-toolbar-unified:has(.cm-toolbar-left--filters) {
     grid-template-columns: auto minmax(160px, 1fr) auto;
 }
@@ -81,6 +101,111 @@
 .cm-page-table-layout .cm-table-shell {
     border-top: none;
 }
+
+/* GridViewSpec table-card: fused toolbar + table in one shell */
+.cm-area-table-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    width: 100%;
+    background: var(--cm-table-shell-bg, var(--cm-surface));
+    border: 1px solid var(--cm-table-shell-border, var(--cm-border));
+    border-radius: 12px;
+    box-shadow: var(--cm-table-shell-shadow, none);
+    overflow: visible;
+}
+.cm-area-table-card > .cm-toolbar-unified {
+    position: relative;
+    z-index: 20;
+    flex-shrink: 0;
+    padding: var(--cm-toolbar-padding-y) 14px 0;
+    overflow: visible;
+    border-bottom: none;
+}
+.cm-area-table-card > .cm-toolbar-unified .cm-multiselect,
+.cm-area-table-card > .cm-toolbar-unified [data-cm-filter-bar] {
+    overflow: visible;
+}
+.cm-area-table-card > .cm-toolbar-unified .cm-multiselect-panel {
+    z-index: 220;
+}
+.cm-area-table-card > .cm-table-shell {
+    position: relative;
+    z-index: 1;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    border-top: 1px solid var(--cm-border);
+    overflow: hidden;
+}
+
+/* Outside toolbar in stack (before table-card) — not fused with table chrome */
+.cm-area-stack > .cm-toolbar-unified.cm-toolbar-outside {
+    flex-shrink: 0;
+    background: var(--cm-bg);
+    border: none;
+    box-shadow: none;
+}
+.cm-area-stack > .cm-area-table-card {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.cm-area-table-card > .cm-block-table {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* AG Grid host: flex chain needs explicit height on the grid root div */
+.cm-ag-grid-shell {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.cm-ag-grid-root {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 0.1s;
+}
+
+.cm-ag-grid-root.cm-ag-grid-root--ready {
+    opacity: 1;
+}
+
+/* GridViewArea.style tokens (spec-driven layout) */
+.cm-area-width-full {
+    width: 100%;
+    align-self: stretch;
+    min-width: 0;
+}
+.cm-area-width-content {
+    width: fit-content;
+    min-width: min(100%, var(--cm-page-layout-width));
+    max-width: 100%;
+    margin-inline: auto;
+    align-self: center;
+}
+.cm-block-tabs-wrap-center {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+.cm-block-tabs-wrap-start {
+    display: flex;
+    justify-content: flex-start;
+    width: 100%;
+}
+
 .cm-page-table-layout > .cm-toolbar-unified {
     width: 100%;
     min-width: min(100%, var(--cm-page-layout-width));

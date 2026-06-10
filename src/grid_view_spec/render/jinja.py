@@ -1,4 +1,4 @@
-"""Jinja2 environment for package spec templates (Phase 4 markup)."""
+"""Jinja2 environment for the package spec block templates."""
 
 from __future__ import annotations
 
@@ -13,7 +13,11 @@ _TEMPLATE_DIR = _PACKAGE_ROOT / "templates" / "grid_view" / "spec"
 
 @lru_cache(maxsize=1)
 def grid_view_jinja_env() -> Environment:
-    """Return a cached Jinja2 environment for ``templates/grid_view/spec/``."""
+    """Return a cached Jinja2 environment for ``templates/grid_view/spec/``.
+
+    Template helpers (``column_filter_wire``, ``action_href`` …) are passed as
+    render-context variables at ``template.render`` time, not as env globals.
+    """
     loader = FileSystemLoader(str(_TEMPLATE_DIR))
     return Environment(
         loader=loader,

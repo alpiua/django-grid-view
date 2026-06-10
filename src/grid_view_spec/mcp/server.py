@@ -1,4 +1,4 @@
-"""MCP server bootstrap and CLI entry for django-grid-view."""
+"""MCP server bootstrap and CLI entry for grid-view-spec."""
 
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ from grid_view_spec.mcp.a2ui import run_a2ui_catalog, run_apply_patch
 from grid_view_spec.mcp.catalog import run_catalog
 from grid_view_spec.mcp.envelope import GridViewMcpPolicy, McpEnvelope
 from grid_view_spec.mcp.examples import run_examples
-from grid_view_spec.mcp.migration_hints import run_migration_hints
 from grid_view_spec.mcp.normalize import run_normalize
 from grid_view_spec.mcp.schema import run_schema
 from grid_view_spec.mcp.validate import run_validate
@@ -28,11 +27,21 @@ def build_server(policy: GridViewMcpPolicy = DEFAULT_POLICY) -> McpServer:
     """Create a FastMCP server with all gridview_* tools registered."""
 
     def gridview_catalog() -> McpEnvelope:
-        """Return supported block types, area types, registries, and authoring rules."""
+        """Return block types, registries, rules, and host integration contract.
+
+        Includes host_backends, host_protocol (GridViewHost), http_routes
+        (prefs/export/lazy), and table_backends for Django vs Starlette wiring.
+        """
         return run_catalog()
 
     def gridview_schema(target: str = "GridViewSpec") -> McpEnvelope:
-        """Return JSON Schema for GridViewSpec or a specific block/def target."""
+        """Return JSON Schema for GridViewSpec or a $defs block target.
+
+        Use ``target`` (not ``path``). Resolves GridViewSpec root or any
+        ``$defs`` entry (e.g. GridViewToolbar, GridViewHeader, GridViewTable).
+        Column shape lives under GridViewTable — there is no GridViewColumn def.
+        Call gridview_catalog for the full ``schema_targets`` list.
+        """
         return run_schema(target=target)
 
     def gridview_validate(spec: Mapping[str, object]) -> McpEnvelope:
@@ -47,14 +56,12 @@ def build_server(policy: GridViewMcpPolicy = DEFAULT_POLICY) -> McpServer:
         return run_normalize(spec, policy=policy)
 
     def gridview_examples(case: str) -> McpEnvelope:
-        """Return a fixture-backed example GridViewSpec for a known case id."""
-        return run_examples(case=case)
+        """Return a fixture-backed example GridViewSpec for a known case id.
 
-    def gridview_migration_hints(
-        patterns: list[str] | None = None,
-    ) -> McpEnvelope:
-        """Map legacy Django tags and 1.x builders to vNext GridViewSpec blocks."""
-        return run_migration_hints(patterns=patterns)
+        Known cases: minimal_valid_spec, rich_spec, header_with_template_spec,
+        column_set_filter (set column filters on a simple table).
+        """
+        return run_examples(case=case)
 
     def gridview_a2ui_catalog() -> McpEnvelope:
         """Return A2UI projection catalog for GridViewSpec."""
@@ -71,9 +78,10 @@ def build_server(policy: GridViewMcpPolicy = DEFAULT_POLICY) -> McpServer:
     fast_mcp = fastmcp_module.FastMCP(
         "gridviewspec-mcp",
         instructions=(
-            "Read-mostly MCP server for GridViewSpec vNext: catalog, schema, "
-            "validation, normalization, fixture examples, migration hints, "
-            "and A2UI patch/catalog. No Django runtime."
+            "Read-mostly MCP server for GridViewSpec: catalog (includes host "
+            "backends, GridViewHost protocol, HTTP routes for prefs/export), "
+            "schema, validation, normalization, fixture examples, and A2UI "
+            "patch/catalog. No Django runtime."
         ),
     )
     tool = fast_mcp.tool
@@ -82,7 +90,6 @@ def build_server(policy: GridViewMcpPolicy = DEFAULT_POLICY) -> McpServer:
     tool(gridview_validate)
     tool(gridview_normalize)
     tool(gridview_examples)
-    tool(gridview_migration_hints)
     tool(gridview_a2ui_catalog)
     tool(gridview_apply_patch)
     return fast_mcp
@@ -138,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
     except ModuleNotFoundError as exc:
         if exc.name == "fastmcp":
             print(
-                "fastmcp is required; install with: pip install 'django-grid-view[mcp]'",
+                "fastmcp is required; install with: pip install 'grid-view-spec[mcp]'",
                 file=sys.stderr,
             )
             return 1

@@ -409,8 +409,10 @@
           "type": "object",
           "properties": {
             "type": { "const": "content" },
-            "role": { "enum": ["text", "info", "formula", "empty", "warning"] },
-            "body": { "type": "string" }
+            "role": { "enum": ["text", "info", "formula", "empty", "warning", "callout", "banner"] },
+            "body": { "type": "string" },
+            "tone": { "enum": ["", "default", "info", "success", "warning", "danger"] },
+            "dismissible": { "type": "boolean" }
           }
         }
       ]

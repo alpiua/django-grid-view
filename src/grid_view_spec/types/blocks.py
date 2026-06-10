@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from grid_view_spec.types.actions import GridViewActions
 from grid_view_spec.types.content import (
+    GridViewCardGroups,
     GridViewCards,
     GridViewCharts,
     GridViewContent,
@@ -27,6 +28,7 @@ GridViewBlock = (
     | GridViewCharts
     | GridViewKpi
     | GridViewCards
+    | GridViewCardGroups
     | GridViewGallery
     | GridViewImage
     | GridViewTabs

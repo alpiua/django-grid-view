@@ -1,13 +1,20 @@
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.6
-    hooks:
-      - id: ruff
-        args: [--fix]
-      - id: ruff-format
-
   - repo: local
     hooks:
+      - id: ruff-fix
+        name: ruff (fix)
+        entry: uv run ruff check --fix .
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format .
+        language: system
+        pass_filenames: false
+        always_run: true
+
       - id: ruff-format-check
         name: ruff format check
         entry: uv run ruff format --check .
@@ -31,7 +38,21 @@ repos:
 
       - id: basedpyright
         name: basedpyright (strict, warnings fail)
-        entry: uv run basedpyright --warnings src/django_grid_view src/grid_view_spec tests
+        entry: uv run basedpyright --warnings src/grid_view_spec tests
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: frontend-typecheck
+        name: frontend TypeScript typecheck
+        entry: bash -c 'cd frontend && npm run typecheck'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: frontend-eslint
+        name: frontend ESLint
+        entry: bash -c 'cd frontend && npm run lint'
         language: system
         pass_filenames: false
         always_run: true

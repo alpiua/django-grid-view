@@ -1,0 +1,12 @@
+{# Toolbar / actions block button — bulk actions, host-registered handlers #}
+{% from '_semantic.html' import btn_classes %}
+<button
+  type="button"
+  class="{{ btn_classes(action.variant, action.tone, action.params.get('btn_class', '')) }}"
+  data-cm-action="{{ action.action | e }}"
+  data-cm-action-target="{{ action.target | e }}"
+  {% if action.params.get('bulk') %}data-cm-bulk-action="1" hidden disabled{% endif %}
+  title="{{ action.label | e }}"
+>
+  <span class="cm-btn-label">{{ action.label | e }}</span>
+</button>

@@ -1,4 +1,4 @@
-/** Semantic chart resolver — mirror of django_grid_view.render.charts.resolve_chart_data. */
+/** Semantic chart resolver — mirror of grid_view_spec.render.charts.resolve_chart_data. */
 
 import type { ChartOverlayDict, RowDict } from "../types/chart-bind";
 

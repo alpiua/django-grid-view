@@ -1,4 +1,4 @@
-/** Column filter + smart search matching (mirror of django_grid_view.search). */
+/** Column filter + smart search matching (mirror of grid_view_spec.search). */
 
 import type { ColumnSearchMeta } from "./column-scope";
 import { cellsForScope, parseScopedTerm } from "./column-scope";

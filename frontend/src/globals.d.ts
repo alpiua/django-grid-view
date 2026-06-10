@@ -1,34 +1,87 @@
-/** Ambient browser globals for django-grid-view (maintainer contract). */
+/** Ambient browser globals for grid-view-spec (maintainer contract). */
+
+import type { AgGridHost } from "./ag-grid/host";
+import type { AgGridHostApi, AgGridHostGridOptions } from "./ag-grid/types";
+import type { ColumnSettingsHost } from "./column-settings/host";
+import type {
+  AgGridColumnAdapterApi,
+  ColumnAdapter,
+  ColumnMetaInput,
+  ColumnSettingsHandle,
+  ColumnSettingsOptions,
+} from "./column-settings/types";
+import type { ChartsApi } from "./grid-view/charts-bridge";
+import type { ByIdRegistry } from "./grid-view/types";
+
+interface SortableInstance {
+  destroy: () => void;
+}
+
+interface SortableStatic {
+  new (el: HTMLElement, options?: Record<string, unknown>): SortableInstance;
+}
+
+interface HtmxStatic {
+  ajax: (...args: unknown[]) => void;
+  [key: string]: unknown;
+}
+
+interface CMPeriodFilterStatic {
+  selectedValues: (root: Element) => string[];
+  applyValues?: (root: Element, values: string[]) => void;
+  bind?: (bar: Element) => void;
+  [key: string]: unknown;
+}
+
+interface GridViewColumnLayoutStatic {
+  rebalance: (table: HTMLTableElement) => void;
+}
 
 interface GridViewGlobal {
   preferencesUrl?: string;
   init?: (opts?: Record<string, unknown>) => (() => void) | undefined;
-  byId?: {
-    register: (gridId: string, handle: unknown) => unknown;
-    get: (gridId: string) => unknown;
-    registerBoot: (gridId: string, fn: () => void) => void;
-    boot: (gridId: string) => void;
-  };
+  byId?: ByIdRegistry;
   AgGrid?: {
-    Host?: new (
-      gridId: string,
-      containerId: string,
-      optionsVar: Record<string, unknown>,
-      initialPresets: Record<string, unknown>,
-      initialSearches: string[],
-      groupsOrder: string[]
-    ) => unknown;
+    Host?: typeof AgGridHost;
     SmartFilter?: new () => unknown;
     Tooltip?: new () => unknown;
+    matchQuickFilter?: unknown;
     createAdvancedSearch?: (inputSelector?: string) => unknown;
     getQuickSearchText?: (gridId: string) => string;
+    resolveToolbarSearchInput?: (gridId: string) => HTMLInputElement | null;
     syncExportLinks?: (gridId: string) => void;
+    syncExportHref?: (link: HTMLAnchorElement, gridId: string) => void;
   };
+  ColumnSettings?: typeof ColumnSettingsHost;
   initAllCharts?: (scope?: Document | Element) => void;
   initAllKpi?: (scope?: Document | Element) => void;
-  createColumnSettings?: (...args: unknown[]) => unknown;
-  createAgGridColumnAdapter?: (...args: unknown[]) => unknown;
+  initChart?: ChartsApi["initChart"];
+  refreshChartWrap?: ChartsApi["refreshChartWrap"];
+  buildEchartsOption?: ChartsApi["buildEchartsOption"];
+  createColumnSettings?: (
+    gridId: string,
+    adapter: ColumnAdapter,
+    options?: ColumnSettingsOptions
+  ) => ColumnSettingsHandle;
+  createDomTableColumnAdapter?: (
+    tableEl: Element,
+    columnsMeta?: ColumnMetaInput[] | null
+  ) => ColumnAdapter;
+  createAgGridColumnAdapter?: (
+    gridApi: AgGridColumnAdapterApi,
+    columnMeta?: Record<string, Partial<ColumnMetaInput>> | null
+  ) => ColumnAdapter;
+  initSimpleTableColumnSettings?: (wrapper: Element) => unknown;
   ToolbarSearch?: { mount: (gridId: string, searches: string[]) => void };
+  FilterBar?: {
+    selectedFilterValues: (root: Element) => Record<string, unknown>;
+    [key: string]: unknown;
+  };
+  assets?: {
+    ensureAgGrid?: () => Promise<void>;
+    ensureCharts?: () => Promise<void>;
+  };
+  Charts?: ChartsApi;
   i18n?: { t: (key: string, fallback?: string) => string };
   [key: string]: unknown;
 }
@@ -37,6 +90,7 @@ interface EChartsInstance {
   setOption: (option: unknown, notMerge?: boolean) => void;
   resize: () => void;
   dispose: () => void;
+  _cmChartInstance?: EChartsInstance;
 }
 
 interface EChartsStatic {
@@ -44,44 +98,41 @@ interface EChartsStatic {
 }
 
 interface AgGridNamespace {
-  createGrid: (el: HTMLElement, options: Record<string, unknown>) => AgGridApi;
-}
-
-interface AgGridApi {
-  destroy?: () => void;
-  getGridOption?: (key: string) => unknown;
-  getFilterModel?: () => Record<string, unknown>;
-  setFilterModel?: (model: Record<string, unknown> | null) => void;
-  getColumnState?: () => unknown[];
-  applyColumnState?: (opts: { state: unknown[]; applyOrder?: boolean }) => void;
-  getColumns?: () => unknown[];
-  getDisplayedRowCount?: () => number;
-  getModel?: () => { getType: () => string };
-  purgeInfiniteCache?: () => void;
-  setGridOption?: (key: string, value: unknown) => void;
-  showLoadingOverlay?: () => void;
-  hideOverlay?: () => void;
-  addEventListener?: (event: string, handler: (params?: unknown) => void) => void;
+  createGrid: (el: HTMLElement, options: AgGridHostGridOptions) => AgGridHostApi;
 }
 
 declare global {
   interface Window {
     GridView: GridViewGlobal;
-    GridViewI18n: Record<string, string>;
+    GridViewI18n?: Record<string, string>;
     __djangoGridViewCdn?: {
       agGridUrl?: string;
     };
     echarts: EChartsStatic;
-    agGrid: AgGridNamespace;
-    CMPeriodFilter?: unknown;
+    agGrid?: AgGridNamespace;
+    CMPeriodFilter?: CMPeriodFilterStatic;
+    GridViewColumnLayout?: GridViewColumnLayoutStatic;
+    Sortable?: SortableStatic;
+    htmx?: HtmxStatic;
     __cmChartResizeAttached?: boolean;
     __cmMultiSelectCloseBound?: boolean;
     _cmGridActionsBound?: boolean;
     _cmColFilterDismissBound?: boolean;
+    _cmColSettingsEscBound?: boolean;
+    _cmColFilterInputBound?: boolean;
+    _cmSavedSearchDismissBound?: boolean;
   }
 
-  /** AG Grid community global (CDN). */
-  const agGrid: AgGridNamespace;
+  interface Element {
+    _cmChartInstance?: EChartsInstance;
+    _cmFlushPendingAutoApply?: () => void;
+    _cmUpdateLabel?: () => void;
+    _cmPendingAutoApply?: boolean;
+    _cmSimpleTable?: unknown;
+  }
+
+  /** AG Grid community global (CDN script tag). */
+  var agGrid: AgGridNamespace | undefined;
 }
 
 export {};

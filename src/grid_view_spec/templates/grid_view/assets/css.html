@@ -1,0 +1,13 @@
+{% load static %}
+{% if include %}
+<link rel="stylesheet" href="{% static 'grid_view_spec/gridviewspec.min.css' %}">
+{% if load_ag_grid %}
+{% if ag_grid_bundled %}
+<link rel="stylesheet" href="{% static 'grid_view_spec/vendor/ag-grid.css' %}" data-cm-ag-grid-asset="1">
+<link rel="stylesheet" href="{% static 'grid_view_spec/vendor/ag-theme-quartz.css' %}" data-cm-ag-grid-asset="1">
+{% else %}
+<link rel="stylesheet" href="{{ ag_grid_css_url|escape }}" data-cm-ag-grid-asset="1">
+<link rel="stylesheet" href="{{ ag_grid_theme_css_url|escape }}" data-cm-ag-grid-asset="1">
+{% endif %}
+{% endif %}
+{% endif %}
