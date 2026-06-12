@@ -1,5 +1,38 @@
-<div class="cm-cards cm-cards-{{ block.presentation | e }}">
+<div
+  class="cm-card-grid cm-cards cm-cards-{{ block.presentation | e }}{% if block.presentation == 'grid' %} cm-card-grid--grid{% elif block.presentation == 'list' %} cm-card-grid--list{% endif %}"
+  {% if block.presentation == 'grid' %}style="--cm-card-cols: 4"{% endif %}
+>
   {% for card in block.cards %}
-  <article class="cm-card" data-card-id="{{ card.id | e }}">{{ card.title | e }}</article>
+  {% if card.href %}
+  <a
+    href="{{ card.href | e }}"
+    class="cm-card cm-card--link{% if card.tone %} cm-card--{{ card.tone | e }}{% endif %}"
+    data-card-id="{{ card.id | e }}"
+  >
+  {% else %}
+  <article
+    class="cm-card{% if card.tone %} cm-card--{{ card.tone | e }}{% endif %}"
+    data-card-id="{{ card.id | e }}"
+  >
+  {% endif %}
+    {% if card.icon %}
+    <span class="cm-card-icon cm-kpi-icon" aria-hidden="true">{{ card.icon }}</span>
+    {% endif %}
+    <div class="cm-card-body cm-kpi-body">
+      {% if card.title %}
+      <div class="cm-card-label cm-kpi-label">{{ card.title }}</div>
+      {% endif %}
+      {% if card.value %}
+      <div class="cm-card-value cm-kpi-value">{{ card.value }}</div>
+      {% endif %}
+      {% if card.subtitle %}
+      <div class="cm-card-subtitle">{{ card.subtitle }}</div>
+      {% endif %}
+    </div>
+  {% if card.href %}
+  </a>
+  {% else %}
+  </article>
+  {% endif %}
   {% endfor %}
 </div>

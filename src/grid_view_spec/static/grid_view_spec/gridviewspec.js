@@ -4151,8 +4151,8 @@
     tryInit();
   }
   function bootSingleArtifactRoot(root, gv2) {
-  if (root.dataset.cmGridViewSpecBooted) return;
-  root.dataset.cmGridViewSpecBooted = "1";
+    if (root.dataset.cmGridViewSpecBooted) return;
+    root.dataset.cmGridViewSpecBooted = "1";
     let attempts = 0;
     const tryInit = () => {
       const g = window;
@@ -4219,7 +4219,7 @@
     const el = root;
     if (el.matches("[data-cm-grid-artifact-boot]")) {
       const host = el;
-    delete host.dataset.cmGridViewSpecBooted;
+      delete host.dataset.cmGridViewSpecBooted;
       bootSingleArtifactRoot(host, gridView2);
       return;
     }
