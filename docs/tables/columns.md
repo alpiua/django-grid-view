@@ -35,8 +35,8 @@ Register custom renderers in host JS: `GridView.registerRenderer(name, fn)`.
 ```python
 GridViewTable(
     column_source=GridViewColumnSource(
-        endpoint="/api/columns/dealer-prices/",
-        depends_on=("dealer_filter",),
+        endpoint="/api/columns/price-tiers/",
+        depends_on=("region",),
         anchor="base_price",
         merge="append",
     ),

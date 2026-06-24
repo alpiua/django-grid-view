@@ -157,7 +157,8 @@ def orders_list(request):
         ),
         layout=GridViewLayout(root=GridViewArea(id="root", blocks=("orders_table",))),
     )
-    validate_spec(spec)
+    result = validate_spec(spec)
+    assert result.ok, [d.message for d in result.diagnostics]
     return render(request, "orders.html", {"spec": spec, "rows": rows})
 ```
 
@@ -173,7 +174,8 @@ Client sort, search, and column settings run via `gridviewspec.min.js` (`GridVie
 ## Validate
 
 ```python
-validate_spec(spec)
+result = validate_spec(spec)
+assert result.ok, [d.message for d in result.diagnostics]
 ```
 
 IDE: MCP server (see section: tools/mcp-server.md) → `gridview_validate`.
@@ -307,7 +309,7 @@ One loader should feed HTML render and export builders. See Page export pattern 
 
 ## Dynamic columns
 
-`GridViewTable.column_source` fetches **column definitions** at runtime (e.g. dealer price tiers), not row payloads. Rows still come from the host row API or server render path.
+`GridViewTable.column_source` fetches **column definitions** at runtime (e.g. per-region price tiers), not row payloads. Rows still come from the host row API or server render path.
 
 ## Validation boundary
 
@@ -539,8 +541,12 @@ Co-locating toolbar and table in one area does **not** auto-bind — `target` is
 ```python
 from grid_view_spec import validate_spec
 
-validate_spec(spec)  # raises GridViewValidationError on errors
+result = validate_spec(spec)
+if not result.ok:
+    raise SystemExit([d.message for d in result.diagnostics])
 ```
+
+`validate_spec` returns a `GridViewResult` with `.ok`, `.diagnostics`, and `.spec` — it does **not** raise on errors. Check `result.ok` and inspect `result.diagnostics` to act on problems.
 
 Checks include: unique block ids, layout references existing ids, one search per table, filter schema consistency, and optional `GridViewPolicy` gates (`strict_unknown_config`, trusted template modes).
 
@@ -712,6 +718,7 @@ GridViewTable(
 | Dynamic columns | `GridViewTable.column_source` |
 | Header groups | `GridViewTable.header` / `GridViewColumnGroup` |
 | Row action | `GridViewTable.row_action` |
+| Section rows | `__section__` row key + `section_label`; see [Simple table § Section rows](simple-table.md#section-rows) |
 
 ## Three chrome layers (do not mix)
 
@@ -725,6 +732,8 @@ GridViewTable(
 - Inline editing (see section: tables/editing.md)
 - Column settings (see section: tables/settings.md)
 - Filtering (see section: filtering/semantics.md)
+- Faceted filtering (see section: filtering/facets.md)
+- Theming with CSS tokens (see section: integration/theming.md)
 
 
 ---
@@ -768,7 +777,7 @@ Pass rows at render time — not inside the spec (except small fixtures).
 | Field | Purpose |
 |-------|---------|
 | `id` | Stable column id (settings, export, filters) |
-| `field` | Row dict key (defaults to `id`) |
+| `field` | Row dict key (default `""`; the simple-table renderer falls back to `id` when empty) |
 | `type` | `text`, `number`, `currency`, `date`, `datetime`, `boolean`, `link` |
 | `renderer` | Built-in or registered renderer id |
 | `sortable`, `searchable`, `exportable` | Client/server behavior flags |
@@ -788,6 +797,35 @@ See Columns and renderers (see section: tables/columns.md).
 ```
 
 Wide tables scroll inside the viewport. Toolbar lives in a `table-card` area — Layout (see section: spec/layout.md).
+
+## Section rows
+
+Rows with `__section__: True` render as full-width group headers inside the table body.
+
+```python
+rows = [
+    {"__section__": True, "section_label": "Surgical"},
+    {"name": "General surgery", "beds": 40},
+    {"name": "Traumatology",    "beds": 28},
+    {"__section__": True, "section_label": "Therapeutic"},
+    {"name": "Cardiology",      "beds": 35},
+]
+```
+
+### Filtering behaviour
+
+When a filter is active the table hides section headers for sections that have no matching rows.
+
+**`hide_sole_section_header`** (default `True`) — when only one section still has visible rows its header is also hidden (it is redundant: the search term already identifies the group). Set to `False` to always show the header of every section that has visible rows.
+
+```python
+GridViewTable(
+    id="departments",
+    backend="simple",
+    hide_sole_section_header=False,  # keep section header even when it's the only one
+    columns=(...),
+)
+```
 
 ## Export
 
@@ -821,7 +859,7 @@ AG-Grid and SortableJS load from CDN on AG-Grid pages. Versions are **pinned in 
 
 | Setting | Default | Purpose |
 |---------|---------|---------|
-| `GRID_VIEW_SPEC_AG_GRID_VERSION` | `31.3.2` | AG-Grid Community semver (jsDelivr URL built automatically) |
+| `GRID_VIEW_SPEC_AG_GRID_VERSION` | `31.3.4` | AG-Grid Community semver (jsDelivr URL built automatically) |
 | `GRID_VIEW_SPEC_AG_GRID_CDN_URL` | *(built from version)* | Full script URL override (self-hosted mirror) |
 | `GRID_VIEW_SPEC_SORTABLE_VERSION` | `1.15.2` | SortableJS for column-settings drag-reorder |
 | `GRID_VIEW_SPEC_SORTABLE_CDN_URL` | *(built from version)* | Full Sortable script URL override |
@@ -830,7 +868,7 @@ AG-Grid and SortableJS load from CDN on AG-Grid pages. Versions are **pinned in 
 
 ```python
 # settings.py — optional overrides
-GRID_VIEW_SPEC_AG_GRID_VERSION = "31.3.2"
+GRID_VIEW_SPEC_AG_GRID_VERSION = "31.3.4"
 # GRID_VIEW_SPEC_AG_GRID_CDN_URL = "https://static.myapp.example/vendor/ag-grid-community.min.js"
 GRID_VIEW_SPEC_SORTABLE_VERSION = "1.15.2"
 GRID_VIEW_SPEC_ECHARTS_VERSION = "5.5.1"
@@ -951,6 +989,29 @@ GET /api/products/?action=dictionary&field=record_match_status
 ```
 
 Wire `dictionaryUrl` in `gridOptions.context`.
+
+### Faceted set filter (package dictionary endpoint)
+
+For counts that stay in sync with every other filter and search (exclude-own), use the
+package-provided `api_column_filter_dictionary` route plus a registered `FacetSource`:
+
+```
+GET /grid/filter-dictionary/?grid=<grid_id>&field=<col_id>&<current params>
+→ { "values": [{"value": "Adult", "count": 42}, …] }
+```
+
+```javascript
+gridOptions.context = {
+  gridId: "doctors",
+  dictionaryUrl: "/grid/filter-dictionary/",
+  // …
+};
+```
+
+Register a `FacetSource` per grid at startup so the endpoint can resolve the filtered
+source and count distinct values — see Faceted filtering (see section: filtering/facets.md) for the
+full callback contract and an NSZU example. Mount the route via
+`include("grid_view_spec.backends.django.urls")` — Django integration (see section: integration/django.md).
 
 ### Python: `InfiniteGridParams`
 
@@ -1103,7 +1164,7 @@ For hand-wired AG-Grid pages (without full spec render), load assets in base lay
 {% grid_view_spec_assets part='ag_grid' %}
 ```
 
-Column settings and export hrefs use `{% grid_view_spec_assets %}` + toolbar blocks — not legacy `modal.html` / `scripts.html` includes.
+Column settings and export hrefs use `{% grid_view_spec_assets %}` with toolbar blocks.
 
 ### Host view
 
@@ -1371,6 +1432,7 @@ For flat artifacts: `resolve_artifact_table_for_export()`.
 ## Related
 
 - Server filtering (see section: filtering/server.md) — host queryset integration  
+- Faceted filtering (see section: filtering/facets.md) — option counts that stay in sync with every active filter
 - Page export pattern (see section: export/page-pattern.md) — one loader for page and export  
 - Simple table (see section: tables/simple-table.md) — column filter UI on v2 tables
 
@@ -1700,7 +1762,9 @@ Load order:
 1. Inline — `GridView.preferencesUrl`, `GridViewI18n`  
 2. `gridviewspec.min.js` — unified runtime  
 
-Inclusion tags (`render_grid_view_spec`, …) can pull in the bundle automatically if the host did not call `{% grid_view_spec_assets part='js' force_core=True %}`.
+Inclusion tags (`render_grid_view_spec`, …) only **mark** which optional bundles a page
+needs; the actual ``<script>``/``<link>`` tags are emitted by ``{% grid_view_spec_assets %}``.
+Always call it once per page (CSS in ``<head>`` + JS before ``</body>``).
 
 **Globals the host must provide** (before the bundle):
 
@@ -1823,6 +1887,18 @@ cd frontend && npm ci && npm run build
 
 Commit regenerated files under `src/grid_view_spec/static/grid_view_spec/`. CI checks for drift.
 
+### Generated wire types
+
+TypeScript wire/authoring types are generated from `schema/grid-view-spec.v2.json` (the single
+source of truth). After editing the schema, regenerate and commit the output:
+
+```bash
+cd frontend && npm run gen:types   # writes src/types/generated/grid-view-spec.ts
+```
+
+Import them from the `frontend/src/types/spec.ts` barrel. Drift is enforced by
+`npm run gen:types:check` (also in `scripts/ci-gate.sh`) and `tests/test_ts_schema_parity.py`.
+
 
 ---
 
@@ -1879,6 +1955,38 @@ Column settings UI uses the same msgids as the modal. Export column order/visibi
 <!-- source: changelog.md -->
 
 # Changelog
+
+## Unreleased
+
+### Added
+
+- Faceted filtering: `GridViewFilters.facets` recompute each filter's options + counts on the currently filtered table (exclude-own). `FacetSource` registry + `compute_row_facets` (rows) / `compute_queryset_facets` (Django ORM) + package route `api_column_filter_dictionary` for AG-Grid set filters. `GridViewFilterOption.count` / `.disabled` carry counts; wire round-trips. See Faceted filtering (see section: filtering/facets.md).
+- CSS unification across table backends: one `--cm-*` / `--cm-table-*` / `--ag-*` token bridge; both `simple` and `ag_grid` tables follow the same palette. See Theming with CSS tokens (see section: integration/theming.md).
+- `GridViewFilters`: `navigate_on_change`, `fragment_endpoint` / `fragment_target` / `fragment_swap` for HTMX fragment refresh.
+- `GridViewTable.hide_sole_section_header` (default `True`): when filtering leaves rows in exactly one section the section header is automatically hidden (it is redundant). Set to `False` to keep the header visible. See [Simple table § Section rows](tables/simple-table.md#section-rows).
+- Documented `__section__` / `section_label` row keys for group-header rows in simple tables.
+- `GridViewToolbar.clear_all`: built-in “clear all filters and search” action.
+- JSON Schema (`grid-view-spec.v2.json`): `GridViewFilterOption` def (`value`, `label`, `children`, `exclusive`, `meta`, `count`, `disabled`); `GridViewFilters.facets` / `navigate_on_change` / `fragment_*`.
+- MCP `gridview_catalog`: `api_column_filter_dictionary` route + facet rules.
+- **Generated TypeScript types** from `schema/grid-view-spec.v2.json` (single source of truth):
+  `npm run gen:types` → `frontend/src/types/generated/`, re-exported from `frontend/src/types/spec.ts`.
+  Drift gate: `npm run gen:types:check` (in `scripts/ci-gate.sh`) + `tests/test_ts_schema_parity.py`.
+- Schema ↔ types sync: `$defs` for `GridViewCounter`, `GridViewFilterOption`, `GridViewTablePagination`,
+  `GridViewCardGroup(s)`, `GridViewValidator`, `GridViewFieldCondition`, `GridViewFieldset`,
+  `GridViewField`; `GridViewToolbar.reload`/`clear_all`; header `presentation="section"`; chart
+  `data_source` value `grid_filtered`; set-filter `match` enum aligned to `exact`/`any_token`.
+- Validation diagnostics: `editable_without_edit`, `edit_commit_xor`, `gallery_no_source` (warning),
+  `image_no_url`, `unknown_validator_kind`, `pattern_requires_value`, `custom_validator_missing_name`,
+  `form_field_duplicate_name`, `fieldset_unknown_field`, `invalid_block_target`, `trusted_css_vars_denied`.
+
+### Fixed
+
+- MCP catalog now advertises all package-builtin renderers (`chip`, `period_pills`, `select`);
+  these are recognized by `validate_spec` (`BUILTIN_RENDERERS`). Guarded by a catalog↔builtin test.
+- Commerce stock grid: the “Wholesale prices” selector rebuilds columns via `column_source`
+  (no full page reload); toolbar facet filters refresh the AG datasource with fresh URL state
+  (filter-bar syncs the URL before notifying listeners). Computed price columns are not
+  server-filterable (`agFilter: "none"`), and unresolvable column filters no-op instead of erroring.
 
 ## 2.0.0
 

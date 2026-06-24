@@ -16,8 +16,8 @@
   <text class="label" x="315" y="55" text-anchor="middle">GridViewSpec</text>
   <text class="label" x="315" y="75" text-anchor="middle">(declarative)</text>
   <rect class="box" x="460" y="30" width="160" height="60"/>
-  <text class="label" x="540" y="55" text-anchor="middle">GridArtifact</text>
-  <text class="label" x="540" y="75" text-anchor="middle">(render)</text>
+  <text class="label" x="540" y="55" text-anchor="middle">Render</text>
+  <text class="label" x="540" y="75" text-anchor="middle">(HTML + JS)</text>
   <line class="arrow" x1="175" y1="60" x2="235" y2="60"/>
   <line class="arrow" x1="395" y1="60" x2="455" y2="60"/>
 </svg>

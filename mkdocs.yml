@@ -97,12 +97,15 @@ nav:
   - Filtering:
       - Semantics: filtering/semantics.md
       - Server filtering: filtering/server.md
+      - Faceted filtering: filtering/facets.md
   - Visualization:
       - KPI and charts: visualization/kpi-charts.md
       - Cards and gallery: visualization/cards-gallery.md
   - Integration:
       - Host contract: integration/host-contract.md
       - Django: integration/django.md
+      - Django host extensions: integration/django-host-extensions.md
+      - Theming with CSS tokens: integration/theming.md
       - Assets and HTMX: integration/htmx-assets.md
       - JavaScript runtime: integration/runtime.md
   - Export:
@@ -122,7 +125,9 @@ nav:
   - Guides:
       - Internationalization: guides/i18n.md
       - Host dependency policy: guides/host-dependency-policy.md
-  - Architecture (maintainers): maintainers/gridviewspec-architecture.md
+  - Architecture (maintainers):
+      - Architecture: maintainers/gridviewspec-architecture.md
+      - Table backend parity plan: maintainers/table-backend-parity-plan.md
   - Changelog: changelog.md
   - LLM context:
       - Download bundle: llm/context.md

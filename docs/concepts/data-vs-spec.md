@@ -30,7 +30,7 @@ One loader should feed HTML render and export builders. See [Page export pattern
 
 ## Dynamic columns
 
-`GridViewTable.column_source` fetches **column definitions** at runtime (e.g. dealer price tiers), not row payloads. Rows still come from the host row API or server render path.
+`GridViewTable.column_source` fetches **column definitions** at runtime (e.g. per-region price tiers), not row payloads. Rows still come from the host row API or server render path.
 
 ## Validation boundary
 

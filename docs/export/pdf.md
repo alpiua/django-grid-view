@@ -26,7 +26,7 @@ path("", include("grid_view_spec.backends.django.urls")),
 ```
 
 ```python
-DJANGO_GRID_VIEW_EXPORT_PDF_URL = "api_export_pdf"
+GRID_VIEW_SPEC_EXPORT_PDF_URL = "api_export_pdf"
 ```
 
 ## Register a builder

@@ -8,8 +8,8 @@ Declarative forms with typed fields and validators — preferred over bespoke te
 GridViewForm(
     id="import_form",
     fields=(
-        GridViewField(id="file", label="File", type="file", validators=(GridViewValidator(kind="required"),)),
-        GridViewField(id="period", label="Period", type="select", options=(...)),
+        GridViewField(name="file", label="File", type="file", validators=(GridViewValidator(kind="required"),)),
+        GridViewField(name="period", label="Period", type="select", options=(...)),
     ),
     submit=GridViewExportAction(format="xlsx", params={"builder": "import_preview"}),
     endpoint="/api/import/preview/",
@@ -21,4 +21,4 @@ GridViewForm(
 | Validators | Built-in (`required`, `email`, `min`, …) or registered custom id |
 | Bespoke wizards | Use `GridViewTemplate` instead |
 
-Editor types: `text`, `number`, `select`, `date`, `boolean`.
+Editor types: `text`, `textarea`, `number`, `select`, `multiselect`, `date`, `date_range`, `boolean`, `file`.

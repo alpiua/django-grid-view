@@ -27,7 +27,7 @@ In the host base template, keep this **fixed order** at the end of `<body>`:
 
 **Do not** call `registerRenderer` inside `{% block scripts %}` — `GridView` does not exist yet.
 
-**Do not** put `{% block pim_center %}` / `{% block pim_right %}` inside an `{% include %}` —
+**Do not** put `{% block nav_center %}` / `{% block nav_right %}` inside an `{% include %}` —
 Django ignores blocks in included templates. Declare those blocks in the **extending** base layout
 (e.g. `_base.html` nav actions row).
 
@@ -41,7 +41,7 @@ Spec side (`page_data`):
 GridViewColumn(
     id="quantity",
     field="quantity",
-    renderer="pim_stock_cart",  # registry id, not inline JS
+    renderer="stock_cart",  # registry id, not inline JS
     extra={"action": "open_stock_cart", "record_key": "id"},
 )
 ```
@@ -54,7 +54,7 @@ Host side (`after_grid_view_js`):
   if (!gv || gv.__myPageHooks) return;
   gv.__myPageHooks = true;
 
-  gv.registerRenderer("pim_stock_cart", function (params) {
+  gv.registerRenderer("stock_cart", function (params) {
     var data = params && params.data;
     if (!data) return "";
     return (
@@ -193,7 +193,7 @@ Tailwind `z-50` (50) will render **under** the search bar.
 In host CSS, raise page overlays above toolbar chrome:
 
 ```css
-.cm-pim-page-body .fixed.inset-0 {
+.cm-host-page-body .fixed.inset-0 {
     z-index: 500 !important;
 }
 ```
@@ -201,6 +201,27 @@ In host CSS, raise page overlays above toolbar chrome:
 Popovers (not full-screen): e.g. `z-index: 250`. Package column-settings overlay uses `1300+`.
 
 ---
+
+## Theming tables (tokens, not internals)
+
+Style tables through `--cm-*` tokens so simple and AG-Grid backends stay in parity.
+Do **not** target package internals in host CSS — they are not a stable contract:
+`.ag-header*`, `.ag-icon*`, `.ag-filter*`, `.cm-table thead`, `.cm-sort-arrow`,
+`.cm-col-filter-*`, `.cm-set-filter-*`.
+
+Common host needs and their tokens:
+
+| Need | Token(s) |
+|------|----------|
+| Header background | `--cm-table-head-bg` (→ `--cm-table-header-bg`) |
+| Section divider under header | `--cm-table-header-divider` |
+| Header font size | `--cm-table-header-font-size` |
+| Sort/filter icon idle / hover opacity | `--cm-table-icon-idle-opacity`, `--cm-table-icon-hover-opacity` |
+| Filter control always visible (not hover) | `--cm-th-filter-slot-flex: 0 0 auto; --cm-th-filter-slot-width: auto; --cm-th-filter-slot-overflow: visible` |
+| Lock a column's sort+filter controls | `--cm-th-controls-visibility` / `--cm-th-controls-pointer-events` set on `th[data-cm-col-key="…"]` |
+
+See [Table backend parity plan](../maintainers/table-backend-parity-plan.md#header-control-hooks)
+for the full token list and behavioral hooks.
 
 ## Checklist (new grid page)
 
@@ -211,16 +232,16 @@ Popovers (not full-screen): e.g. `z-index: 250`. Package column-settings overlay
 5. Alpine ref on `window._*Ref` if actions/modals need component methods.
 6. Row counter: `GridViewCounter` + `row_count_selector`, not hidden nav spans.
 7. Modals: z-index above toolbar (see above).
-8. Nav slots: `pim_center` / `pim_right` in base layout, not inside `{% include %}`.
+8. Nav slots: `nav_center` / `nav_right` in base layout, not inside `{% include %}`.
 
 ---
 
-## Commerce PIM reference
+## Host reference layout
 
-ContextCommerce implements this in:
+A host typically wires these pieces together:
 
-- `pim/shared/_base.html` — script order, nav blocks
-- `pim/shared/_grid_page.html` — `render_grid_view_spec page.grid`
-- `pim/stock/stock.html` — stock hooks + Alpine cart/detail
-- `pim/views/stock_page_data.py` — counters + `row_count_selector`
-- `pim/static/pim/css/cm-commerce-host.css` — host tokens, modal z-index, filter panel `50vh`
+- `host/shared/_base.html` — script order, nav blocks
+- `host/shared/_grid_page.html` — `render_grid_view_spec page.grid`
+- `host/pages/stock.html` — page hooks + Alpine cart/detail
+- `host/views/stock_page_data.py` — counters + `row_count_selector`
+- `host/static/host/css/cm-host.css` — host tokens, modal z-index, filter panel `50vh`

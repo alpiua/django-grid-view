@@ -62,7 +62,8 @@ def orders_list(request):
         ),
         layout=GridViewLayout(root=GridViewArea(id="root", blocks=("orders_table",))),
     )
-    validate_spec(spec)
+    result = validate_spec(spec)
+    assert result.ok, [d.message for d in result.diagnostics]
     return render(request, "orders.html", {"spec": spec, "rows": rows})
 ```
 
@@ -78,7 +79,8 @@ Client sort, search, and column settings run via `gridviewspec.min.js` (`GridVie
 ## Validate
 
 ```python
-validate_spec(spec)
+result = validate_spec(spec)
+assert result.ok, [d.message for d in result.diagnostics]
 ```
 
 IDE: [MCP server](tools/mcp-server.md) → `gridview_validate`.

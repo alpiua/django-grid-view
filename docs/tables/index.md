@@ -29,6 +29,7 @@ GridViewTable(
 | Dynamic columns | `GridViewTable.column_source` |
 | Header groups | `GridViewTable.header` / `GridViewColumnGroup` |
 | Row action | `GridViewTable.row_action` |
+| Section rows | `__section__` row key + `section_label`; see [Simple table § Section rows](simple-table.md#section-rows) |
 
 ## Three chrome layers (do not mix)
 
@@ -42,3 +43,5 @@ GridViewTable(
 - [Inline editing](editing.md)
 - [Column settings](settings.md)
 - [Filtering](../filtering/semantics.md)
+- [Faceted filtering](../filtering/facets.md)
+- [Theming with CSS tokens](../integration/theming.md)

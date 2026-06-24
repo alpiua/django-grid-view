@@ -67,7 +67,7 @@ https://alpiua.github.io/grid-view-spec/getting-started/
 1. **`GridViewHost`** supplies translate, url_for, prefs, filters — never embedded in spec JSON.
 2. **Prefs:** `migrate grid_view_spec.backends.django`; URL name `api_grid_preferences`.
 3. **Export:** register builders in host `AppConfig.ready()`; mount export routes with **host auth**.
-4. **Assets:** single loader `{% grid_view_spec_assets %}` — no legacy `grid_view_styles` / `grid_view_bundle`.
+4. **Assets:** `{% grid_view_spec_assets %}` once per page (CSS + JS).
 5. KPI/chart values only from Python `rows`, not from layout JSON.
 6. AG Grid CDN via `part='ag_grid'` when page uses infinite datasource outside full spec render.
 

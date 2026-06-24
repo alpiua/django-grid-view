@@ -95,3 +95,40 @@ GRID_VIEW_SPEC_AG_GRID_VERSION = "31.3.4"
 Python helpers: `grid_view_spec.backends.django.conf` — `ag_grid_cdn_url()`, `echarts_cdn_url()`, `sortable_cdn_url()`.
 
 Static assets ship under `grid_view_spec/static/grid_view_spec/` (`gridviewspec.min.js`, vendor AG-Grid, …).
+
+## Faceted filtering
+
+Faceted filters recompute each filter's options + counts on the currently filtered table
+(exclude-own). Two surfaces share one `FacetSource` registry and one counting core:
+
+- **AG-Grid column set filter** → package route `GET /grid/filter-dictionary/?grid=<grid_id>&field=<col_id>` (mounted by `include("grid_view_spec.backends.django.urls")` as `api_column_filter_dictionary`). This route is **not** authenticated by the package — mount it behind host auth/middleware, like the export routes, because it reflects filtered ORM values.
+- **Toolbar `GridViewFilters` bar** → host HTMX fragment endpoint (`GridViewFilters.facets=True` + `fragment_endpoint`) that re-renders the spec with counted options.
+
+Register a `FacetSource` per grid at startup (e.g. in `AppConfig.ready()`):
+
+```python
+from grid_view_spec.search.facet_registry import FacetSource, register_facet_source
+
+class DashboardConfig(AppConfig):
+    def ready(self):
+        register_facet_source(
+            "doctors",
+            FacetSource(
+                schema=lambda req: doctors_facet_schema(req),
+                apply_filters=lambda req, exclude: doctors_facet_queryset(req, exclude),
+                column_field=lambda field: DOCTOR_FIELD_MAP.get(field, field),
+                is_orm=True,
+            ),
+        )
+```
+
+`apply_filters(req, exclude)` returns the queryset filtered by every active facet + search
+**except** `exclude`. The dictionary view and the toolbar fragment handler both use it via
+`grid_view_spec.backends.django.facets.compute_queryset_facets`. Full callback contract and an
+NSZU example: [Faceted filtering](../filtering/facets.md).
+
+## Theming
+
+Both `simple` and `ag_grid` tables read one set of CSS tokens (`--cm-*` base palette →
+`--cm-table-*` → AG-Grid `--ag-*` bridge). Override the base tokens once to unify table styling
+across backends, dark mode, and scoped grids: [Theming with CSS tokens](theming.md).

@@ -1,8 +1,8 @@
 # Content callout and banner
 
 Semantic info blocks extend **`GridViewContent`** with roles **`callout`** and **`banner`**. Tone
-uses **`GridViewSemanticTone`**: `default | info | success | warning | danger` (legacy wire
-`error` → `danger`, `warn` → `warning`).
+uses **`GridViewSemanticTone`**: `default | info | success | warning | danger`. Wire aliases
+`error` → `danger` and `warn` → `warning` normalize on ingest.
 
 ## Callout (in-flow)
 

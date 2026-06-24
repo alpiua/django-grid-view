@@ -89,10 +89,9 @@ Large multi-file batches without per-step verification caused: circular imports,
 ### Import & layer rules (grid_view_spec)
 
 1. **`grid_view_spec/export/pipeline.py`** — no runtime Django imports in module namespace. Use `TYPE_CHECKING` + lazy import **inside** functions that need Django types at runtime.
-2. **`grid_view_spec/export/compat.py`** — same; runtime import of `XlsxReport` here can circular-import via `backends/django/export/xlsx/registry`.
-3. **Legacy export shims** — register into vNext registry via `register_pdf_export` / `register_xlsx_export`; views call `get_*_export_entry` + pipeline with `(host, DjangoExportContext)`, not raw `request`-only builders in the view.
-4. **Host protocol** — render/export paths use `host.filter_state_from_request`, `DjangoExportContext.from_request`; do not discard `host` or `subject_id`.
-5. **Typing** — see **Strict static typing** above; no exceptions for “quick fixes”.
+2. **Export registry** — `register_pdf_export` / `register_xlsx_export`; views call `get_*_export_entry` + pipeline with `(host, DjangoExportContext)`.
+3. **Host protocol** — render/export paths use `host.filter_state_from_request`, `DjangoExportContext.from_request`; do not discard `host` or `subject_id`.
+4. **Typing** — see **Strict static typing** above; no exceptions for “quick fixes”.
 
 ### Test design (anti-patterns from this session)
 

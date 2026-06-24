@@ -8,8 +8,8 @@ Host-owned template fragments referenced by id:
 GridViewTemplate(
     id="doctor_aside",
     mode="file",  # file | raw (raw requires policy)
-    path="dashboard/doctors/_aside.html",
-    assets=(GridViewTemplateAsset(kind="js", src="doctor-aside.js"),),
+    template="dashboard/doctors/_aside.html",
+    assets=(GridViewTemplateAsset(kind="script", src="doctor-aside.js"),),
 )
 ```
 
@@ -26,7 +26,7 @@ Formula blocks, info callouts, and empty-state messaging inside the layout.
 
 | Role | Use |
 |------|-----|
-| `text`, `info`, `formula`, `empty`, `warning` | Legacy/simple body |
+| `text`, `info`, `formula`, `empty`, `warning` | Plain inline body |
 | `callout` | In-flow card with tone + optional title |
 | `banner` | Full-width notice strip |
 

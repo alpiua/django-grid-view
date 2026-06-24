@@ -5,8 +5,12 @@
 ```python
 from grid_view_spec import validate_spec
 
-validate_spec(spec)  # raises GridViewValidationError on errors
+result = validate_spec(spec)
+if not result.ok:
+    raise SystemExit([d.message for d in result.diagnostics])
 ```
+
+`validate_spec` returns a `GridViewResult` with `.ok`, `.diagnostics`, and `.spec` — it does **not** raise on errors. Check `result.ok` and inspect `result.diagnostics` to act on problems.
 
 Checks include: unique block ids, layout references existing ids, one search per table, filter schema consistency, and optional `GridViewPolicy` gates (`strict_unknown_config`, trusted template modes).
 

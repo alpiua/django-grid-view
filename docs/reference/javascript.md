@@ -29,7 +29,9 @@ Load order:
 1. Inline — `GridView.preferencesUrl`, `GridViewI18n`  
 2. `gridviewspec.min.js` — unified runtime  
 
-Inclusion tags (`render_grid_view_spec`, …) can pull in the bundle automatically if the host did not call `{% grid_view_spec_assets part='js' force_core=True %}`.
+Inclusion tags (`render_grid_view_spec`, …) only **mark** which optional bundles a page
+needs; the actual ``<script>``/``<link>`` tags are emitted by ``{% grid_view_spec_assets %}``.
+Always call it once per page (CSS in ``<head>`` + JS before ``</body>``).
 
 **Globals the host must provide** (before the bundle):
 
@@ -151,3 +153,15 @@ cd frontend && npm ci && npm run build
 ```
 
 Commit regenerated files under `src/grid_view_spec/static/grid_view_spec/`. CI checks for drift.
+
+### Generated wire types
+
+TypeScript wire/authoring types are generated from `schema/grid-view-spec.v2.json` (the single
+source of truth). After editing the schema, regenerate and commit the output:
+
+```bash
+cd frontend && npm run gen:types   # writes src/types/generated/grid-view-spec.ts
+```
+
+Import them from the `frontend/src/types/spec.ts` barrel. Drift is enforced by
+`npm run gen:types:check` (also in `scripts/ci-gate.sh`) and `tests/test_ts_schema_parity.py`.

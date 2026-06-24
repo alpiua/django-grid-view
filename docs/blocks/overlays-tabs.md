@@ -66,8 +66,9 @@ GridViewTabs(
 Tab buttons render as `cm-btn-segment`; badges use `cm-tone-{badge_tone}`. Admin links in
 `extra.actions`: `GridViewLinkAction(variant="ghost", tone="warning", icon="edit")`.
 
-Legacy `extra.nav_class`, `extra.badge_tones`, and `column.extra.pill_class` still decode for
-one release — prefer `nav_variant`, `GridViewTab.badge_tone`, and `column.extra.tone`.
+`extra.nav_class`, `extra.badge_tones`, and `column.extra.pill_class` are host-styling escape
+hatches that map to `GridViewSemanticTone` tokens. Prefer the portable semantic fields
+`nav_variant`, `GridViewTab.badge_tone`, and `column.extra.tone` unless you need host-specific CSS.
 
 MCP fixture: `gridview_examples(case="semantic_ui")`.
 

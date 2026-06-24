@@ -180,7 +180,7 @@ Common targets:
 
 - All layout blocks from `gridview_catalog.blocks` (e.g. `GridViewToolbar`,
   `GridViewHeader`, `GridViewTable`, `GridViewCharts`)
-- Shared defs: `GridViewFilter`, `GridViewSearch`, `GridViewChartOptions`,
+- Shared defs: `GridViewFilter`, `GridViewFilterOption`, `GridViewSearch`, `GridViewChartOptions`,
   `GridViewLazyDefaults`, `GridViewLazyBlock`, `GridViewLazyResponse`, `A2UIPatch`
 
 There is no `GridViewColumn` def — column shape lives under `GridViewTable`.
@@ -275,6 +275,23 @@ Style / serialization:
 - `non_serializable_value` — a spec leaf is not `JsonValue` (callable/ORM/etc.) (error);
 - `unknown_config_key` — an `extra`/`config` key not in the documented set while
   `policy.strict_unknown_config=true` (error).
+
+> **Implementation status (validate_spec):** the codes above are the documented contract.
+> Currently implemented: `duplicate_block_id`, `missing_layout_ref`, `missing_block_ref`,
+> `unknown_type` (`INVALID_BLOCK_TYPE`), `invalid_tab_target`, `invalid_overlay`,
+> `invalid_overlay_content`, `invalid_header_content`, `multiple_search_per_table`,
+> `filter_target_mismatch`, `invalid_filter_state`, `invalid_set_filter_model`,
+> `unknown_chart_option`, `invalid_chart_option_value` (data_source), `unknown_renderer`,
+> `invalid_block_target` (toolbar/filters target refs), `editable_without_edit`,
+> `edit_commit_xor`, `gallery_no_source`, `image_no_url`, `unknown_validator_kind`,
+> `pattern_requires_value`, `custom_validator_missing_name`, `form_field_duplicate_name`,
+> `fieldset_unknown_field`, `trusted_css_vars_denied`, `non_serializable_value`.
+>
+> **Deferred (not yet emitted by validate_spec):** `base_field_redeclared` (frozen dataclasses
+> prevent redeclaration at construction time — runtime check is redundant), `raw_style_key`
+> (handled by `normalize_spec`, which drops unknown style keys), `column_source_unstable_ids`
+> (warning-only, semantic — requires host stable-id contract, not detectable from the spec).
+> Hosts that need these guarantees today should enforce them in `page_data` / normalize.
 
 Output (`data`): `{ "spec": <the validated spec, unchanged> }`. All findings go to envelope
 `diagnostics`; the `ok` flag (not a `valid` field) reflects whether any error-severity diagnostic was
@@ -454,7 +471,6 @@ gridview://schema/GridViewBlock
 gridview://catalog
 gridview://examples/table_with_toolbar
 gridview://examples/doctor_detail_overlay_template
-gridview://migration/legacy-tags
 ```
 
 ## Policies
@@ -494,26 +510,28 @@ Generic MCP should know package contracts only.
 Host-specific MCP can wrap it:
 
 ```text
-nszu-grid-view-mcp
+host-grid-view-mcp
   -> gridviewspec-mcp
-  -> NSZU page taxonomy
-  -> NSZU examples
-  -> NSZU migration hints
+  -> host page taxonomy
+  -> host examples
+  -> host migration hints
 ```
 
 Generic server remains reusable for other hosts.
 
 ## Ship status
 
-All eight tools are implemented. Tests live under `tests/test_gridviewspec_mcp.py` and related MCP
-modules. Host-specific wrappers (for example `nszu-grid-view-mcp`) should delegate to these tools and
-add only local taxonomy, examples, and migration hints.
+All seven tools are implemented (`gridview_catalog`, `gridview_schema`, `gridview_validate`,
+`gridview_normalize`, `gridview_examples`, `gridview_a2ui_catalog`, `gridview_apply_patch`). Tests
+live under `tests/test_gridviewspec_mcp.py` and related MCP modules. Host-specific wrappers
+(for example `host-grid-view-mcp`) should delegate to these tools and add only local taxonomy,
+examples, and migration hints.
 
 ## Acceptance
 
 - Every tool returns the same `ok`/`tool`/`data`/`diagnostics` envelope.
-- Catalog, schema, examples, validate, normalize, migration hints, A2UI catalog, and apply_patch
-  work without Django settings or imports.
+- Catalog, schema, examples, validate, normalize, A2UI catalog, and apply_patch work without
+  Django settings or imports. (Migration hints are a host-wrapper concern, not a generic tool.)
 - Validation covers duplicate ids, broken layout refs, toolbar/search rules, filter targets,
   renderer/validator ids, overlays, and non-serializable values.
 - `gridview_apply_patch` validates and normalizes; it does not mutate the caller's input dict.

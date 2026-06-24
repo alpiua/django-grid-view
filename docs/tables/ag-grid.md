@@ -18,7 +18,7 @@ AG-Grid and SortableJS load from CDN on AG-Grid pages. Versions are **pinned in 
 
 | Setting | Default | Purpose |
 |---------|---------|---------|
-| `GRID_VIEW_SPEC_AG_GRID_VERSION` | `31.3.2` | AG-Grid Community semver (jsDelivr URL built automatically) |
+| `GRID_VIEW_SPEC_AG_GRID_VERSION` | `31.3.4` | AG-Grid Community semver (jsDelivr URL built automatically) |
 | `GRID_VIEW_SPEC_AG_GRID_CDN_URL` | *(built from version)* | Full script URL override (self-hosted mirror) |
 | `GRID_VIEW_SPEC_SORTABLE_VERSION` | `1.15.2` | SortableJS for column-settings drag-reorder |
 | `GRID_VIEW_SPEC_SORTABLE_CDN_URL` | *(built from version)* | Full Sortable script URL override |
@@ -27,7 +27,7 @@ AG-Grid and SortableJS load from CDN on AG-Grid pages. Versions are **pinned in 
 
 ```python
 # settings.py — optional overrides
-GRID_VIEW_SPEC_AG_GRID_VERSION = "31.3.2"
+GRID_VIEW_SPEC_AG_GRID_VERSION = "31.3.4"
 # GRID_VIEW_SPEC_AG_GRID_CDN_URL = "https://static.myapp.example/vendor/ag-grid-community.min.js"
 GRID_VIEW_SPEC_SORTABLE_VERSION = "1.15.2"
 GRID_VIEW_SPEC_ECHARTS_VERSION = "5.5.1"
@@ -148,6 +148,29 @@ GET /api/products/?action=dictionary&field=record_match_status
 ```
 
 Wire `dictionaryUrl` in `gridOptions.context`.
+
+### Faceted set filter (package dictionary endpoint)
+
+For counts that stay in sync with every other filter and search (exclude-own), use the
+package-provided `api_column_filter_dictionary` route plus a registered `FacetSource`:
+
+```
+GET /grid/filter-dictionary/?grid=<grid_id>&field=<col_id>&<current params>
+→ { "values": [{"value": "Adult", "count": 42}, …] }
+```
+
+```javascript
+gridOptions.context = {
+  gridId: "doctors",
+  dictionaryUrl: "/grid/filter-dictionary/",
+  // …
+};
+```
+
+Register a `FacetSource` per grid at startup so the endpoint can resolve the filtered
+source and count distinct values — see [Faceted filtering](../filtering/facets.md) for the
+full callback contract and an NSZU example. Mount the route via
+`include("grid_view_spec.backends.django.urls")` — [Django integration](../integration/django.md).
 
 ### Python: `InfiniteGridParams`
 
@@ -300,7 +323,7 @@ For hand-wired AG-Grid pages (without full spec render), load assets in base lay
 {% grid_view_spec_assets part='ag_grid' %}
 ```
 
-Column settings and export hrefs use `{% grid_view_spec_assets %}` + toolbar blocks — not legacy `modal.html` / `scripts.html` includes.
+Column settings and export hrefs use `{% grid_view_spec_assets %}` with toolbar blocks.
 
 ### Host view
 

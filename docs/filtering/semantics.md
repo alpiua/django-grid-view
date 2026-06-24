@@ -101,6 +101,7 @@ For flat artifacts: `resolve_artifact_table_for_export()`.
 ## Related
 
 - [Server filtering](server.md) — host queryset integration  
+- [Faceted filtering](facets.md) — option counts that stay in sync with every active filter
 - [Page export pattern](../export/page-pattern.md) — one loader for page and export  
 - [Simple table](../tables/simple-table.md) — column filter UI on v2 tables
 

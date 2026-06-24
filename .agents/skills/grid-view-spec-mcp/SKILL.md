@@ -36,10 +36,10 @@ Install: `pip install "grid-view-spec[mcp]"` or `./scripts/install-mcp-cli.sh` �
 
 ### Django checklist (after spec validates)
 
-1. `INSTALLED_APPS` + `migrate django_grid_view`
-2. Mount prefs: `include("django_grid_view.urls")` or explicit `name="api_grid_preferences"`
-3. Export (optional): register builders in `AppConfig.ready()` + mount `export_pdf` / `export_xlsx` **with auth**
-4. Template: `{% grid_view_bundle %}` + `{% render_grid_view_spec %}`
+1. `INSTALLED_APPS += "grid_view_spec.backends.django"` + `migrate grid_view_spec_django`
+2. Mount routes: `include("grid_view_spec.backends.django.urls")` or explicit `name="api_grid_preferences"`
+3. Export (optional): `register_pdf_export` / `register_xlsx_export` in `AppConfig.ready()` + mount export views **with auth**
+4. Template: `{% load grid_view_spec %}` + `{% grid_view_spec_assets %}` + `{% render_grid_view_spec %}`
 
 ### Starlette / FastAPI
 
@@ -52,7 +52,7 @@ Install: `pip install "grid-view-spec[mcp]"` or `./scripts/install-mcp-cli.sh` �
 - Render HTML via MCP (non-goal)
 - Skip validate because “it looks fine”
 - Use `action.target` as export builder key — use `params.builder` or `spec.id`
-- Assume `include("django_grid_view.urls")` mounts export — only prefs by default
+- Assume `include("grid_view_spec.backends.django.urls")` mounts export — only prefs by default
 - Put ORM, callables, or request objects in spec JSON
 
 ## Coexist with host MCP

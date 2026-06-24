@@ -5,6 +5,8 @@
 Page or entity identity in the layout (distinct from `GridViewMeta.title` for document chrome).
 
 ```python
+from grid_view_spec.types.header import GridViewFact, GridViewEntity, GridViewHeader
+
 GridViewHeader(
     id="page_header",
     presentation="entity",  # plain | entity | split | compact | hero
@@ -12,7 +14,10 @@ GridViewHeader(
     entity=GridViewEntity(
         id="dept-12",
         title="Cardiology",
-        facts=(("Code", "CARD"), ("Head", "Dr. Smith")),
+        facts=(
+            GridViewFact(label="Code", value="CARD"),
+            GridViewFact(label="Head", value="Dr. Smith"),
+        ),
     ),
     nav="main_nav",
     actions="header_actions",

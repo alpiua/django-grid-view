@@ -11,7 +11,7 @@ artifact resolution, and `GridView.init` for the client.
 User question
   → Host: run query, build spec in Python
   → Host: validate / resolve rows → payload for the UI
-  → SSE or JSON: { "type": "grid_view", "artifact": … }  (legacy)
+  → SSE or JSON: { "type": "grid_view", "artifact": … }
                  or { "type": "grid_view_spec", "spec": …, "rows": … }  (v2)
   → Browser: mount DOM + GridView.init or render_grid_view_spec HTML
 ```
@@ -84,7 +84,7 @@ Validate wire JSON with MCP `gridview_validate` before merge.
 GridView.init({ root: wrap, artifact: component.artifact });
 ```
 
-Load `{% grid_view_styles %}`, `{% grid_view_bundle %}`, and ECharts on the chat page.
+Load `{% grid_view_spec_assets %}` and ECharts on the chat page.
 
 ## Optional visualizer LLM
 

@@ -59,6 +59,15 @@ Export context reads the same GET keys as the HTML view:
 
 `build_export_meta_lines` in `grid_view_spec.export.meta` adds subtitle lines from active filters when rendering PDF/XLSX.
 
+## Faceted counts
+
+When `GridViewFilters(facets=True)`, the host recomputes each filter's options + counts on
+the currently filtered table (exclude-own) and re-renders the spec via the
+`fragment_endpoint`. For AG-Grid column set filters, the package route
+`GET /grid/filter-dictionary/?grid=<grid_id>&field=<col_id>` returns
+`{values:[{value,count}]}` from a registered `FacetSource`. Full contract and an NSZU callback
+example: [Faceted filtering](facets.md).
+
 ## Checklist
 
 - [ ] One loader for HTML + export

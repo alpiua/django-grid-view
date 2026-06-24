@@ -48,6 +48,7 @@ JsonValue = str | int | float | bool | None | Mapping[str, "JsonValue"] | tuple[
 @dataclass(frozen=True, slots=True)
 class GridViewSpec:
     id: str
+    title: str = ""
     meta: GridViewMeta = field(default_factory=GridViewMeta)
     config: GridViewConfig = field(default_factory=GridViewConfig)
     blocks: tuple[GridViewBlock, ...] = ()
@@ -70,7 +71,10 @@ Title precedence (one rule, no ambiguity):
 - `GridViewHeader` block — the **visible** page/entity identity rendered in layout;
 - `GridViewBlockBase.title` — heading of one specific block (table/cards/charts section);
 - when a `GridViewHeader` block exists, it owns the visible page title; `meta.title` stays
-  document-level.
+  document-level;
+- `GridViewSpec.title` — optional **export/report title** (distinct from `GridViewMeta.title`,
+  which is document/shell identity); used by export (`export/payload.py`, `export/static_charts.py`)
+  as the exported document title, not a visible page heading.
 
 Rules:
 
@@ -190,7 +194,7 @@ via `target` — co-locating a toolbar and a table in one area does **not** auto
 @dataclass(frozen=True, slots=True, kw_only=True)
 class GridViewHeader(GridViewBlockBase):
     type: Literal["header"] = "header"
-    presentation: Literal["plain", "entity", "split", "compact", "hero"] = "plain"
+    presentation: Literal["plain", "entity", "split", "compact", "hero", "section"] = "plain"
     nav: str | None = None
     entity: GridViewEntity | None = None
     content: str | None = None
@@ -246,6 +250,8 @@ class GridViewToolbar(GridViewBlockBase):
     presentation: Literal["default", "compact", "panel"] = "default"  # density only, not placement
     search: GridViewSearch | None = None
     filters: str | None = None
+    clear_all: bool = True
+    reload: bool = False
     counters: tuple[GridViewCounter, ...] = ()
     actions: str | None = None
     target: str | None = None
@@ -256,6 +262,9 @@ class GridViewCounter:
     label: str
     value: str | int | float
     tone: Literal["", "muted", "success", "warning", "danger"] = ""
+    field: str | None = None
+    total: int | None = None
+    server_only: bool = False
 ```
 
 Toolbar rules:
@@ -273,6 +282,11 @@ Toolbar rules:
   toolbar search; the validator raises an **error** (not a warning) on a second search bound to the
   same table;
 - co-location in one area is visual only; binding is always explicit via `target`/`bind`.
+- `clear_all` toggles the built-in "clear all filters and search" action; `reload` toggles a reload
+  action.
+- `GridViewCounter.field` is the row-count selector disambiguator for toolbar counters (see
+  Django host extensions); `total` is an optional denominator for `n/total` display; `server_only`
+  marks counters the host renders (not client-updated).
 
 Multi-table pages:
 
@@ -369,6 +383,11 @@ class GridViewFilters(GridViewBlockBase):
     state: GridViewFilterState = field(default_factory=GridViewFilterState)
     target: str | None = None  # None = page-wide; block id = scoped to that table/chart
     auto_apply: bool = True
+    navigate_on_change: bool = True
+    fragment_endpoint: str = ""
+    fragment_target: str = ""
+    fragment_swap: str = "outerHTML"
+    facets: bool = False  # True → exclude-own facet recomputation (see filtering/facets.md)
 
 @dataclass(frozen=True, slots=True)
 class GridViewFilter:
@@ -426,6 +445,9 @@ SetFilterModel = (
     | {"values": list[str], "match": FilterMatch}
 )
 ```
+
+`GridViewFilters.fragment_*` control HTMX partial refresh of the filter bar/table on change;
+`facets=True` enables exclude-own facet recomputation (see [filtering/facets.md](../filtering/facets.md)).
 
 ### Filter types — static vs dynamic
 
@@ -491,7 +513,7 @@ spec.layout:
 | no ref on table | table does not own page filters; inherits filtered `rows` from host |
 
 Filter scope is **explicit** on `GridViewFilters.target` (`None` = page-wide; block id =
-table/chart-bound). It is no longer inherited from a referencing toolbar. Host `page_data` enforces
+table/chart-bound). Scope is never inherited implicitly from a referencing toolbar. Host `page_data` enforces
 the mapping. A `GridViewFilters` block may be mounted via `toolbar.filters` or rendered inline
 (`presentation="inline"`); scope comes from `target` either way. If both a toolbar `target` and the
 filter block `target` are set, they must agree (validator error on mismatch).
@@ -527,7 +549,9 @@ class GridViewSearch:
     compact: bool = True
 ```
 
-`bind` defaults to `GridViewToolbar.target` when search lives on a toolbar.
+`bind` defaults to `GridViewToolbar.target` when search lives on a toolbar. `backend="client"`
+runs filtering in the browser (no server round-trip); `"server"` defers to the host queryset and
+`"ag_grid"` delegates to the AG-Grid data source.
 
 ## Actions and Table Settings
 
@@ -590,8 +614,8 @@ Concrete action classes keep the `Action` suffix. Passive config objects do not.
 
 Action rules:
 
-- `GridViewExportAction` is the export contract; no separate root export config in v1;
-- table settings are not a separate v1 action type;
+- `GridViewExportAction` is the export contract;
+- table settings are declared on `GridViewTable.settings`, not as a separate action type;
 - `GridViewTable.settings` declares table settings capabilities;
 - the table/table-toolbar renderer shows settings UI when `GridViewTable.settings` is set;
 - if custom placement is needed, use `GridViewButtonAction(action="table_settings", target="table_id")`;
@@ -620,8 +644,26 @@ class GridViewTable(GridViewBlockBase):
     footer: GridViewTableFooter | None = None
     empty_message: str = ""
     per_page: int = 0
+    pagination: GridViewTablePagination | None = None
     striped: bool = False
+    hide_sole_section_header: bool = True
     # rare/back-end-specific options use the inherited `extra` bag (documented keys + strict_unknown_config)
+
+@dataclass(frozen=True, slots=True)
+class GridViewTablePagination:
+    """Server or client paging for simple tables (``backend=simple``)."""
+
+    page: int = 1
+    page_size: int = 25
+    total: int = 0
+    mode: Literal["server", "client", "fragment"] = "server"
+    page_param: str = "page"
+    page_size_param: str = "page_size"
+    fragment_endpoint: str = ""
+    fragment_target: str = ""
+    fragment_swap: str = "outerHTML"
+    page_endpoint: str = ""
+    page_size_options: tuple[int, ...] = ()
 
 @dataclass(frozen=True, slots=True)
 class GridViewTableFooter:
@@ -712,7 +754,7 @@ Table data rules:
 
 - `rows` is inline table data for server/simple render;
 - `datasource` describes a table row API for AG-Grid or remote table data;
-- `column_source` returns dynamic columns at runtime (e.g. Commerce dealer price tiers): renderer
+- `column_source` returns dynamic columns at runtime (e.g. per-tier price columns): renderer
   refetches when a `depends_on` filter changes and merges them at `anchor`. Dynamic columns must use
   **stable ids** so `GridViewTableSettings`/presets survive filter changes — unknown/absent ids are
   ignored, never fatal;
@@ -782,7 +824,9 @@ Charts rules:
 - `GridViewCharts` has no toolbar block; page controls live in layout `GridViewToolbar`;
 - optional `filters` references the same `GridViewFilters` block id as the page toolbar for
   documentation/validation; host still supplies filtered `data` in `page_data`;
-- client-side chart refresh follows the same page filter/search state as tables on that page.
+- client-side chart refresh follows the same page filter/search state as tables on that page:
+  the simple-table filter pass re-renders sibling charts in the same spec root from the
+  currently-visible rows (the chart shares the table's data — no per-chart filter binding).
 - `GridViewChart.options` is not an open bag: only documented keys below are valid; bridge
   and validator reject unknown keys when `strict_unknown_config=True`.
 
@@ -798,7 +842,7 @@ Documented `GridViewChart.options` keys:
 | `height` | `int` | Chart height px |
 | `orientation` | `"vertical"` \| `"horizontal"` | Bar orientation |
 | `stacked` | `bool` | Stacked series |
-| `data_source` | `"static"` \| `"rows"` | Data binding mode |
+| `data_source` | `"static"` \| `"grid_filtered"` | Bind mode; defaults to `grid_filtered` when the parent `GridViewCharts.filters` is set, else `static`. Explicit value wins. |
 | `overlay` | `{title, value, tone?}` | Center annotation |
 | `pie_variant` | `str` | e.g. `center-total` |
 | `tooltip_kind` | `str` | e.g. `packages` |
@@ -843,12 +887,12 @@ Cards rules:
 
 ### Images and galleries
 
-Two typed blocks plus one built-in cell renderer cover all image needs (Commerce product media,
+Two typed blocks plus one built-in cell renderer cover all image needs (product media,
 document previews) without falling back to `GridViewTemplate`:
 
 - `GridViewGallery` — a collection of images (carousel/grid/masonry/filmstrip, optional lightbox);
 - `GridViewImage` — one standalone image (hero, section banner, logo);
-- column `renderer="image"` — a thumbnail inside a table cell (most common Commerce/PIM case).
+- column `renderer="image"` — a thumbnail inside a table cell (most common case).
 
 ```python
 @dataclass(frozen=True, slots=True)
@@ -891,8 +935,8 @@ class GridViewImage(GridViewBlockBase):
 Image rules:
 
 - **Backend-agnostic, host-builder model.** The spec carries only resolved `url`/`thumb`/`variants`
-  (and ids). The image backend (local media, S3, Cloudflare Images, Horoshop CDN, thumbor, …) is a
-  **host concern**: a host-side builder converts a domain object (e.g. a PIM product) into
+  (and ids). The image backend (local media, S3, Cloudflare Images, a vendor CDN, thumbor, …) is a
+  **host concern**: a host-side builder converts a domain object (e.g. a catalog product) into
   `GridViewImageSource` at `page_data` time. The package never imports a storage backend and the
   contract holds no provider/registry id for images.
 - **No callables/ORM/Storage in the spec** — only JSON-serializable URLs, ids, and `meta`.
@@ -952,10 +996,7 @@ class GridViewCardGroup:
 
 Use Pattern C when groups are structured label/count/tone strips with a fixed schema. Use Pattern B
 when groups contain arbitrary item HTML, counts, or tones that are not worth a generic card
-contract in v1.
-
-Bridge: `legacy_card_grid_to_cards(spec, rows)`, `legacy_card_groups_to_blocks(tabs, groups, rows)`
-in `compat/`.
+contract.
 
 ```python
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -1094,7 +1135,7 @@ Form rules:
 
 ## Template Block
 
-`GridViewTemplate` is first-class trusted custom content, not a deprecated fallback.
+`GridViewTemplate` is first-class trusted custom content.
 It supports host template files and trusted raw HTML.
 
 Purpose: it carries **page/host-specific logic and markup** that is deliberately not worth a
@@ -1218,7 +1259,7 @@ Shared enum **`GridViewSemanticTone`**: `default | info | success | warning | da
 |---------|--------|
 | `GridViewContent` | `role=callout\|banner`, `tone`, `title`, `dismissible` |
 | `GridViewTab` | `badge_tone` |
-| `GridViewActionBase` | `variant` (`default\|primary\|ghost\|segment`), `tone`, `icon` |
+| `GridViewActionBase` | `variant` (`default\|primary\|ghost\|segment\|soft\|shadow`), `tone`, `icon` |
 | `GridViewColumn` (`period_pills`) | `extra.tone` |
 | `GridViewTabs` | `extra.nav_variant=paired`, `extra.wrap_align` |
 
@@ -1406,7 +1447,7 @@ explicit:
 | Row/haystack filter, smart-match, KPI/chart bind | `search/`, `render/` core | **agnostic** — operates on `rows: Sequence[RowDict]` |
 | ORM queryset search/filter (`django.db.models.Q`, `HttpRequest`) | `search/server.py`, `ag_grid/server.py` | **Django** — moves under `backends/django/` (optional `[django]`) |
 
-Non-Django hosts (ContextForge View, FastAPI) run their own server-side filtering and pass resolved
+Non-Django hosts (Starlette, FastAPI) run their own server-side filtering and pass resolved
 `rows` to the renderer. `GridViewHost.filter_state_from_request` only **reads selection state**; it
 does not execute ORM queries. This keeps core import-free of `django.db`.
 
@@ -1479,7 +1520,7 @@ html = render_grid_view_spec(spec, rows, host=host)  # backend="html" default
 ```
 
 ```django
-{# Django — compatibility-primary until hosts migrate; implementation delegates to core #}
+{% load grid_view_spec %}
 {% render_grid_view_spec spec %}
 ```
 
@@ -1501,7 +1542,7 @@ wire = render_grid_view_spec(spec, rows, host=host, backend="json")
 | Adapter | Use case |
 |---|---|
 | `DjangoOrmPrefs` | Django hosts with ORM prefs storage |
-| `SqlitePrefs` | local dev, single-file Forge |
+| `SqlitePrefs` | local dev, single-file deployments |
 | `MemoryPrefs` | tests |
 | `RedisPrefs` | optional production cache (host-owned) |
 
@@ -1721,7 +1762,11 @@ Registry rules:
 ## Typing Boundaries (Python / TS / CSS)
 
 Normative ownership boundaries. Enforced by conformance tests; `grid-view-spec.v2.json` is the
-**single source of truth** and the TS contract is generated from it.
+**single source of truth** for the wire contract. TS types for the wire shapes are **generated**
+from that schema into `frontend/src/types/generated/` (re-exported from `frontend/src/types/spec.ts`);
+at runtime the frontend still narrows untrusted wire JSON through hand-written type guards
+(`isSetFilterModel`, `isRecord`, `ChartRuntimeDict`, …) operating on `unknown` /
+`Record<string, unknown>` under `noImplicitAny` strict mode.
 
 `JsonValue` is the package's serializable-leaf alias used across the contract:
 
@@ -1740,12 +1785,22 @@ JsonValue = str | int | float | bool | None | Mapping[str, "JsonValue"] | tuple[
   with `strict_unknown_config`;
 - the host owns ORM/querysets, `page_data`, export builders, and registry registration.
 
-**TypeScript (mirror, generated):**
+**TypeScript (runtime mirror):**
 
-- TS types are **generated from `schema/grid-view-spec.v2.json`** (single source of truth) — no
-  hand-divergent parallel tree;
+- wire/authoring shapes are **generated from the schema** into `frontend/src/types/generated/`
+  via `npm run gen:types` (`scripts/gen-types.mjs`, using `json-schema-to-typescript`) and surfaced
+  through the `frontend/src/types/spec.ts` barrel (`GridViewSpec`, `GridViewTable`, `GridViewFilterOption`, …);
+- the generated tree is the typed contract; at runtime the frontend still narrows **untrusted** wire
+  JSON through hand-written guards (`isSetFilterModel`, `isRecord`, `isChartRuntimeDict`, …) that
+  narrow `unknown` / `Record<string, unknown>` to the shapes the renderer needs;
+- drift is prevented by `npm run gen:types:check` (in `scripts/ci-gate.sh`) and
+  `tests/test_ts_schema_parity.py`; the generated dir is exempt from eslint but type-checked by `tsc`;
+- `frontend/tsconfig.json` runs `noImplicitAny: true` (strict) across all `src`; the strict gate
+  (`tsconfig.strict.json`) additionally enforces `noImplicitThis`;
 - runtime registries (renderers/editors/validators/commit) are keyed by the same string ids the
   contract uses;
+- filter/search semantics parity with Python is guarded by conformance fixtures
+  (`tests/fixtures/*.json` + `npm run test:conformance` / `test:chart-conformance`);
 - one boot path: `GridView.boot(root)` / `GridView.bootScope(root)`; no free-form host JS in the spec.
   `bootScope(root)` calls `initAllSimpleTables(root)` then `initTableEdit(root)` — both must run together.
   Calling `initAllSimpleTables` standalone skips the inline-edit layer (`GridViewTableEdit`); `.cm-table-edit-toggle` will not appear in DOM.
@@ -1760,14 +1815,19 @@ JsonValue = str | int | float | bool | None | Mapping[str, "JsonValue"] | tuple[
 
 **Enforcement (conformance tests):**
 
-- `test_spec_json_serializable`: every contract dataclass round-trips through JSON with no loss;
-- `test_no_callables_or_orm`: reject callables / non-`JsonValue` leaves in any spec field;
-- `test_ts_schema_parity`: generated TS matches `grid-view-spec.v2.json` (drift fails CI);
-- `test_css_token_allowlist`: `GridViewStyle` tokens stay within the allowlist;
-- `test_registry_ids_resolve`: unknown renderer ids are errors; unknown validator ids defer to server.
+- `test_spec_json_serializable_for_all_block_types`: every contract dataclass round-trips through JSON with no loss;
+- `test_no_callables_or_orm_in_spec`: `validate_spec` rejects callables / non-`JsonValue` leaves in any spec field (`NON_SERIALIZABLE_VALUE`);
+- `test_each_example_spec_validates_clean`: every MCP example case passes `validate_spec` with no error diagnostics;
+- `test_gridviewspec_schema_drift`: encoded wire conforms to `grid-view-spec.v2.json` (incl. `card_groups`, `pagination`, `section`, forms);
+- `test_ts_schema_parity`: the committed TS types in `frontend/src/types/generated/` match what the schema regenerates (no drift);
+- `test_css_token_allowlist_matches_grid_view_style_literals`: `GridViewStyle` tokens stay within the allowlist;
+- `test_unknown_renderer_when_registry_set`: unknown renderer ids are errors; unknown validator ids defer to server.
 
-> Note: TS types mirror `schema/grid-view-spec.v2.json`; a drift test against the schema guards the
-> two from diverging.
+> Note: the wire schema (`grid-view-spec.v2.json`) is the single source of truth for cross-language
+> payloads. The TS frontend **generates** its wire/authoring types from it (`npm run gen:types` →
+> `frontend/src/types/generated/`, re-exported from `src/types/spec.ts`), kept honest by a drift gate
+> (`npm run gen:types:check` + `tests/test_ts_schema_parity.py`). Runtime guards still narrow
+> untrusted JSON under strict `noImplicitAny`.
 
 ## Package Module Map
 
@@ -1784,4 +1844,5 @@ Top-level modules under `src/grid_view_spec/`:
 | `hosts/` | `GridViewHostConfig` defaults and `MemoryPrefs`/`InMemoryHost` for tests. |
 | `mcp/` | Read-mostly MCP server: `catalog`, `schema`, `validate`, `normalize`, `examples`, `a2ui`, `envelope`, `server`. |
 | `schema/` | `grid-view-spec.v2.json` — the single source of truth for the wire contract. |
+| `frontend/src/types/generated/` | TS types generated from the schema (`npm run gen:types`); re-exported via `frontend/src/types/spec.ts`. Do not hand-edit. |
 | `wire_decode.py` | Decode a JSON wire object back into the dataclass spec. |
