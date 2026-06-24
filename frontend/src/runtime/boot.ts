@@ -121,9 +121,12 @@ function bootChartsWhenReady(scope: Document | Element, gv: GridViewPublic): voi
 
   let attempts = 0;
   const tryInit = (): void => {
-    const g = window as Window & { echarts?: unknown };
+    const g = window as Window & { echarts?: unknown; GridView?: Record<string, unknown> };
+    // Both echarts CDN and the real charts bundle must be loaded (_chartsApiReady sentinel).
+    // ChartsBridge stub is always present but no-ops until installChartsApi() fires.
     const chartsReady =
-      typeof g.echarts !== "undefined" || !scope.querySelector("[data-cm-chart-config]");
+      (typeof g.echarts !== "undefined" && !!g.GridView?._chartsApiReady) ||
+      !scope.querySelector("[data-cm-chart-config]");
     if (gv && chartsReady) {
       gv.initAllCharts(scope);
       return;
@@ -194,20 +197,32 @@ export function bootScope(scope: BootScope, gv?: GridViewPublic): void {
   if (!("querySelector" in root)) return;
   if (!hasWidgetMarkers(root)) return;
 
-  initLazyBlocks(root, gridView);
-  initAllSimpleTables(root);
-  initTableEdit(root);
-  initFilterBars(root);
-  initButtonEllipsisTips(root);
-  initTabGroups(root);
-  initContentActions(root);
-  initGalleryBlocks(root);
-  initImageRenderers(root);
-  gridView.initAllKpi(root);
-  bootChartsWhenReady(root, gridView);
-  bootArtifactRoots(root, gridView);
-  bootSpecRoots(root, gridView);
-  bootAgGridInScope(root, gridView);
+  // Each initializer is isolated: a throw in one widget (e.g. a malformed column
+  // meta payload) must not abort the rest of boot, or a single bad block would
+  // silently kill search, column settings, charts, etc. for the whole scope.
+  // Failures are logged so the offending step is visible in the console.
+  const safe = (name: string, fn: () => void): void => {
+    try {
+      fn();
+    } catch (err) {
+      console.error("[GridView] boot step failed: " + name, err);
+    }
+  };
+
+  safe("initLazyBlocks", () => initLazyBlocks(root, gridView));
+  safe("initAllSimpleTables", () => initAllSimpleTables(root));
+  safe("initTableEdit", () => initTableEdit(root));
+  safe("initFilterBars", () => initFilterBars(root));
+  safe("initButtonEllipsisTips", () => initButtonEllipsisTips(root));
+  safe("initTabGroups", () => initTabGroups(root));
+  safe("initContentActions", () => initContentActions(root));
+  safe("initGalleryBlocks", () => initGalleryBlocks(root));
+  safe("initImageRenderers", () => initImageRenderers(root));
+  safe("initAllKpi", () => gridView.initAllKpi(root));
+  safe("bootChartsWhenReady", () => bootChartsWhenReady(root, gridView));
+  safe("bootArtifactRoots", () => bootArtifactRoots(root, gridView));
+  safe("bootSpecRoots", () => bootSpecRoots(root, gridView));
+  safe("bootAgGridInScope", () => bootAgGridInScope(root, gridView));
 }
 
 /** Boot a single root element or re-scan a document fragment. */
@@ -262,7 +277,14 @@ export function installRuntimeBoot(gv: GridViewPublic): void {
 
     bootScope(target, gv);
   });
-}
 
-// Re-export legacy name used inside grid-view modules during migration.
-export { bootScope as bootGridViewScope };
+  // Out-of-band swaps (e.g. a toolbar's faceted filter bar) fire their own event
+  // and are NOT covered by htmx:afterSwap. Boot the swapped element's parent so a
+  // re-rendered .cm-filter-bar (which is found via querySelectorAll on the scope)
+  // gets rebound. Binding guards make a re-scan of already-bound siblings a no-op.
+  document.body.addEventListener("htmx:oobAfterSwap", (event) => {
+    const oobTarget = (event.target as Element | null) ?? null;
+    const scope = oobTarget?.parentElement ?? oobTarget;
+    if (scope) bootScope(scope, gv);
+  });
+}

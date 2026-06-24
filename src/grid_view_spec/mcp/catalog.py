@@ -17,6 +17,7 @@ BLOCKS: tuple[str, ...] = (
     "GridViewCharts",
     "GridViewKpi",
     "GridViewCards",
+    "GridViewCardGroups",
     "GridViewGallery",
     "GridViewImage",
     "GridViewTabs",
@@ -44,12 +45,12 @@ RENDERERS: tuple[str, ...] = (
     "money",
     "progress",
     "date",
-    "boolean",
     "image",
     "thumbnail",
-    "period_pills",
     "button",
     "chip",
+    "period_pills",
+    "select",
 )
 
 VALIDATORS: tuple[str, ...] = (
@@ -64,9 +65,20 @@ VALIDATORS: tuple[str, ...] = (
     "max_length",
     "pattern",
     "domain",
+    "custom",
 )
 
-EDITOR_TYPES: tuple[str, ...] = ("text", "number", "select", "date", "boolean")
+EDITOR_TYPES: tuple[str, ...] = (
+    "text",
+    "textarea",
+    "number",
+    "select",
+    "multiselect",
+    "date",
+    "date_range",
+    "boolean",
+    "file",
+)
 
 HOST_BACKENDS: tuple[dict[str, str], ...] = (
     {
@@ -212,6 +224,16 @@ HTTP_ROUTES: dict[str, object] = {
                 "view": "load_lazy_block",
                 "auth": "host must add if needed",
             },
+            {
+                "path": "grid/filter-dictionary/",
+                "name": "api_column_filter_dictionary",
+                "view": "column_filter_dictionary",
+                "auth": "host must add if needed",
+                "purpose": (
+                    "faceted distinct values + counts for one column/facet "
+                    "(AG-Grid set filter); exclude-own semantics"
+                ),
+            },
         ],
         "not_included_by_default": [],
         "mount_patterns": [
@@ -247,6 +269,32 @@ HTTP_ROUTES: dict[str, object] = {
         ),
         "GRID_VIEW_SPEC_LAZY_URL": "URL name for load_lazy_block (default lazy)",
     },
+    "facets": {
+        "enable": (
+            "GridViewFilters(facets=True) — host recomputes each filter's options + "
+            "counts against the currently filtered table"
+        ),
+        "exclude_own": (
+            "a facet's options/counts reflect rows left after all OTHER active filters + "
+            "search (you can still broaden a multiselect facet)"
+        ),
+        "row_core": (
+            "grid_view_spec.search.facets.compute_row_facets (in-memory rows; Starlette/Forge)"
+        ),
+        "orm_adapter": (
+            "grid_view_spec.backends.django.facets.compute_queryset_facets (Django ORM)"
+        ),
+        "registry": (
+            "register_facet_source(grid_id, FacetSource(schema, apply_filters, "
+            "column_field, is_orm)) resolves a grid's faceting inputs at request time; "
+            "consumed by the api_column_filter_dictionary view"
+        ),
+        "option_fields": (
+            "GridViewFilterOption.count (int|null) + .disabled (bool) carry facet counts; "
+            "wire-decoded round-trip"
+        ),
+        "docs": "docs/filtering/facets.md",
+    },
 }
 
 RULES: tuple[str, ...] = (
@@ -261,6 +309,12 @@ RULES: tuple[str, ...] = (
     "in-card chrome = a table-card area holding [toolbar(target=table_id), table]",
     "at most one toolbar search per table (XOR)",
     "GridViewFilters.target is explicit (null = page-wide; block id = scoped)",
+    (
+        "faceting: GridViewFilters.facets=True makes the host recompute each filter's "
+        "options + counts on the currently filtered table (exclude-own); register a "
+        "FacetSource per grid for the api_column_filter_dictionary endpoint — "
+        "see docs/filtering/facets.md"
+    ),
     "custom cells use GridViewColumn.renderer (registry id), never inline JS",
     (
         "images use GridViewGallery / GridViewImage / renderer=image; "
@@ -280,8 +334,8 @@ RULES: tuple[str, ...] = (
         "GridViewButtonAction(action=show_content, target=block_id); no toast stack"
     ),
     (
-        "legacy shims: extra.nav_class, extra.badge_tones, "
-        "column.extra.pill_class map to semantic tokens"
+        "semantic extras: extra.nav_class, extra.badge_tones, "
+        "column.extra.pill_class map to GridViewSemanticTone tokens"
     ),
     "GridViewHost is runtime-only — never serialize host methods into spec JSON",
     (

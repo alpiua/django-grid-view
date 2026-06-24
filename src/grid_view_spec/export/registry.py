@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 
 from grid_view_spec.export.context import ExportContextLike
 from grid_view_spec.export.payload import GridViewExportPayload
@@ -28,6 +28,9 @@ class GridViewExportJob:
     chart_images: tuple[str, ...] = ()
     extra_meta_lines: tuple[str, ...] = ()
     prebuilt_xlsx: XlsxReport | None = None
+    # Extra template context made available to custom PDF templates (e.g. KPI
+    # tiles rendered above the table). Ignored by the default report template.
+    extra: Mapping[str, object] = field(default_factory=lambda: {})
 
 
 @dataclass(frozen=True, slots=True)

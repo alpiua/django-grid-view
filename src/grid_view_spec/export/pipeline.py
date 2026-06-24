@@ -44,13 +44,18 @@ def build_export_job_payload(
         host=host,
         chart_images=job.chart_images,
     )
-    if not job.extra_meta_lines:
+    changes: dict[str, object] = {}
+    if job.extra_meta_lines:
+        merged = list(payload.meta_lines)
+        for line in job.extra_meta_lines:
+            if line not in merged:
+                merged.append(line)
+        changes["meta_lines"] = tuple(merged)
+    if job.extra:
+        changes["extra"] = dict(job.extra)
+    if not changes:
         return payload
-    merged = list(payload.meta_lines)
-    for line in job.extra_meta_lines:
-        if line not in merged:
-            merged.append(line)
-    return replace(payload, meta_lines=tuple(merged))
+    return replace(payload, **changes)
 
 
 def render_pdf_html(

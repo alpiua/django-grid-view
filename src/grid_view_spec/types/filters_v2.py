@@ -9,11 +9,9 @@ from grid_view_spec.types.block_base import GridViewBlockBase
 from grid_view_spec.types.json import JsonObject, empty_json_map
 from grid_view_spec.types.wire import is_object_list, is_wire_mapping
 
-FilterMatch = Literal["exact", "contains", "starts_with", "ends_with"]
+FilterMatch = Literal["exact", "any_token"]
 
-FILTER_MATCH_VALUES: frozenset[FilterMatch] = frozenset(
-    {"exact", "contains", "starts_with", "ends_with"}
-)
+FILTER_MATCH_VALUES: frozenset[FilterMatch] = frozenset({"exact", "any_token"})
 
 
 class SetFilterModelMode(TypedDict):
@@ -106,6 +104,11 @@ class GridViewFilterOption:
     children: tuple[GridViewFilterOption, ...] = ()
     exclusive: bool = False
     meta: JsonObject = field(default_factory=empty_json_map)
+    # Faceting: number of rows matching this option in the *currently filtered*
+    # table (None when faceting is not computed). ``disabled`` dims/locks an
+    # option that has no matches in the current slice.
+    count: int | None = None
+    disabled: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,3 +151,10 @@ class GridViewFilters(GridViewBlockBase):
     target: str | None = None
     auto_apply: bool = True
     navigate_on_change: bool = True
+    fragment_endpoint: str = ""
+    fragment_target: str = ""
+    fragment_swap: str = "outerHTML"
+    # Faceting: when True, the host recomputes each filter's options + counts
+    # against the currently filtered table, and filter/search changes refresh the
+    # whole spec (bar + table) so counts stay in sync. See search/facets.py.
+    facets: bool = False

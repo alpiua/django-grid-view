@@ -1,31 +1,68 @@
 import { byId } from "./registry";
 import { getGlobal } from "./dom-utils";
 import { serializeColumnFilters } from "./search/column-filter-state";
+import { resolveToolbarSearchInput } from "./toolbar-search-input";
 import type { GridHandle } from "./types";
 
-export function resolveToolbarSearchInput(gridId: string): HTMLInputElement | null {
-  if (!gridId) return null;
-  const legacy = document.getElementById("ag-quick-filter-" + gridId);
-  if (legacy instanceof HTMLInputElement) return legacy;
-  const esc =
-    typeof CSS !== "undefined" && CSS.escape
-      ? CSS.escape(gridId)
-      : gridId.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-  const toolbarRoot = document.querySelector(
-    '[data-cm-toolbar-search-root][data-cm-table-grid-id="' + esc + '"]'
-  );
-  const toolbarSearch = toolbarRoot?.querySelector<HTMLInputElement>("[data-cm-toolbar-search]");
-  if (toolbarSearch) return toolbarSearch;
-  const wrapper = document.querySelector('[data-grid-id="' + esc + '"]');
-  const localSearch = wrapper?.querySelector<HTMLInputElement>("[data-cm-search]");
-  return localSearch ?? null;
+export { resolveToolbarSearchInput } from "./toolbar-search-input";
+
+interface AgGridDisplayedColumn {
+  getColId: () => string;
 }
 
-export function getQuickSearchText(gridIdOrHandle: string | GridHandle | null | undefined): string {
+interface AgGridSortState {
+  colId: string;
+  sort: string;
+}
+
+interface InfiniteBlockParams {
+  startRow: number;
+  endRow: number;
+  filterModel?: Record<string, unknown>;
+  sortModel?: unknown[];
+  failCallback: () => void;
+  successCallback: (rows: unknown[], lastRow: number) => void;
+}
+
+interface InfiniteQueryOptions {
+  absorbUrlSearch?: boolean;
+  includeVisibleCols?: boolean;
+  urlSearchParam?: string;
+  getExtraParams?: () => Record<string, unknown>;
+}
+
+interface ExportLinkOptions {
+  getExtraParams?: () => Record<string, unknown>;
+  exportColumns?: boolean;
+  includeVisibleCols?: boolean;
+}
+
+function isExtraParamsProvider(
+  fn: unknown,
+): fn is () => Record<string, unknown> {
+  return typeof fn === "function";
+}
+
+function isAgGridSortState(col: unknown): col is AgGridSortState {
+  return (
+    typeof col === "object" && col !== null && Boolean(Reflect.get(col, "sort"))
+  );
+}
+
+function isColumnStateGetter(fn: unknown): fn is () => unknown[] {
+  return typeof fn === "function";
+}
+
+export function getQuickSearchText(
+  gridIdOrHandle: string | GridHandle | null | undefined,
+): string {
   const handle =
-    typeof gridIdOrHandle === "string" ? byId.get(gridIdOrHandle) : gridIdOrHandle ?? null;
+    typeof gridIdOrHandle === "string"
+      ? byId.get(gridIdOrHandle)
+      : (gridIdOrHandle ?? null);
   const id =
-    handle?.gridId ?? (typeof gridIdOrHandle === "string" ? gridIdOrHandle : "");
+    handle?.gridId ??
+    (typeof gridIdOrHandle === "string" ? gridIdOrHandle : "");
   const input = id ? resolveToolbarSearchInput(id) : null;
   if (input?.value) return input.value.trim();
   if (handle?._searchText) return handle._searchText;
@@ -34,7 +71,7 @@ export function getQuickSearchText(gridIdOrHandle: string | GridHandle | null | 
 
 export function absorbUrlSearchQuery(
   handle: GridHandle,
-  options: { urlSearchParam?: string } = {}
+  options: { urlSearchParam?: string } = {},
 ): string {
   const paramName = options.urlSearchParam ?? "q";
   const urlQ = new URLSearchParams(window.location.search).get(paramName);
@@ -48,15 +85,20 @@ export function absorbUrlSearchQuery(
   return urlQ;
 }
 
-export function buildInfiniteQueryParams(blockParams, gridIdOrHandle, options) {
+export function buildInfiniteQueryParams(
+  blockParams: InfiniteBlockParams | null | undefined,
+  gridIdOrHandle: string | GridHandle | null | undefined,
+  options: InfiniteQueryOptions,
+): URLSearchParams {
   options = options || {};
   var handle =
     typeof gridIdOrHandle === "string"
       ? byId.get(gridIdOrHandle)
       : gridIdOrHandle;
-  var extra = (options.getExtraParams && options.getExtraParams()) || {};
+  var extra: Record<string, unknown> =
+    (options.getExtraParams && options.getExtraParams()) || {};
   var qf = getQuickSearchText(handle);
-  if (options.absorbUrlSearch !== false) {
+  if (options.absorbUrlSearch !== false && handle) {
     var absorbed = absorbUrlSearchQuery(handle, options);
     if (absorbed) qf = absorbed;
   }
@@ -82,10 +124,17 @@ export function buildInfiniteQueryParams(blockParams, gridIdOrHandle, options) {
     }
   }
   if (qf) params.set("q", qf);
-  if (handle && handle.gridApi && options.includeVisibleCols !== false) {
+  if (
+    handle &&
+    handle.gridApi &&
+    typeof handle.gridApi.getAllDisplayedColumns === "function" &&
+    options.includeVisibleCols !== false
+  ) {
     var visibleCols = handle.gridApi
       .getAllDisplayedColumns()
-      .map(function (col) { return col.getColId(); })
+      .map(function (col) {
+        return col.getColId();
+      })
       .join(",");
     if (visibleCols) params.set("cols", visibleCols);
   }
@@ -137,7 +186,10 @@ export function createInfiniteDatasource(options: {
   };
 }
 
-export function syncExportLinks(gridIdOrHandle, options) {
+export function syncExportLinks(
+  gridIdOrHandle: string | GridHandle | null | undefined,
+  options: ExportLinkOptions,
+): void {
   options = options || {};
   var gridId =
     typeof gridIdOrHandle === "string"
@@ -147,28 +199,32 @@ export function syncExportLinks(gridIdOrHandle, options) {
   var esc =
     typeof CSS !== "undefined" && CSS.escape
       ? CSS.escape(gridId)
-      : gridId.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+      : gridId.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   document
     .querySelectorAll('[data-cm-export-sync][data-cm-grid-id="' + esc + '"]')
     .forEach(function (linkEl) {
       var extraFn = linkEl.getAttribute("data-cm-export-extra-fn");
       var linkOpts = Object.assign({}, options);
-      if (
-        extraFn &&
-        typeof getGlobal()[extraFn] === "function" &&
-        !linkOpts.getExtraParams
-      ) {
-        linkOpts.getExtraParams = getGlobal()[extraFn];
+      if (extraFn) {
+        var provider = Reflect.get(getGlobal(), extraFn);
+        if (isExtraParamsProvider(provider) && !linkOpts.getExtraParams) {
+          linkOpts.getExtraParams = provider;
+        }
       }
       syncExportHref(linkEl, gridId, linkOpts);
     });
 }
 
-export function syncExportHref(linkEl, gridIdOrHandle, options) {
-  if (!linkEl || !linkEl.href) return;
+export function syncExportHref(
+  linkEl: Element | null | undefined,
+  gridIdOrHandle: string | GridHandle | null | undefined,
+  options: ExportLinkOptions,
+): void {
+  if (!(linkEl instanceof HTMLAnchorElement) || !linkEl.href) return;
   options = options || {};
   var target = new URL(linkEl.href, window.location.origin);
-  var extra = (options.getExtraParams && options.getExtraParams()) || {};
+  var extra: Record<string, unknown> =
+    (options.getExtraParams && options.getExtraParams()) || {};
   Object.keys(extra).forEach(function (key) {
     var val = extra[key];
     if (val != null && val !== "") target.searchParams.set(key, String(val));
@@ -184,38 +240,47 @@ export function syncExportHref(linkEl, gridIdOrHandle, options) {
   var gridId =
     (handle && handle.gridId) ||
     (typeof gridIdOrHandle === "string" ? gridIdOrHandle : "");
-  var colScope = linkEl;
+  var colScope: Element | Document = linkEl;
   if (gridId) {
     var escGrid =
       typeof CSS !== "undefined" && CSS.escape
         ? CSS.escape(gridId)
-        : gridId.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+        : gridId.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
     colScope =
       document.querySelector('[data-grid-id="' + escGrid + '"]') ||
-      linkEl.closest(".cm-page-table-layout, .cm-dashboard-page, .cm-simple-wrapper, .cm-table-shell") ||
+      linkEl.closest(
+        ".cm-page-table-layout, .cm-dashboard-page, .cm-simple-wrapper, .cm-table-shell",
+      ) ||
       document;
   }
   var colQ = serializeColumnFilters(colScope);
   if (colQ) target.searchParams.set("col_q", colQ);
   else target.searchParams.delete("col_q");
-  if (handle && handle.gridApi) {
+  if (
+    handle &&
+    handle.gridApi &&
+    typeof handle.gridApi.getFilterModel === "function" &&
+    typeof handle.gridApi.getColumnState === "function" &&
+    typeof handle.gridApi.getAllDisplayedColumns === "function"
+  ) {
     var filterModel = handle.gridApi.getFilterModel() || {};
     if (Object.keys(filterModel).length) {
       target.searchParams.set("filters", JSON.stringify(filterModel));
     } else {
       target.searchParams.delete("filters");
     }
-    var sortState = handle.gridApi.getColumnState().filter(function (col) {
-      return col.sort;
-    });
+    var getColumnState = handle.gridApi.getColumnState;
+    var sortState = isColumnStateGetter(getColumnState)
+      ? getColumnState().filter(isAgGridSortState)
+      : [];
     if (sortState.length) {
       target.searchParams.set(
         "sort",
         JSON.stringify(
           sortState.map(function (col) {
             return { colId: col.colId, sort: col.sort };
-          })
-        )
+          }),
+        ),
       );
     } else {
       target.searchParams.delete("sort");
@@ -223,7 +288,9 @@ export function syncExportHref(linkEl, gridIdOrHandle, options) {
     if (options.exportColumns !== false) {
       var visibleCols = handle.gridApi
         .getAllDisplayedColumns()
-        .map(function (col) { return col.getColId(); })
+        .map(function (col) {
+          return col.getColId();
+        })
         .join(",");
       if (visibleCols) target.searchParams.set("export_cols", visibleCols);
       else target.searchParams.delete("export_cols");
@@ -233,14 +300,20 @@ export function syncExportHref(linkEl, gridIdOrHandle, options) {
     if (options.includeVisibleCols) {
       var gridCols = handle.gridApi
         .getAllDisplayedColumns()
-        .map(function (col) { return col.getColId(); })
+        .map(function (col) {
+          return col.getColId();
+        })
         .join(",");
       if (gridCols) target.searchParams.set("cols", gridCols);
       else target.searchParams.delete("cols");
     } else {
       target.searchParams.delete("cols");
     }
-  } else if (handle && handle.adapter && typeof handle.adapter.getDisplayedColumnIds === "function") {
+  } else if (
+    handle &&
+    handle.adapter &&
+    typeof handle.adapter.getDisplayedColumnIds === "function"
+  ) {
     var domCols = handle.adapter.getDisplayedColumnIds().join(",");
     if (domCols) target.searchParams.set("export_cols", domCols);
     else target.searchParams.delete("export_cols");
@@ -254,6 +327,5 @@ export const AgGrid = {
   buildInfiniteQueryParams: buildInfiniteQueryParams,
   createInfiniteDatasource: createInfiniteDatasource,
   syncExportHref: syncExportHref,
-  syncExportLinks: syncExportLinks
+  syncExportLinks: syncExportLinks,
 };
-

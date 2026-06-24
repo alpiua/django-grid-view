@@ -1,0 +1,7 @@
+{% if chart_images %}
+<div class="charts">
+  {% for img in chart_images %}
+  <img class="chart" src="data:image/png;base64,{{ img }}" alt="chart">
+  {% endfor %}
+</div>
+{% endif %}

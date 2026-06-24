@@ -1,30 +1,39 @@
 {% if block.presentation == 'entity' %}
-<div class="cm-dashboard-page__header cm-doctor-page__header flex items-center justify-between gap-4 min-h-[48px]">
-  <div class="flex-1">
+<div class="cm-dashboard-page__header cm-doctor-page__header min-h-[48px]" style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:1rem">
+  <div class="min-w-0 overflow-hidden">
     {% if block.nav %}
       {% set nav_resolved = ctx.blocks.get(block.nav) %}
       {% if nav_resolved and nav_resolved.block.items %}
-        {% set back = nav_resolved.block.items[0] %}
-        <a href="{{ back.href | e }}" class="text-[--cm-muted] hover:text-[--cm-text] text-sm py-1.5 inline-flex items-center gap-2 no-underline transition-colors mt-1">
-          {{ back.label | e }}
-        </a>
+        {% set nav_items = nav_resolved.block.items %}
+        {% if nav_items | length == 1 %}
+          <a href="{{ nav_items[0].href | e }}" class="text-[--cm-muted] hover:text-[--cm-text] text-sm py-1.5 inline-flex items-center gap-2 no-underline transition-colors mt-1 truncate max-w-full">
+            {{ nav_items[0].label | e }}
+          </a>
+        {% else %}
+          <nav class="flex items-center gap-1 text-sm text-[--cm-muted] flex-nowrap overflow-hidden mt-1">
+            {% for item in nav_items %}
+              <a href="{{ item.href | e }}" class="hover:text-[--cm-text] no-underline transition-colors whitespace-nowrap">{{ item.label | e }}</a>
+              {% if not loop.last %}<span aria-hidden="true" class="flex-shrink-0">/</span>{% endif %}
+            {% endfor %}
+          </nav>
+        {% endif %}
       {% endif %}
     {% endif %}
   </div>
-  <div class="cm-doctor-page__identity flex flex-col items-center justify-center gap-0 text-center">
+  <div class="cm-doctor-page__identity flex flex-col items-center justify-center gap-0 text-center min-w-0">
     {% if block.entity %}
-      <h1 class="cm-page-entity-name cm-doctor-page__name m-0 flex items-center gap-1.5 text-[--cm-text]">
+      <h1 class="cm-page-entity-name cm-doctor-page__name m-0 flex items-center gap-1.5 text-[--cm-text] whitespace-nowrap">
         {% if block.icon %}{{ block.icon | e }} {% endif %}{{ block.entity.title | e }}
       </h1>
       {% if block.entity.subtitle %}
-      <span class="cm-doctor-page__position font-medium text-[--cm-muted]">{{ block.entity.subtitle | e }}</span>
+      <span class="cm-doctor-page__position font-medium text-[--cm-muted] whitespace-nowrap">{{ block.entity.subtitle | e }}</span>
       {% endif %}
     {% elif block.title %}
-      <h1 class="cm-page-entity-name cm-doctor-page__name m-0 text-[--cm-text]">{{ block.title | e }}</h1>
-      {% if block.subtitle %}<span class="cm-doctor-page__position font-medium text-[--cm-muted]">{{ block.subtitle | e }}</span>{% endif %}
+      <h1 class="cm-page-entity-name cm-doctor-page__name m-0 text-[--cm-text] whitespace-nowrap">{{ block.title | e }}</h1>
+      {% if block.subtitle %}<span class="cm-doctor-page__position font-medium text-[--cm-muted] whitespace-nowrap">{{ block.subtitle | e }}</span>{% endif %}
     {% endif %}
   </div>
-  <div class="cm-doctor-page__departments flex min-w-[30%] flex-1 flex-col items-end justify-center text-sm leading-tight text-[--cm-muted]">
+  <div class="cm-doctor-page__departments flex flex-col items-end justify-center text-sm leading-tight text-[--cm-muted] min-w-0">
     {% if block.content %}
       {% set aside_resolved = ctx.blocks.get(block.content) %}
       {% if aside_resolved and aside_resolved.block.type == 'template' and aside_resolved.block.template %}

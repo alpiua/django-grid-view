@@ -3,12 +3,42 @@ import { invokeGridAction } from "./registry";
 import { invokeAction } from "./registry-api";
 import { asHtmlInput, asHTMLElement, eventTargetElement } from "./dom-guards";
 import { ToolbarSearch, syncToolbarSearchChrome } from "./filter-bar";
+import { clearSimpleTableFiltersForGrid } from "./simple-table";
+
+function cssAttr(value: string): string {
+  return typeof CSS !== "undefined" && CSS.escape
+    ? CSS.escape(value)
+    : value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+function syncClearAllButtons(): void {
+  const url = new URL(window.location.href);
+  const urlActive = url.searchParams.has("q") || url.searchParams.has("filters") || url.searchParams.has("col_q");
+  document.querySelectorAll<HTMLElement>('[data-cm-grid-action="clearAllFilters"]').forEach((btn) => {
+    const gridId = btn.getAttribute("data-cm-grid-id") || "";
+    const handle = window.GridView?.byId?.get(gridId);
+    // Prefer the backend's own active-filter contract when available; older
+    // adapters that predate hasActiveFilters() fall back to inline detection.
+    if (handle && typeof handle.hasActiveFilters === "function") {
+      btn.classList.toggle("is-hidden", !handle.hasActiveFilters());
+      return;
+    }
+    const toolbar = btn.closest(".cm-toolbar-unified");
+    const searchInput = toolbar?.querySelector<HTMLInputElement>("[data-cm-toolbar-search]");
+    const searchActive = !!searchInput?.value.trim();
+    const table = gridId ? document.querySelector<HTMLElement>('[data-grid-id="' + cssAttr(gridId) + '"]') : null;
+    const simpleActive = !!table?.querySelector(".cm-col-filter-btn.is-active");
+    const model = handle?.gridApi?.getFilterModel?.() ?? {};
+    const agActive = Object.keys(model).length > 0;
+    btn.classList.toggle("is-hidden", !(urlActive || searchActive || simpleActive || agActive));
+  });
+}
 
 export function handleToolbarSavedSearchClick(e: Event): void {
   const target = eventTargetElement(e.target);
   if (!target) return;
   const gridBtn = target.closest(
-    '[data-cm-grid-action="saveSearch"], [data-cm-grid-action="toggleSavedSearches"], [data-cm-grid-action="clearSearch"], [data-cm-toolbar-search-clear][data-cm-grid-action="clearSearch"]'
+    '[data-cm-grid-action="saveSearch"], [data-cm-grid-action="toggleSavedSearches"], [data-cm-grid-action="clearSearch"], [data-cm-grid-action="clearAllFilters"], [data-cm-grid-action="reloadData"], [data-cm-toolbar-search-clear][data-cm-grid-action="clearSearch"]'
   );
   if (!gridBtn) return;
   e.preventDefault();
@@ -22,6 +52,17 @@ export function handleToolbarSavedSearchClick(e: Event): void {
   const action = gridBtn.getAttribute("data-cm-grid-action");
   if (action === "saveSearch") ToolbarSearch.save(scopeId);
   else if (action === "toggleSavedSearches") ToolbarSearch.toggle(scopeId);
+  else if (action === "clearAllFilters") {
+    const clearGridId = gridBtn.getAttribute("data-cm-grid-id") || scopeId;
+    // AG-Grid host (registered in byId) handles its own clear; simple tables are
+    // not in byId (the column-settings host shadows them) so clear via the DOM.
+    invokeGridAction(clearGridId, "clearAllFilters");
+    clearSimpleTableFiltersForGrid(clearGridId);
+    window.setTimeout(syncClearAllButtons, 0);
+  }
+  else if (action === "reloadData") {
+    invokeGridAction(gridBtn.getAttribute("data-cm-grid-id") || scopeId, "reloadData");
+  }
   else if (action === "clearSearch") {
     const clearInput = asHtmlInput(
       gridBtn.closest("[data-cm-toolbar-search-root]")?.querySelector("[data-cm-toolbar-search]")
@@ -30,7 +71,11 @@ export function handleToolbarSavedSearchClick(e: Event): void {
       clearInput.value = "";
       syncToolbarSearchChrome(clearInput);
     }
-    invokeGridAction(scopeId, "clearSearch");
+    // The grid host is registered under the bound table id, not the toolbar scope id.
+    const root = asHTMLElement(gridBtn.closest("[data-cm-toolbar-search-root]"));
+    const tableId = root?.dataset.cmTableGridId || root?.dataset.cmPrefGridId || scopeId;
+    invokeGridAction(tableId, "clearSearch");
+    window.setTimeout(syncClearAllButtons, 0);
   }
 }
 
@@ -38,6 +83,10 @@ export function bindDelegatedGridActions(): void {
   if (getGlobal()._cmGridActionsBound) return;
   getGlobal()._cmGridActionsBound = true;
   document.addEventListener("click", handleToolbarSavedSearchClick, true);
+  document.addEventListener("input", () => window.setTimeout(syncClearAllButtons, 0), true);
+  document.addEventListener("cm-filter-change", () => window.setTimeout(syncClearAllButtons, 0));
+  document.addEventListener("cm-grid-state-change", () => window.setTimeout(syncClearAllButtons, 0));
+  window.setTimeout(syncClearAllButtons, 0);
   document.addEventListener("click", (e) => {
     const target = eventTargetElement(e.target);
     if (!target) return;

@@ -11,6 +11,7 @@ is guarded by ``tests/test_gridviewspec_roundtrip.py``.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import TypedDict
 
 from grid_view_spec.types.actions import (
     GRIDVIEW_ACTIONS_PRESENTATIONS,
@@ -82,6 +83,7 @@ from grid_view_spec.types.header import (
     GridViewFact,
     GridViewHeader,
 )
+from grid_view_spec.types.json import JsonObject
 from grid_view_spec.types.layout import (
     GRIDVIEW_AREA_TYPES,
     GRIDVIEW_STYLE_OVERFLOWS,
@@ -365,6 +367,8 @@ def decode_filter_option(raw: Mapping[str, object]) -> GridViewFilterOption:
         children=tuple(decode_filter_option(item) for item in _objects(raw.get("children"))),
         exclusive=wire_bool(raw.get("exclusive")),
         meta=wire_json_object(raw.get("meta", {})),
+        count=wire_optional_int(raw.get("count")),
+        disabled=wire_bool(raw.get("disabled")),
     )
 
 
@@ -695,29 +699,42 @@ def _card_group_count(value: object) -> str | int:
     return 0
 
 
+class _CommonBlockKwargs(TypedDict):
+    """Keyword arguments shared by every :class:`GridViewBlock` variant."""
+
+    id: str
+    title: str
+    extra: JsonObject
+    style: GridViewStyle
+    trusted_style: GridViewTrustedStyle | None
+    lazy: GridViewLazyBlock | None
+
+
+def _common_block_kwargs(raw: Mapping[str, object]) -> _CommonBlockKwargs:
+    """Decode the fields :class:`GridViewBlockBase` defines for all block types."""
+    trusted_style_raw = raw.get("trusted_style")
+    lazy_raw = raw.get("lazy")
+    return _CommonBlockKwargs(
+        id=wire_str(raw.get("id")),
+        title=wire_str(raw.get("title")),
+        extra=wire_json_object(raw.get("extra", {})),
+        style=decode_style(wire_object(raw.get("style", {}), label="style")),
+        trusted_style=(
+            decode_trusted_style(trusted_style_raw) if is_wire_mapping(trusted_style_raw) else None
+        ),
+        lazy=decode_lazy_block(lazy_raw) if is_wire_mapping(lazy_raw) else None,
+    )
+
+
 def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
     """Decode any block variant, dispatching on the ``type`` field."""
-    block_id = wire_str(raw.get("id"))
-    title = wire_str(raw.get("title"))
-    extra = wire_json_object(raw.get("extra", {}))
-    style = decode_style(wire_object(raw.get("style", {}), label="style"))
-    trusted_style_raw = raw.get("trusted_style")
-    trusted_style = (
-        decode_trusted_style(trusted_style_raw) if is_wire_mapping(trusted_style_raw) else None
-    )
-    lazy_raw = raw.get("lazy")
-    lazy = decode_lazy_block(lazy_raw) if is_wire_mapping(lazy_raw) else None
+    common = _common_block_kwargs(raw)
     block_type = wire_str(raw.get("type"))
 
     if block_type == "header":
         entity_raw = raw.get("entity")
         return GridViewHeader(
-            id=block_id,
-            title=title,
-            extra=extra,
-            style=style,
-            trusted_style=trusted_style,
-            lazy=lazy,
+            **common,
             presentation=wire_literal(
                 raw.get("presentation"), GRIDVIEW_HEADER_PRESENTATIONS, "plain"
             ),
@@ -731,12 +748,7 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
     if block_type == "toolbar":
         search_raw = raw.get("search")
         return GridViewToolbar(
-            id=block_id,
-            title=title,
-            extra=extra,
-            style=style,
-            trusted_style=trusted_style,
-            lazy=lazy,
+            **common,
             presentation=wire_literal(
                 raw.get("presentation"), GRIDVIEW_TOOLBAR_PRESENTATIONS, "default"
             ),
@@ -748,12 +760,7 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
         )
     if block_type == "filters":
         return GridViewFilters(
-            id=block_id,
-            title=title,
-            extra=extra,
-            style=style,
-            trusted_style=trusted_style,
-            lazy=lazy,
+            **common,
             presentation=wire_literal(
                 raw.get("presentation"), GRIDVIEW_FILTERS_PRESENTATIONS, "toolbar"
             ),
@@ -762,15 +769,14 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
             target=wire_optional_str(raw.get("target")),
             auto_apply=wire_bool(raw.get("auto_apply", True)),
             navigate_on_change=wire_bool(raw.get("navigate_on_change", True)),
+            fragment_endpoint=wire_str(raw.get("fragment_endpoint")),
+            fragment_target=wire_str(raw.get("fragment_target")),
+            fragment_swap=wire_str(raw.get("fragment_swap")) or "outerHTML",
+            facets=wire_bool(raw.get("facets")),
         )
     if block_type == "actions":
         return GridViewActions(
-            id=block_id,
-            title=title,
-            extra=extra,
-            style=style,
-            trusted_style=trusted_style,
-            lazy=lazy,
+            **common,
             presentation=wire_literal(
                 raw.get("presentation"), GRIDVIEW_ACTIONS_PRESENTATIONS, "inline"
             ),
@@ -778,12 +784,7 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
         )
     if block_type == "table":
         return GridViewTable(
-            id=block_id,
-            title=title,
-            extra=extra,
-            style=style,
-            trusted_style=trusted_style,
-            lazy=lazy,
+            **common,
             backend=wire_literal(raw.get("backend"), GRIDVIEW_TABLE_BACKENDS, "simple"),
             columns=tuple(decode_column(item) for item in _objects(raw.get("columns"))),
             column_source=(
@@ -828,12 +829,7 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
         )
     if block_type == "charts":
         return GridViewCharts(
-            id=block_id,
-            title=title,
-            extra=extra,
-            style=style,
-            trusted_style=trusted_style,
-            lazy=lazy,
+            **common,
             charts=tuple(
                 GridViewChart(
                     id=wire_str(item.get("id")),
@@ -853,12 +849,7 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
         )
     if block_type == "kpi":
         return GridViewKpi(
-            id=block_id,
-            title=title,
-            extra=extra,
-            style=style,
-            trusted_style=trusted_style,
-            lazy=lazy,
+            **common,
             items=tuple(
                 KpiSpec(
                     label=wire_str(item.get("label")),
@@ -878,12 +869,7 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
         )
     if block_type == "cards":
         return GridViewCards(
-            id=block_id,
-            title=title,
-            extra=extra,
-            style=style,
-            trusted_style=trusted_style,
-            lazy=lazy,
+            **common,
             cards=tuple(
                 GridViewCard(
                     id=wire_str(item.get("id")),
@@ -903,12 +889,7 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
         )
     if block_type == "card_groups":
         return GridViewCardGroups(
-            id=block_id,
-            title=title,
-            extra=extra,
-            style=style,
-            trusted_style=trusted_style,
-            lazy=lazy,
+            **common,
             groups=tuple(
                 GridViewCardGroup(
                     id=wire_str(item.get("id")),
@@ -923,12 +904,7 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
         )
     if block_type == "tabs":
         return GridViewTabs(
-            id=block_id,
-            title=title,
-            extra=extra,
-            style=style,
-            trusted_style=trusted_style,
-            lazy=lazy,
+            **common,
             tabs=tuple(
                 GridViewTab(
                     id=wire_str(item.get("id")),
@@ -946,12 +922,7 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
         )
     if block_type == "nav":
         return GridViewNav(
-            id=block_id,
-            title=title,
-            extra=extra,
-            style=style,
-            trusted_style=trusted_style,
-            lazy=lazy,
+            **common,
             presentation=wire_literal(raw.get("presentation"), GRIDVIEW_NAV_PRESENTATIONS, "menu"),
             items=tuple(
                 GridViewNavItem(
@@ -967,12 +938,7 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
         )
     if block_type == "content":
         return GridViewContent(
-            id=block_id,
-            title=title,
-            extra=extra,
-            style=style,
-            trusted_style=trusted_style,
-            lazy=lazy,
+            **common,
             role=wire_literal(raw.get("role"), GRIDVIEW_CONTENT_ROLES, "text"),
             body=wire_str(raw.get("body")),
             tone=wire_semantic_tone(raw.get("tone")),
@@ -980,12 +946,7 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
         )
     if block_type == "form":
         return GridViewForm(
-            id=block_id,
-            title=title,
-            extra=extra,
-            style=style,
-            trusted_style=trusted_style,
-            lazy=lazy,
+            **common,
             presentation=wire_literal(
                 raw.get("presentation"), GRIDVIEW_FORM_PRESENTATIONS, "stack"
             ),
@@ -1000,12 +961,7 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
     if block_type == "overlay":
         nested = raw.get("spec")
         return GridViewOverlay(
-            id=block_id,
-            title=title,
-            extra=extra,
-            style=style,
-            trusted_style=trusted_style,
-            lazy=lazy,
+            **common,
             presentation=wire_literal(
                 raw.get("presentation"), GRIDVIEW_OVERLAY_PRESENTATIONS, "modal"
             ),
@@ -1019,12 +975,7 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
         )
     if block_type == "template":
         return GridViewTemplate(
-            id=block_id,
-            title=title,
-            extra=extra,
-            style=style,
-            trusted_style=trusted_style,
-            lazy=lazy,
+            **common,
             mode=wire_literal(raw.get("mode"), GRIDVIEW_TEMPLATE_MODES, "file"),
             template=wire_str(raw.get("template")),
             context=wire_json_object(raw.get("context", {})),
@@ -1033,12 +984,7 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
         )
     if block_type == "gallery":
         return GridViewGallery(
-            id=block_id,
-            title=title,
-            extra=extra,
-            style=style,
-            trusted_style=trusted_style,
-            lazy=lazy,
+            **common,
             images=tuple(decode_image_source(item) for item in _objects(raw.get("images"))),
             datasource=(
                 decode_datasource(wire_object(raw["datasource"], label="gallery datasource"))
@@ -1053,14 +999,9 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
             lightbox=wire_bool(raw.get("lightbox", True)),
         )
     if block_type == "image":
-        image_default: dict[str, object] = {"id": block_id}
+        image_default: dict[str, object] = {"id": common["id"]}
         return GridViewImage(
-            id=block_id,
-            title=title,
-            extra=extra,
-            style=style,
-            trusted_style=trusted_style,
-            lazy=lazy,
+            **common,
             image=decode_image_source(wire_object(raw.get("image", image_default), label="image")),
             fit=wire_literal(raw.get("fit"), GRIDVIEW_IMAGE_FITS, "cover"),
             aspect=wire_str(raw.get("aspect")),

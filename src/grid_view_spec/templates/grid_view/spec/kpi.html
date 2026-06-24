@@ -1,5 +1,14 @@
-<div class="cm-kpi cm-kpi-{{ block.presentation | e }}">
+{% set kpi_values = resolved.extra.get('kpi_values', ()) if resolved else () %}
+{% set tone_color = {'success': 'green', 'danger': 'red', 'warning': 'amber'} %}
+{% set col_count = block.items | length if block.items | length <= 6 else 6 %}
+<div class="cm-kpi-grid cm-kpi-cols-{{ col_count }}">
   {% for item in block.items %}
-  <div class="cm-kpi-item">{{ item.label | e }}</div>
+  <div class="cm-kpi-card cm-kpi-tone-{{ tone_color.get(item.tone, item.tone) | e }}">
+    <span class="cm-kpi-icon" aria-hidden="true">{{ item.icon or '📊' }}</span>
+    <div class="cm-kpi-body">
+      <span class="cm-kpi-label">{{ item.label | e }}</span>
+      <span class="cm-kpi-value">{{ kpi_values[loop.index0] if loop.index0 < kpi_values | length else '' }}</span>
+    </div>
+  </div>
   {% endfor %}
 </div>

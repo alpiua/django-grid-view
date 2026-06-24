@@ -164,6 +164,24 @@ msgstr "Search only columns whose header matches the label (until the next OR se
 msgid "search.tip_mean_wildcard"
 msgstr "% wildcard — contains, prefix, or suffix"
 
+msgid "search.tip_mean_prefix"
+msgstr "Starts with"
+
+msgid "search.tip_mean_suffix"
+msgstr "Ends with"
+
+msgid "search.tip_mean_not"
+msgstr "Does not contain"
+
+msgid "search.tip_ex_prefix"
+msgstr "^Kyiv"
+
+msgid "search.tip_ex_suffix"
+msgstr "ward$"
+
+msgid "search.tip_ex_not"
+msgstr "!draft"
+
 msgid "search.tip_mean_compare"
 msgstr "Numeric comparison on cell value"
 
@@ -215,6 +233,12 @@ msgstr "\"search -1 +2\", word2"
 msgid "search.clear"
 msgstr "Clear search"
 
+msgid "toolbar.clear_all_filters"
+msgstr "Clear all filters and search"
+
+msgid "toolbar.reload"
+msgstr "Reload"
+
 msgid "column_filter.clear"
 msgstr "Clear filter"
 
@@ -226,9 +250,6 @@ msgstr "Open in new window"
 
 msgid "column_filter.open"
 msgstr "Column filter"
-
-msgid "column_filter.tooltip"
-msgstr "Column filter (see ? in the field)"
 
 msgid "column_filter.placeholder"
 msgstr "word1 +word2 or >10, %name%"
@@ -283,3 +304,21 @@ msgstr "Per page"
 
 msgid "section.total"
 msgstr "Total"
+
+msgid "table.grand_total"
+msgstr "Total"
+
+msgid "filter_bar.filters_label"
+msgstr "Filters:"
+
+msgid "search.load_saved"
+msgstr "Load saved search"
+
+msgid "export.meta.search"
+msgstr "Search: \"%(query)s\""
+
+msgid "export.meta.filters"
+msgstr "Filters: %(filters)s"
+
+msgid "export.meta.filter_part"
+msgstr "%(label)s: %(values)s"

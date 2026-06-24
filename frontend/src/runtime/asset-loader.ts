@@ -100,14 +100,19 @@ export function ensureAgGridAssetsLoaded(): Promise<void> {
 let chartsLoadPromise: Promise<void> | null = null;
 
 export function ensureChartsAssetsLoaded(): Promise<void> {
-  const gv = getGlobal().GridView;
-  if (gv?.Charts?.initAllCharts) return Promise.resolve();
+  const g = getGlobal() as Window & { echarts?: unknown; GridView?: Record<string, unknown> };
+  // ChartsBridge stub always has initAllCharts, so we can't use that as readiness gate.
+  // applyToGridView() sets _chartsApiReady=true when the real bundle registers — use that.
+  if (g.GridView?._chartsApiReady && typeof g.echarts !== "undefined") return Promise.resolve();
   if (chartsLoadPromise) return chartsLoadPromise;
 
   const cfg = manifest();
   chartsLoadPromise = (async () => {
     await loadScript(cfg.chartsCdn ?? "", () => typeof getGlobal().echarts !== "undefined");
-    await loadScript(cfg.chartsPlugin ?? "", () => !!getGlobal().GridView?.Charts?.initAllCharts);
+    await loadScript(
+      cfg.chartsPlugin ?? "",
+      () => !!(getGlobal() as typeof g).GridView?._chartsApiReady,
+    );
   })().catch((error) => {
     chartsLoadPromise = null;
     throw error;

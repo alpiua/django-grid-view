@@ -20,6 +20,9 @@ SEARCH_TIP_ROWS: dict[str, tuple[str, str, str]] = {
     "quote": ('"…"', "search.tip_ex_quote", "search.tip_mean_quote"),
     "phrase": ("search.tip_mod_phrase", "search.tip_ex_phrase", "search.tip_mean_phrase"),
     "wildcard": ("%", "search.tip_ex_wildcard", "search.tip_mean_wildcard"),
+    "prefix": ("^", "search.tip_ex_prefix", "search.tip_mean_prefix"),
+    "suffix": ("$", "search.tip_ex_suffix", "search.tip_mean_suffix"),
+    "not": ("!", "search.tip_ex_not", "search.tip_mean_not"),
 }
 
 PROFILE_TIP_ROW_IDS: dict[str, tuple[str, ...]] = {
@@ -33,6 +36,9 @@ PROFILE_TIP_ROW_IDS: dict[str, tuple[str, ...]] = {
         "range",
         "quote",
         "phrase",
+        "prefix",
+        "suffix",
+        "not",
     ),
     "default": (
         "word",
@@ -44,6 +50,9 @@ PROFILE_TIP_ROW_IDS: dict[str, tuple[str, ...]] = {
         "quote",
         "phrase",
         "wildcard",
+        "prefix",
+        "suffix",
+        "not",
     ),
     "text": (
         "word",
@@ -53,6 +62,9 @@ PROFILE_TIP_ROW_IDS: dict[str, tuple[str, ...]] = {
         "quote",
         "phrase",
         "wildcard",
+        "prefix",
+        "suffix",
+        "not",
     ),
     "numeric": (
         "compare",
@@ -60,6 +72,7 @@ PROFILE_TIP_ROW_IDS: dict[str, tuple[str, ...]] = {
         "and",
         "or",
         "wildcard",
+        "not",
     ),
     "nosearch": (),
 }

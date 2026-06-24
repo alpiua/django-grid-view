@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Mapping, Sequence
+from typing import Literal, overload
 
 from grid_view_spec.export.context import ExportRequestContext
 from grid_view_spec.render.action_urls import (
@@ -14,7 +16,7 @@ from grid_view_spec.render.action_urls import (
     pagination_page_size_href,
 )
 from grid_view_spec.render.ag_grid import ag_grid_spec_config_json
-from grid_view_spec.render.bind import kpi_block_rows, resolve_kpi_value
+from grid_view_spec.render.bind import format_kpi_value, kpi_block_rows, resolve_kpi_value
 from grid_view_spec.render.block_registry import (
     AG_GRID_BUNDLE_IDS,
     asset_bundles_for_types,
@@ -64,6 +66,14 @@ from grid_view_spec.types.wire import WireObject
 from grid_view_spec.validate.refs import search_bind_target
 
 
+def _saved_searches_for_grid(host: GridViewHost, grid_id: str) -> tuple[str, ...]:
+    subject_id = host.current_subject_id()
+    if not subject_id or not grid_id:
+        return ()
+    prefs = host.get_grid_prefs(subject_id, grid_id)
+    return tuple(item for item in prefs.searches if isinstance(item, str) and item.strip())
+
+
 def build_render_context(
     spec: GridViewSpec,
     rows: Sequence[RowDict],
@@ -98,16 +108,22 @@ def build_render_context(
             if block.extra:
                 extra = {**extra, **block.extra}
             if block.backend == "ag_grid":
+                searches = _saved_searches_for_grid(host, block_id)
                 extra = {
                     **extra,
-                    "ag_grid_spec_config_json": ag_grid_spec_config_json(block, block_id),
+                    "ag_grid_spec_config_json": ag_grid_spec_config_json(
+                        block,
+                        block_id,
+                        searches=searches,
+                    ),
                 }
             if has_charts:
                 bound_rows = tuple(enrich_table_row_chart_payload(row) for row in bound_rows)
         elif isinstance(block, GridViewKpi):
             bound_rows = kpi_block_rows(block, display_rows)
             kpi_values: list[JsonValue] = [
-                resolve_kpi_value(item, bound_rows) for item in block.items
+                format_kpi_value(resolve_kpi_value(item, bound_rows), item.format)
+                for item in block.items
             ]
             extra = {"kpi_values": tuple(kpi_values)}
         elif isinstance(block, GridViewCharts):
@@ -127,7 +143,14 @@ def build_render_context(
                         export_ctx,
                         search_backend=backend,
                     )
-            extra = {"search_value": search_value_from_filter_state(block.search, filter_state)}
+            pref_grid_id = search_bind_target(block) or block.id
+            extra = {
+                "search_value": search_value_from_filter_state(block.search, filter_state),
+                "pref_grid_id": pref_grid_id,
+            }
+            if block.search.saved:
+                saved = _saved_searches_for_grid(host, pref_grid_id)
+                extra["saved_searches_json"] = json.dumps(saved, ensure_ascii=False)
         resolved[block_id] = GridViewResolvedBlock(block=block, rows=bound_rows, extra=extra)
 
     block_types = frozenset(block.type for block in index.values())
@@ -217,6 +240,36 @@ def jinja_action_href_helpers(
         render_pagination_size_page_href,
         render_pagination_size_fragment_href,
     )
+
+
+@overload
+def render_grid_view_spec(
+    spec: GridViewSpec,
+    rows: Sequence[RowDict],
+    *,
+    host: GridViewHost,
+    backend: Literal["html"] = "html",
+) -> str: ...
+
+
+@overload
+def render_grid_view_spec(
+    spec: GridViewSpec,
+    rows: Sequence[RowDict],
+    *,
+    host: GridViewHost,
+    backend: Literal["context"],
+) -> GridViewRenderContext: ...
+
+
+@overload
+def render_grid_view_spec(
+    spec: GridViewSpec,
+    rows: Sequence[RowDict],
+    *,
+    host: GridViewHost,
+    backend: Literal["json"],
+) -> WireObject: ...
 
 
 def render_grid_view_spec(

@@ -65,6 +65,9 @@ export function termIsExpression(term: unknown): boolean {
   for (const op of NUMERIC_OPS) {
     if (t.startsWith(op)) return t.slice(op.length).trim().length > 0;
   }
+  // Text operators: ^prefix, suffix$ (intuitive aliases for prefix%/%suffix).
+  if (t.length > 1 && t.charAt(0) === "^") return true;
+  if (t.length > 1 && t.charAt(t.length - 1) === "$") return true;
   return t.indexOf("%") >= 0;
 }
 
@@ -94,6 +97,16 @@ export function matchColumnExpression(cellText: unknown, query: unknown): boolea
   if (!q) return true;
   const hay = String(cellText ?? "").trim();
   const hayFold = hay.toLowerCase();
+
+  // Text operators: ^prefix (starts with), suffix$ (ends with).
+  if (q.length > 1 && q.charAt(0) === "^") {
+    const prefix = q.slice(1).trim().toLowerCase();
+    return !!prefix && hayFold.startsWith(prefix);
+  }
+  if (q.length > 1 && q.charAt(q.length - 1) === "$") {
+    const suffix = q.slice(0, -1).trim().toLowerCase();
+    return !!suffix && hayFold.endsWith(suffix);
+  }
 
   const bounds = parseRangeBounds(q);
   if (bounds !== null) {
@@ -153,6 +166,10 @@ export function matchQueryTerm(
   if (!t) return true;
   const hay = String(haystack ?? "");
   const quoted = options?.quoted === true;
+  // Negation: !<term> matches when the cell does NOT match <term> (text or expr).
+  if (!quoted && t.length > 1 && t.charAt(0) === "!") {
+    return !matchQueryTerm(hay, t.slice(1).trim(), options);
+  }
   if (termIsExpression(t)) return matchColumnExpression(hay, t);
   if (quoted || t.indexOf(" ") >= 0) return literalContains(hay, t);
   return spaceInsensitiveContains(hay, t);

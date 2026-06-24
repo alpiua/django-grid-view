@@ -15,23 +15,25 @@
     h1 { font-size: 16pt; font-weight: 700; margin-bottom: 4px; }
     .subtitle { color: #64748b; font-size: 9pt; margin-bottom: 14px; }
     .meta { margin: 0 0 12px 16px; color: #475569; font-size: 9pt; }
+    .charts { margin: 12px 0; }
+    img.chart { max-width: 100%; height: auto; display: block; margin: 10px auto; }
     table.data-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 9pt;
+      font-size: 7.5pt;
       margin: 10px 0 16px;
     }
     table.data-table th {
       background: #f1f5f9;
       font-weight: 600;
-      padding: 6px 8px;
+      padding: 4px 6px;
       border: 1px solid #cbd5e1;
       text-align: center;
-      font-size: 7pt;
+      font-size: 6pt;
       text-transform: uppercase;
     }
     table.data-table td {
-      padding: 5px 8px;
+      padding: 3px 6px;
       border: 1px solid #e2e8f0;
       text-align: right;
     }
@@ -43,12 +45,23 @@
       border-top: 2px solid #cbd5e1;
     }
     table.data-table tbody tr:nth-child(even) td { background: #f8fafc; }
+    table.data-table tbody tr.section-row td {
+      background: #e2e8f0;
+      font-weight: 700;
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #334155;
+      padding: 4px 8px;
+    }
     .empty { color: #94a3b8; font-style: italic; padding: 8px 0; }
   </style>
 </head>
 <body>
+  {% block header %}
   <h1>{{ title }}</h1>
   {% if subtitle %}<p class="subtitle">{{ subtitle }}</p>{% endif %}
+  {% endblock %}
   {% block body %}{% endblock %}
 </body>
 </html>

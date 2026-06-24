@@ -126,6 +126,18 @@ export function bootstrapGridView(): GridViewPublic {
     }
   }
 
+  // The real initSimpleTableColumnSettings is installed on the placeholder by
+  // column-settings.ts; createGridView seeds only a no-op delegating shim. Adopt the
+  // real impl here — otherwise the shim wins, returns null, and the column-settings
+  // host is never registered in byId, so the toolbar gear button does nothing.
+  const priorInit = prior.initSimpleTableColumnSettings;
+  if (
+    typeof priorInit === "function" &&
+    priorInit !== GridView.initSimpleTableColumnSettings
+  ) {
+    GridView.initSimpleTableColumnSettings = priorInit;
+  }
+
   if (g.GridViewI18n) {
     i18n.initI18n(g.GridViewI18n);
   }

@@ -78,3 +78,30 @@ def render_block_fragment(
     if not wrap:
         return block_html
     return f'<div class="cm-fragment" {export_attrs}>{block_html}</div>'
+
+
+def render_filter_bar_oob(
+    ctx: GridViewRenderContext,
+    filters_block_id: str,
+    *,
+    host: GridViewHost,
+    search_param: str | None = None,
+    search_value: str = "",
+) -> str:
+    """Render a filters block's ``.cm-filter-bar`` as a standalone HTMX OOB swap.
+
+    Toolbars embed the filter bar inline (there is no ``block-{id}`` wrapper in the
+    DOM), so faceted option lists are refreshed by out-of-band swapping the bar
+    element itself (``id="cm-fbar-{filters_id}"``) rather than the whole block.
+    """
+    resolved = ctx.blocks.get(filters_block_id)
+    if resolved is None or not template_dir_exists():
+        return ""
+    fb_search = {"param": search_param, "value": search_value} if search_param else None
+    template = grid_view_jinja_env().get_template("_filter_bar.html")
+    return template.render(
+        fb=resolved.block,
+        host=host,
+        fb_search=fb_search,
+        fb_oob=True,
+    )

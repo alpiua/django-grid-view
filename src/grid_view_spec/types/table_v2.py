@@ -201,6 +201,8 @@ class GridViewTable(GridViewBlockBase):
     per_page: int = 0
     pagination: GridViewTablePagination | None = None
     striped: bool = False
+    hide_sole_section_header: bool = True
+    title: str = ""
 
 
 class ColumnSpecWire(TypedDict):

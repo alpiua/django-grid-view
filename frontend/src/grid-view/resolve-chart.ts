@@ -242,6 +242,10 @@ export function resolveChartDataFromRuntime(
       series_type: seriesDef.seriesType,
     })),
   };
-  const dataRows = bind.rows ?? rows;
+  // Static/standalone charts (e.g. AI chat) carry their data in the separate rows
+  // payload, while the baked-in bind.rows is an empty array. `?? rows` would keep
+  // that empty array and render an empty chart, so fall back to `rows` whenever
+  // bind.rows has no entries (mirrors buildEchartsOption in charts.ts).
+  const dataRows = bind.rows && bind.rows.length ? bind.rows : rows;
   return resolveChartData(spec, dataRows);
 }

@@ -1,42 +1,4 @@
 <div class="cm-filters cm-filters-{{ block.presentation | e }}" data-target="{{ block.target or '' | e }}">
-  <div class="cm-filter-bar" data-cm-filter-bar{% if block.auto_apply %} data-auto-apply="1"{% endif %}{% if not block.navigate_on_change %} data-navigate-on-change="0"{% endif %}>
-    {% for filter in block.schema %}
-    {% set selected = block.state.values.get(filter.param, ()) if block.state else () %}
-    <div
-      class="cm-multiselect cm-period-multiselect{% if filter.type == 'select' %} cm-multiselect--single{% endif %}"
-      data-cm-multiselect
-      data-filter-id="{{ filter.id | e }}"
-      data-filter-param="{{ filter.param | e }}"
-      data-filter-scope="{{ filter.scope | e }}"
-      {% if filter.type == 'select' %}data-cm-singleselect="1"{% endif %}
-      {% if filter.select_all %}data-select-all-option="1" data-select-all-value="{{ filter.select_all_value | e }}"{% endif %}
-      data-all-label="{{ filter.select_all_label or filter.placeholder or filter.label | e }}"
-      data-placeholder="{{ filter.placeholder or filter.label | e }}"
-    >
-      <button type="button" class="cm-multiselect-trigger" aria-haspopup="listbox">
-        <span class="cm-multiselect-trigger__label"></span>
-      </button>
-      <div class="cm-multiselect-panel" role="listbox">
-        {% if filter.select_all %}
-        <label class="cm-multiselect-option">
-          <input type="checkbox" value="{{ filter.select_all_value | e }}" data-label="{{ filter.select_all_label or host.translate('filter_bar.all') | e }}" data-select-all="1"
-            {% if filter.select_all_value in selected %}checked{% endif %}>
-          {{ filter.select_all_label or host.translate('filter_bar.all') | e }}
-        </label>
-        {% endif %}
-        {% for opt in filter.options %}
-        <label class="cm-multiselect-option">
-          <input type="checkbox" value="{{ opt.value | e }}" data-label="{{ opt.label | e }}"
-            {% if opt.exclusive %}data-exclusive-solo="1"{% endif %}
-            {% if opt.value in selected %}checked{% endif %}>
-          {{ opt.label | e }}
-        </label>
-        {% endfor %}
-        <div class="cm-multiselect-apply-wrap">
-          <button type="button" class="cm-multiselect-apply" data-cm-multiselect-apply>{{ host.translate('filter_bar.apply') | e }}</button>
-        </div>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
+  {% set fb = block %}
+  {% include '_filter_bar.html' %}
 </div>

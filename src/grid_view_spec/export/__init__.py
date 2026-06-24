@@ -2,7 +2,7 @@
 
 from grid_view_spec.export.columns import ResolvedExportTable, resolve_export_table
 from grid_view_spec.export.context import ExportRequestContext
-from grid_view_spec.export.html import spec_to_html
+from grid_view_spec.export.html import register_export_template_dir, spec_to_html
 from grid_view_spec.export.payload import GridViewExportPayload, build_export_payload
 from grid_view_spec.export.pipeline import render_pdf_html, render_xlsx_report
 from grid_view_spec.export.registry import (
@@ -39,6 +39,7 @@ __all__ = [
     "clear_xlsx_exports",
     "get_pdf_export",
     "get_xlsx_export",
+    "register_export_template_dir",
     "register_pdf_export",
     "register_xlsx_export",
     "render_pdf_html",

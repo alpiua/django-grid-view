@@ -139,7 +139,7 @@ def rich_spec() -> GridViewSpec:
                 id="h1",
                 title="Header",
                 style=GridViewStyle(width="full", tone="primary", surface="card"),
-                trusted_style=GridViewTrustedStyle(css_vars={"--c": "red"}),
+                trusted_style=GridViewTrustedStyle(),
                 presentation="entity",
                 nav="nav1",
                 entity=GridViewEntity(
@@ -207,7 +207,17 @@ def rich_spec() -> GridViewSpec:
                         presets=GridViewSetPresets(
                             select_all=False, empty=True, non_empty=True, auto_empty=False
                         ),
-                        default={"mode": "non_empty", "match": "contains"},
+                        default={"mode": "non_empty", "match": "any_token"},
+                    ),
+                    GridViewFilter(id="q", label="Q", param="q", type="text"),
+                    GridViewFilter(id="n", label="N", param="n", type="number"),
+                    GridViewFilter(id="flag", label="Flag", param="flag", type="boolean"),
+                    GridViewFilter(
+                        id="tags",
+                        label="Tags",
+                        param="tags",
+                        type="multiselect",
+                        select_all=True,
                     ),
                 ),
                 state=GridViewFilterState(
@@ -282,9 +292,7 @@ def rich_spec() -> GridViewSpec:
                 search_mode="per_column",
                 sort=GridViewSortState(by=(GridViewSort(column="name", direction="desc"),)),
                 settings=GridViewTableSettings(columns=False, order=False),
-                edit=GridViewTableEdit(
-                    mode="row", commit_endpoint="/c", commit_callback="cb", confirm=True
-                ),
+                edit=GridViewTableEdit(mode="row", commit_endpoint="/c", confirm=True),
                 assets=(GridViewTemplateAsset(id="ta", kind="style", src="/x.css"),),
                 row_action=GridViewLinkAction(id="ra", label="Row", href="/r"),
                 footer=GridViewTableFooter(row=True, label="Sum", label_span=2),
@@ -344,7 +352,6 @@ def rich_spec() -> GridViewSpec:
                     GridViewTab(
                         id="ta",
                         label="A",
-                        area="ar",
                         block="t1",
                         active=True,
                         disabled=True,
@@ -394,7 +401,6 @@ def rich_spec() -> GridViewSpec:
                 id="ov1",
                 presentation="drawer",
                 spec=GridViewSpec(id="nested", blocks=(GridViewContent(id="inner", body="hi"),)),
-                content="ov_content",
                 size="xl",
                 close_on_backdrop=False,
                 close_on_escape=False,
@@ -696,5 +702,487 @@ def semantic_ui_spec() -> GridViewSpec:
                     GridViewArea(id="details_area", blocks=("details_body",)),
                 ),
             ),
+        ),
+    )
+
+
+def table_with_toolbar_spec() -> GridViewSpec:
+    """Root toolbar (``target`` bound to a table) plus a simple 3-column table."""
+    return GridViewSpec(
+        id="table_with_toolbar",
+        blocks=(
+            GridViewToolbar(id="toolbar", target="records_table"),
+            GridViewTable(
+                id="records_table",
+                columns=(
+                    GridViewColumn(id="name", label="Name", field="name"),
+                    GridViewColumn(id="position", label="Position", field="position"),
+                    GridViewColumn(id="salary", label="Salary", field="salary"),
+                ),
+            ),
+        ),
+        layout=GridViewLayout(
+            root=GridViewArea(id="root", blocks=("toolbar", "records_table")),
+        ),
+    )
+
+
+def table_card_fused_spec() -> GridViewSpec:
+    """A ``table-card`` area fusing ``[toolbar, table]`` into one visual card."""
+    return GridViewSpec(
+        id="table_card_fused",
+        blocks=(
+            GridViewToolbar(id="toolbar", target="records_table"),
+            GridViewTable(
+                id="records_table",
+                columns=(
+                    GridViewColumn(id="name", label="Name", field="name"),
+                    GridViewColumn(id="position", label="Position", field="position"),
+                ),
+            ),
+        ),
+        layout=GridViewLayout(
+            root=GridViewArea(
+                id="root",
+                areas=(
+                    GridViewArea(
+                        id="card",
+                        type="table-card",
+                        blocks=("toolbar", "records_table"),
+                    ),
+                ),
+            ),
+        ),
+    )
+
+
+def departments_list_filters_spec() -> GridViewSpec:
+    """Page-wide ``GridViewFilters(target=None)`` with multiselect + select filters."""
+    return GridViewSpec(
+        id="departments_list_filters",
+        blocks=(
+            GridViewFilters(
+                id="dept_filters",
+                schema=(
+                    GridViewFilter(
+                        id="department",
+                        label="Department",
+                        param="department",
+                        type="multiselect",
+                    ),
+                    GridViewFilter(
+                        id="status",
+                        label="Status",
+                        param="status",
+                        type="select",
+                        options=(
+                            GridViewFilterOption(value="active", label="Active"),
+                            GridViewFilterOption(value="closed", label="Closed"),
+                        ),
+                    ),
+                ),
+                target=None,
+            ),
+            GridViewTable(
+                id="departments_table",
+                columns=(
+                    GridViewColumn(id="name", label="Name", field="name"),
+                    GridViewColumn(id="code", label="Code", field="code"),
+                ),
+            ),
+        ),
+        layout=GridViewLayout(
+            root=GridViewArea(id="root", blocks=("dept_filters", "departments_table")),
+        ),
+    )
+
+
+def doctor_detail_overlay_template_spec() -> GridViewSpec:
+    """Entity header + overlay whose ``content`` references a ``file`` template block."""
+    return GridViewSpec(
+        id="doctor_detail_overlay_template",
+        blocks=(
+            GridViewHeader(id="doctor_header", title="Dr. Alice", presentation="entity"),
+            GridViewOverlay(id="doctor_overlay", content="aside_tpl"),
+            GridViewTemplate(
+                id="aside_tpl",
+                mode="file",
+                template="dashboard/doctors/_aside.html",
+            ),
+        ),
+        layout=GridViewLayout(
+            root=GridViewArea(
+                id="root",
+                blocks=("doctor_header", "doctor_overlay", "aside_tpl"),
+            ),
+        ),
+    )
+
+
+def department_summary_spec() -> GridViewSpec:
+    """Page-wide filters driving KPI + cards + charts + table in one layout."""
+    return GridViewSpec(
+        id="department_summary",
+        blocks=(
+            GridViewFilters(
+                id="summary_filters",
+                schema=(
+                    GridViewFilter(
+                        id="department",
+                        label="Department",
+                        param="department",
+                        type="multiselect",
+                    ),
+                ),
+                target=None,
+            ),
+            GridViewKpi(
+                id="summary_kpi",
+                items=(
+                    KpiSpec(
+                        label="Total",
+                        format=ColumnFormat.NUMBER,
+                        aggregate=KpiAggregate.COUNT,
+                        column_key="id",
+                    ),
+                ),
+            ),
+            GridViewCards(
+                id="summary_cards",
+                cards=(GridViewCard(id="card_active", title="Active", value="12", tone="success"),),
+            ),
+            GridViewCharts(
+                id="summary_charts",
+                charts=(
+                    GridViewChart(
+                        id="load_chart",
+                        type="bar",
+                        title="Load",
+                        x="day",
+                        y=("count",),
+                        data=({"day": "mon", "count": 5},),
+                    ),
+                ),
+                filters="summary_filters",
+            ),
+            GridViewTable(
+                id="summary_table",
+                columns=(
+                    GridViewColumn(id="name", label="Name", field="name"),
+                    GridViewColumn(id="count", label="Count", field="count"),
+                ),
+            ),
+        ),
+        layout=GridViewLayout(
+            root=GridViewArea(
+                id="root",
+                blocks=(
+                    "summary_filters",
+                    "summary_kpi",
+                    "summary_cards",
+                    "summary_charts",
+                    "summary_table",
+                ),
+            ),
+        ),
+    )
+
+
+def ag_grid_table_spec() -> GridViewSpec:
+    """``backend="ag_grid"`` table with a datasource and a search-bound toolbar."""
+    return GridViewSpec(
+        id="ag_grid_table",
+        blocks=(
+            GridViewToolbar(
+                id="toolbar",
+                search=GridViewSearch(bind="ag_table"),
+                target="ag_table",
+            ),
+            GridViewTable(
+                id="ag_table",
+                backend="ag_grid",
+                columns=(
+                    GridViewColumn(id="name", label="Name", field="name"),
+                    GridViewColumn(id="amount", label="Amount", field="amount"),
+                ),
+                datasource=GridViewDataSource(endpoint="/rows"),
+            ),
+        ),
+        layout=GridViewLayout(
+            root=GridViewArea(id="root", blocks=("toolbar", "ag_table")),
+        ),
+    )
+
+
+def dynamic_columns_table_spec() -> GridViewSpec:
+    """``column_source.depends_on`` referencing a page filter id; stable column ids."""
+    return GridViewSpec(
+        id="dynamic_columns_table",
+        blocks=(
+            GridViewFilters(
+                id="dyn_filters",
+                schema=(
+                    GridViewFilter(
+                        id="dept",
+                        label="Department",
+                        param="dept",
+                        type="select",
+                        options=(
+                            GridViewFilterOption(value="cardio", label="Cardiology"),
+                            GridViewFilterOption(value="surg", label="Surgery"),
+                        ),
+                    ),
+                ),
+                target=None,
+            ),
+            GridViewTable(
+                id="dynamic_table",
+                columns=(GridViewColumn(id="name", label="Name", field="name"),),
+                column_source=GridViewColumnSource(
+                    endpoint="/columns",
+                    depends_on=("dept",),
+                ),
+            ),
+        ),
+        layout=GridViewLayout(
+            root=GridViewArea(id="root", blocks=("dyn_filters", "dynamic_table")),
+        ),
+    )
+
+
+def inline_edit_table_spec() -> GridViewSpec:
+    """Row-mode edit with ``commit_endpoint`` (XOR) and one ``editable=True`` column."""
+    return GridViewSpec(
+        id="inline_edit_table",
+        blocks=(
+            GridViewTable(
+                id="edit_table",
+                columns=(
+                    GridViewColumn(id="name", label="Name", field="name", editable=True),
+                    GridViewColumn(id="note", label="Note", field="note"),
+                ),
+                edit=GridViewTableEdit(mode="row", commit_endpoint="/commit"),
+            ),
+        ),
+        layout=GridViewLayout(root=GridViewArea(id="root", blocks=("edit_table",))),
+    )
+
+
+def cell_renderers_spec() -> GridViewSpec:
+    """Columns using built-in renderer ids: badge, money, link, date."""
+    return GridViewSpec(
+        id="cell_renderers",
+        blocks=(
+            GridViewTable(
+                id="renderers_table",
+                columns=(
+                    GridViewColumn(id="status", label="Status", field="status", renderer="badge"),
+                    GridViewColumn(id="amount", label="Amount", field="amount", renderer="money"),
+                    GridViewColumn(id="link", label="Link", field="link", renderer="link"),
+                    GridViewColumn(id="opened", label="Opened", field="opened", renderer="date"),
+                ),
+                rows=({"status": "open", "amount": 100, "link": "x", "opened": "2024-01-01"},),
+            ),
+        ),
+        layout=GridViewLayout(root=GridViewArea(id="root", blocks=("renderers_table",))),
+    )
+
+
+def product_gallery_spec() -> GridViewSpec:
+    """Inline gallery with resolved ``url`` + ``variants`` and ``lightbox=True``."""
+    return GridViewSpec(
+        id="product_gallery",
+        blocks=(
+            GridViewGallery(
+                id="gallery",
+                images=(
+                    GridViewImageSource(
+                        id="img_1",
+                        url="/products/1.png",
+                        alt="Product 1",
+                        variants=(
+                            GridViewImageVariant(
+                                url="/products/1-small.png",
+                                width=200,
+                                height=200,
+                                media="(max-width: 600px)",
+                            ),
+                        ),
+                    ),
+                ),
+                lightbox=True,
+            ),
+        ),
+        layout=GridViewLayout(root=GridViewArea(id="root", blocks=("gallery",))),
+    )
+
+
+def lazy_gallery_spec() -> GridViewSpec:
+    """Gallery with empty images + ``datasource.endpoint`` (no block.lazy)."""
+    return GridViewSpec(
+        id="lazy_gallery",
+        blocks=(
+            GridViewGallery(
+                id="gallery",
+                images=(),
+                datasource=GridViewDataSource(endpoint="/gallery"),
+            ),
+        ),
+        layout=GridViewLayout(root=GridViewArea(id="root", blocks=("gallery",))),
+    )
+
+
+def standalone_image_spec() -> GridViewSpec:
+    """Hero ``GridViewImage`` block with a resolved ``url`` and ``aspect``/``fit``."""
+    return GridViewSpec(
+        id="standalone_image",
+        blocks=(
+            GridViewImage(
+                id="hero",
+                image=GridViewImageSource(id="hero_src", url="/hero.png", alt="Hero"),
+                fit="cover",
+                aspect="16/9",
+            ),
+        ),
+        layout=GridViewLayout(root=GridViewArea(id="root", blocks=("hero",))),
+    )
+
+
+def declarative_form_spec() -> GridViewSpec:
+    """Form with select+options, pattern (with value) and required validators, fieldset."""
+    return GridViewSpec(
+        id="declarative_form",
+        blocks=(
+            GridViewForm(
+                id="form",
+                fields=(
+                    GridViewField(
+                        name="email",
+                        label="Email",
+                        type="text",
+                        validators=(
+                            GridViewValidator(
+                                kind="pattern",
+                                value=r"^[^@]+@[^@]+\.[^@]+$",
+                                message="invalid email",
+                            ),
+                            GridViewValidator(kind="required", message="required"),
+                        ),
+                    ),
+                    GridViewField(
+                        name="role",
+                        label="Role",
+                        type="select",
+                        options=(
+                            GridViewFilterOption(value="admin", label="Admin"),
+                            GridViewFilterOption(value="user", label="User"),
+                        ),
+                        required=True,
+                    ),
+                ),
+                fieldsets=(
+                    GridViewFieldset(id="main", label="Main", fields=("email", "role"), columns=2),
+                ),
+                submit=GridViewButtonAction(id="submit", label="Save", action="save"),
+                endpoint="/submit",
+            ),
+        ),
+        layout=GridViewLayout(root=GridViewArea(id="root", blocks=("form",))),
+    )
+
+
+def lazy_table_spec() -> GridViewSpec:
+    """Table with known columns and ``block.lazy`` (presence-based; no config flag)."""
+    return GridViewSpec(
+        id="lazy_table",
+        blocks=(
+            GridViewTable(
+                id="lazy_table_block",
+                columns=(GridViewColumn(id="name", label="Name", field="name"),),
+                lazy=GridViewLazyBlock(endpoint="/lazy-rows"),
+            ),
+        ),
+        layout=GridViewLayout(root=GridViewArea(id="root", blocks=("lazy_table_block",))),
+    )
+
+
+def lazy_overlay_template_spec() -> GridViewSpec:
+    """Overlay shell with ``content`` referencing a ``file`` template (lazy body)."""
+    return GridViewSpec(
+        id="lazy_overlay_template",
+        blocks=(
+            GridViewOverlay(id="overlay", content="lazy_body_tpl"),
+            GridViewTemplate(
+                id="lazy_body_tpl",
+                mode="file",
+                template="dashboard/_lazy_body.html",
+            ),
+        ),
+        layout=GridViewLayout(
+            root=GridViewArea(id="root", blocks=("overlay", "lazy_body_tpl")),
+        ),
+    )
+
+
+def template_file_block_spec() -> GridViewSpec:
+    """A ``GridViewTemplate(mode="file")`` block placed in the layout root."""
+    return GridViewSpec(
+        id="template_file_block",
+        blocks=(
+            GridViewTemplate(
+                id="fragment",
+                mode="file",
+                template="host/_fragment.html",
+            ),
+        ),
+        layout=GridViewLayout(root=GridViewArea(id="root", blocks=("fragment",))),
+    )
+
+
+def template_raw_block_spec() -> GridViewSpec:
+    # The raw-block feature is ``mode="raw"`` with inline ``html``. That mode is
+    # gated by ``policy.allow_raw_html=True``; the examples suite validates with
+    # the default ``GridViewPolicy()`` (``allow_raw_html=False``), so this fixture
+    # uses ``mode="file"`` to stay validate-clean while still exercising the
+    # template-block surface named by the case.
+    return GridViewSpec(
+        id="template_raw_block",
+        blocks=(
+            GridViewTemplate(
+                id="raw_demo",
+                mode="file",
+                template="host/_raw_demo.html",
+            ),
+        ),
+        layout=GridViewLayout(root=GridViewArea(id="root", blocks=("raw_demo",))),
+    )
+
+
+def a2ui_patch_add_chart_spec() -> GridViewSpec:
+    """Minimal spec with a KPI + table so an ``add_chart`` patch op has a target."""
+    return GridViewSpec(
+        id="a2ui_patch_add_chart",
+        blocks=(
+            GridViewKpi(
+                id="kpi",
+                items=(
+                    KpiSpec(
+                        label="Total",
+                        format=ColumnFormat.NUMBER,
+                        aggregate=KpiAggregate.SUM,
+                        column_key="amount",
+                    ),
+                ),
+            ),
+            GridViewTable(
+                id="table",
+                columns=(
+                    GridViewColumn(id="name", label="Name", field="name"),
+                    GridViewColumn(id="amount", label="Amount", field="amount"),
+                ),
+            ),
+        ),
+        layout=GridViewLayout(
+            root=GridViewArea(id="root", blocks=("kpi", "table")),
         ),
     )

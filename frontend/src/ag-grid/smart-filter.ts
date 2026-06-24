@@ -5,8 +5,16 @@ import {
   type FilterMatch,
   type SetFilterModel,
 } from "../grid-view/search/filter-engine";
+import type { ColumnFilterDictionary } from "../grid-view/search/column-filter-dictionary";
 import { SetFilterPanel } from "../grid-view/set-filter-panel";
 import type { AgGridGridContext, SmartFilterInitParams } from "./types";
+import type { GridViewFilterOption } from "../types/spec";
+
+/**
+ * One faceted value entry from the server dictionary endpoint — a subset of the
+ * schema-generated {@link GridViewFilterOption} (value + optional facet count).
+ */
+type DictionaryEntry = Pick<GridViewFilterOption, "value"> & { count?: number };
 
 export class AgGridSmartFilter {
   params!: SmartFilterInitParams;
@@ -27,7 +35,7 @@ export class AgGridSmartFilter {
     this.gui = this.panel.getGui();
   }
 
-  async _loadValues(): Promise<string[]> {
+  async _loadValues(): Promise<string[] | ColumnFilterDictionary> {
     const valuesSet = new Set<string>();
     const context = this.params.api.getGridOption("context");
     const gridCtx = isGridContext(context) ? context : {};
@@ -45,6 +53,7 @@ export class AgGridSmartFilter {
         const qs = window.location.search;
         const sep = dictUrl.includes("?") ? "&" : "?";
         let fetchUrl = dictUrl + sep + "field=" + encodeURIComponent(this.field);
+        if (gridId) fetchUrl += "&grid=" + encodeURIComponent(gridId);
         if (qs.length > 1) {
           const urlParams = new URLSearchParams(qs);
           urlParams.delete("q");
@@ -56,10 +65,23 @@ export class AgGridSmartFilter {
         if (response.ok) {
           const data: unknown = await response.json();
           if (isDictionaryResponse(data)) {
-            data.values.forEach((value) => {
-              valuesSet.add(value === null || value === undefined ? "" : String(value).trim());
+            const values: string[] = [];
+            const counts: Record<string, number> = {};
+            let hasCounts = false;
+            data.values.forEach((entry) => {
+              const parsed = readDictionaryEntry(entry);
+              values.push(parsed.value);
+              if (parsed.count !== undefined) {
+                counts[parsed.value] = parsed.count;
+                hasCounts = true;
+              }
             });
-            return Array.from(valuesSet);
+            return {
+              values,
+              hasEmpty: false,
+              emptyCount: 0,
+              counts: hasCounts ? counts : undefined,
+            };
           }
         }
       } catch (err) {
@@ -157,6 +179,17 @@ function isDictionaryResponse(value: unknown): value is { values: unknown[] } {
   if (!value || typeof value !== "object") return false;
   const payload = value as { values?: unknown };
   return Array.isArray(payload.values) && payload.values.length > 0;
+}
+
+// Dictionary entries are either bare strings (legacy) or {value, count} objects.
+function readDictionaryEntry(entry: unknown): DictionaryEntry {
+  if (entry && typeof entry === "object") {
+    const obj = entry as { value?: unknown; count?: unknown };
+    const value = obj.value === null || obj.value === undefined ? "" : String(obj.value).trim();
+    const count = typeof obj.count === "number" ? obj.count : undefined;
+    return { value, count };
+  }
+  return { value: entry === null || entry === undefined ? "" : String(entry).trim() };
 }
 
 export function installAgGridSmartFilter(gv: Window["GridView"]): void {

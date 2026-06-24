@@ -1,4 +1,4 @@
-/** Strict types for legacy AG Grid browser plugins (host, filters, tooltip). */
+/** Strict types for AG Grid browser plugins (host, filters, tooltip). */
 
 import type { AgGridColumnAdapterApi, ColumnStateItem } from "../column-settings/types";
 import type { FilterMatch } from "../grid-view/search/filter-engine";
@@ -117,6 +117,28 @@ export interface SmartFilterGridApi {
     callback: (node: { data?: Record<string, unknown> }) => void,
     context?: unknown
   ) => void;
+}
+
+export interface ExprFilterInitParams {
+  colDef: {
+    field: string;
+    type?: string;
+    columnFilter?: string;
+    filterMatch?: FilterMatch;
+  };
+  filterChangedCallback: () => void;
+  valueGetter?: (params: {
+    node?: { data?: Record<string, unknown> };
+    data?: Record<string, unknown>;
+  }) => unknown;
+}
+
+/** Serialized AG-Grid model for the custom expression filter. */
+export interface ExprFilterAgModel {
+  filterType?: string;
+  expr?: string;
+  numeric?: boolean;
+  mode?: "empty" | "non_empty";
 }
 
 export interface AgGridTooltipInitParams {

@@ -1,6 +1,4 @@
-/**
- * AG-Grid boot from JSON config nodes in the page (internalized former ag-grid-boot.ts).
- */
+/** AG-Grid boot from JSON config nodes in the page. */
 import { getGlobal } from "../grid-view/dom-utils";
 import { getRegisteredRenderer } from "../grid-view/registry-api";
 import { ensureAgGridAssetsLoaded } from "./asset-loader";
@@ -196,6 +194,7 @@ interface AgGridSpecConfig {
   gridId?: string;
   containerId?: string;
   datasourceUrl?: string;
+  dictionaryUrl?: string;
   groupsOrder?: string[];
   columns?: AgGridSpecColumn[];
   columnsVar?: string;
@@ -212,9 +211,13 @@ interface AgGridSpecConfig {
 
 function resolveAgColumnFilter(col: AgGridSpecColumn): boolean | string {
   if (col.agFilter === "none") return false;
-  if (col.agFilter === "smart") return "GridView.AgGrid.SmartFilter";
-  if (col.type === "number") return "agNumberColumnFilter";
-  return true;
+  if (col.agFilter === "smart") return "customSetFilter";
+  // Default: the smart expression filter (parity with the server simple table).
+  return "customExprFilter";
+}
+
+function exprColumnFilterKind(col: AgGridSpecColumn): "numeric" | "text" {
+  return col.type === "number" || col.type === "currency" ? "numeric" : "text";
 }
 
 function resolveRendererId(col: AgGridSpecColumn): string {
@@ -235,17 +238,21 @@ function buildColumnDefsFromSpec(columns: AgGridSpecColumn[]): Record<string, un
   return columns.map((col) => {
     const field = col.field || col.id;
     const rendererId = resolveRendererId(col);
+    const agFilter = resolveAgColumnFilter(col);
     const def: Record<string, unknown> = {
       field,
       colId: col.id,
       headerName: col.label,
       hide: col.hidden ?? false,
-      filter: resolveAgColumnFilter(col),
+      filter: agFilter,
       sortable: col.sortable !== false,
       resizable: true,
       enableCellTextSelection: true,
       tooltipField: field,
     };
+    // The expression filter needs the column kind to pick its profile and to
+    // flag numeric columns server-side (so empty = 0/null, not blank/dash).
+    if (agFilter === "customExprFilter") def.columnFilter = exprColumnFilterKind(col);
     if (col.pinned === "left" || col.pinned === "right") def.pinned = col.pinned;
     if (col.menuGroup) def.menuGroup = col.menuGroup;
     if (col.checkboxSelection) def.checkboxSelection = true;
@@ -354,7 +361,7 @@ async function resolveColumnDefs(
     columnDefs = buildColumnDefsFromSpec(config.columns);
   }
   const pageState = getPageState();
-  const anchor = config.columnSource?.anchor || "price_retail";
+  const anchor = config.columnSource?.anchor || "";
   if (config.columnSource) {
     const dynamicCols = await fetchColumnSourceColumns(config.columnSource, pageState);
     columnDefs = mergeColumnDefsAtAnchor(
@@ -411,9 +418,12 @@ function bootFromSpecConfig(config: AgGridSpecConfig): void {
         }
       }
       const url = new URL(window.location.href);
-      const dealer = url.searchParams.get("dealer");
-      if (dealer) return { dealer };
-      return {};
+      const state: Record<string, unknown> = {};
+      (config.urlPageStateKeys || []).forEach((key) => {
+        const val = url.searchParams.get(key);
+        if (val) state[key] = val;
+      });
+      return state;
     }
 
     const columnDefs = await resolveColumnDefs(config, getPageState);
@@ -431,21 +441,30 @@ function bootFromSpecConfig(config: AgGridSpecConfig): void {
       tooltipInteraction: true,
       animateRows: false,
       pagination: false,
+      // Keep the column-menu (filter) button always visible, matching the
+      // SimpleTable default where the filter control is not hover-only.
+      suppressMenuHide: true,
       defaultColDef: {
         sortable: true,
         filter: true,
         resizable: true,
         floatingFilter: false,
+        // Always render the unsorted (⇅) indicator, matching SimpleTable's
+        // always-visible sort glyph next to the filter control.
+        unSortIcon: true,
         tooltipValueGetter: (p: unknown) => (p as Record<string, unknown>).value,
       },
       localeText: (g as Record<string, unknown>).AG_GRID_LOCALE_UK || {},
       getRowId: (params: { data?: Record<string, unknown> }) => {
-        const id = params.data?.id;
-        return id != null && id !== "" ? String(id) : `cm-row-${String(params.data?.sku ?? "")}-${String(params.data?.dealer_name ?? "")}`;
+        const data = params.data ?? {};
+        const id = data.id;
+        if (id != null && id !== "") return String(id);
+        return `cm-row-${Object.values(data).map(String).join("|")}`;
       },
       components: {
         customTooltip: agModule?.Tooltip,
         customSetFilter: agModule?.SmartFilter,
+        customExprFilter: agModule?.ExprFilter,
       },
       context: {
         gridId,
@@ -453,7 +472,7 @@ function bootFromSpecConfig(config: AgGridSpecConfig): void {
         syncUrlState: config.syncUrlState ?? true,
         urlPageStateKeys: config.urlPageStateKeys || [],
         getPageState,
-        dictionaryUrl: "",
+        dictionaryUrl: config.dictionaryUrl || "",
       },
     };
 
@@ -565,6 +584,14 @@ function queryRoot(root: ParentNode | Event | unknown): ParentNode {
 export function bootAgGridSpecFromDocument(root: ParentNode = document): void {
   const scope = queryRoot(root);
   scope.querySelectorAll("script.cm-ag-grid-spec-config").forEach((node) => {
+    // Idempotency guard: HTMX swaps trigger several afterSwap/afterSettle boot
+    // passes for the same fragment. Without this, the same config node spawns
+    // concurrent bootFromSpecConfig() runs that destroy each other's gridApi and
+    // leave an empty table until a full reload. The node is recreated on each
+    // swap, so the flag naturally resets per navigation.
+    const el = node as HTMLElement;
+    if (el.dataset.cmAgBooted) return;
+    el.dataset.cmAgBooted = "1";
     try {
       const config = JSON.parse(node.textContent || "{}") as AgGridSpecConfig;
       if (config.gridId) bootFromSpecConfig(config);

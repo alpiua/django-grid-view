@@ -24,8 +24,10 @@
   {% endfor %}
 </section>
 {%- endmacro %}
-<div class="cm-grid-view-spec" data-spec-id="{{ spec.id | e }}" data-cm-grid-view-spec>
+<div id="cm-spec-wrap-{{ spec.id | e }}" style="display:contents">
+<div class="cm-grid-view-spec" id="cm-spec-{{ spec.id | e }}" data-spec-id="{{ spec.id | e }}" data-cm-grid-view-spec>
   {{ render_area(spec.layout.root) }}
+</div>
 </div>
 {# Package runtime bundles (grid-view, ag-grid-*) are host-loaded via grid_view_spec_assets;
    only host/domain GridViewTemplateAsset entries are emitted inline here. #}

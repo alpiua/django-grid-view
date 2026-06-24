@@ -361,6 +361,19 @@ export function initSimpleTableColumnResize(scope: Document | Element | null | u
 
   const root = scope && "querySelectorAll" in scope ? scope : document;
   root.querySelectorAll('[data-cm-column-settings="1"] [data-cm-table]').forEach(function (table) {
-    if (table instanceof HTMLTableElement) bindTableColumnResize(table);
+    if (!(table instanceof HTMLTableElement)) return;
+    bindTableColumnResize(table);
+    // Lock column widths to their rendered size on first visible boot so columns
+    // stop reflowing as content/rows/hover change (auto table-layout → fixed).
+    // Hidden tables (tabs/modals) have zero width here; they seed on show re-boot.
+    maybeSeedColumnWidths(table);
   });
+}
+
+/** Seed fixed column widths once, when the table is measurable (visible). */
+function maybeSeedColumnWidths(table: HTMLTableElement): void {
+  if (table.classList.contains("cm-table--has-col-widths")) return;
+  if (!table.offsetWidth) return;
+  if (!table.querySelector("tbody tr")) return;
+  seedFixedColumnWidths(table);
 }

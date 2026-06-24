@@ -12,10 +12,12 @@
     agGridCss: [
       {% if ag_grid_bundled %}
       '{% static "grid_view_spec/vendor/ag-grid.css" %}',
-      '{% static "grid_view_spec/vendor/ag-theme-quartz.css" %}'
+      '{% static "grid_view_spec/vendor/ag-theme-quartz.css" %}',
+      '{% static "grid_view_spec/gridviewspec-ag-grid-theme.min.css" %}'
       {% else %}
       '{{ ag_grid_css_url|escapejs }}',
-      '{{ ag_grid_theme_css_url|escapejs }}'
+      '{{ ag_grid_theme_css_url|escapejs }}',
+      '{% static "grid_view_spec/gridviewspec-ag-grid-theme.min.css" %}'
       {% endif %}
     ]
   };

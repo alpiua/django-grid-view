@@ -47,6 +47,7 @@ export class SetFilterPanel {
   fieldId: string;
   selectedValues = new Set<string>();
   allValues: string[] = [];
+  valueCounts = new Map<string, number>();
   hasEmptyCells = false;
   emptyCount = 0;
   filterMode: "all" | "empty" | "non_empty" | "custom" = "all";
@@ -212,10 +213,19 @@ export class SetFilterPanel {
       this.ingestRawValues(raw, emptyInValues > 0, emptyInValues);
       return;
     }
-    this.ingestRawValues(raw.values, raw.hasEmpty, raw.emptyCount);
+    this.ingestRawValues(raw.values, raw.hasEmpty, raw.emptyCount, raw.counts);
   }
 
-  ingestRawValues(rawValues: string[], hasEmpty: boolean, emptyCount = 0) {
+  ingestRawValues(
+    rawValues: string[],
+    hasEmpty: boolean,
+    emptyCount = 0,
+    counts?: Record<string, number>
+  ) {
+    this.valueCounts.clear();
+    if (counts) {
+      for (const key in counts) this.valueCounts.set(String(key).trim(), counts[key]);
+    }
     this.hasEmptyCells = hasEmpty || rawValues.some(isEmptyCellValue);
     this.emptyCount = emptyCount || (this.hasEmptyCells ? 1 : 0);
     this.allValues = Array.from(
@@ -330,6 +340,11 @@ export class SetFilterPanel {
       const item = document.createElement("label");
       item.className = "cm-set-filter-item";
       item.htmlFor = id;
+      const count = this.valueCounts.get(val);
+      const countHtml =
+        count === undefined
+          ? ""
+          : '<span class="cm-set-filter-item-count">' + String(count) + "</span>";
       item.innerHTML =
         '<input type="checkbox" id="' +
         id +
@@ -338,7 +353,8 @@ export class SetFilterPanel {
         ">" +
         '<span class="cm-set-filter-item-label">' +
         val +
-        "</span>";
+        "</span>" +
+        countHtml;
       const checkbox = requiredElement(item, "input", HTMLInputElement);
       checkbox.addEventListener("mousedown", (e) => e.stopPropagation());
       checkbox.addEventListener("click", (e) => e.stopPropagation());
@@ -387,6 +403,8 @@ export class SetFilterPanel {
   }
 
   setModel(model: SetFilterModel | null | undefined) {
+    this.searchDrivenFilter = false;
+    this.listSearchInput.value = "";
     if (!model) {
       this.filterMode = "all";
       this.selectAllNonEmptyValues();

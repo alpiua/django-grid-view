@@ -9,6 +9,7 @@ import { Kpi } from "./kpi";
 import { initAllSimpleTables, applyFiltersInScope } from "./simple-table";
 import { initButtonEllipsisTips } from "./table-cell-ui";
 import { asHTMLElement, asHtmlInput, isRecord } from "./dom-guards";
+import { resolveToolbarSearchInputForCtx } from "./toolbar-search-input";
 
 type FilterState = Record<string, string | string[]>;
 
@@ -105,7 +106,7 @@ export function _updateMultiSelectLabel(ms: HTMLElement): void {
   }
   setMultiselectTriggerLabel(
     ms,
-    valueChecked.length + " " + i18n.t("multiselect.selected_count", "selected")
+    valueChecked.map((cb) => cb.dataset.label || cb.value).join(", ")
   );
 }
 
@@ -162,30 +163,43 @@ function resolveToolbarGridId(anchor: Element | null | undefined): string {
   return root?.dataset?.cmTableGridId || root?.dataset?.cmPrefGridId || "";
 }
 
-function tableFragmentConfig(gridId: string): {
+function tableFragmentConfig(gridId: string, bar?: Element | null): {
   endpoint: string;
   target: string;
   swap: string;
   gridId: string;
 } | null {
   if (!gridId) return null;
+  // Filter bar carries fragment config when set via GridViewFilters.fragment_endpoint.
+  const barEl = bar instanceof HTMLElement ? bar : (bar as Element | null)?.closest?.("[data-cm-filter-bar]");
+  const b = barEl as HTMLElement | null;
   const shell = document.getElementById("cm-table-" + gridId);
-  if (!shell) return null;
-  const endpoint = shell.dataset?.cmFragmentEndpoint || "";
+  const endpoint = b?.dataset?.cmFragmentEndpoint || shell?.dataset?.cmFragmentEndpoint || "";
   if (!endpoint) return null;
   return {
     endpoint,
-    target: shell.dataset.cmFragmentTarget || "#block-" + gridId,
-    swap: shell.dataset.cmFragmentSwap || "outerHTML",
+    target: b?.dataset?.cmFragmentTarget || shell?.dataset?.cmFragmentTarget || "#block-" + gridId,
+    swap: b?.dataset?.cmFragmentSwap || shell?.dataset?.cmFragmentSwap || "outerHTML",
     gridId,
   };
 }
 
-function buildFragmentRequestUrl(fragmentEndpoint, pagePathAndQuery) {
+function buildFragmentRequestUrl(fragmentEndpoint: string, pagePathAndQuery: string) {
   const page = new URL(pagePathAndQuery, window.location.origin);
   const frag = new URL(fragmentEndpoint, window.location.origin);
   frag.search = page.search;
   return frag.pathname + frag.search;
+}
+
+// Faceted filter bars recompute option counts server-side, so filter/search
+// changes must refresh the whole spec (bar + table), not just the table.
+function specWantsFacets(ref: Element | null | undefined): boolean {
+  const el = asHTMLElement(ref);
+  if (!el) return false;
+  if (el.matches?.("[data-cm-filter-bar][data-cm-facets]")) return true;
+  const spec = el.closest("[data-cm-grid-view-spec]");
+  if (spec?.querySelector("[data-cm-filter-bar][data-cm-facets]")) return true;
+  return !!el.closest("[data-cm-filter-bar][data-cm-facets]");
 }
 
 function syncToolbarCounterFromTable(gridId: string): void {
@@ -214,22 +228,44 @@ export function navigateFilterState(
     anchorEl || bar
   );
   const gridId = resolveToolbarGridId(anchorEl || bar);
-  const frag = tableFragmentConfig(gridId);
+  const frag = tableFragmentConfig(gridId, bar);
+  const wantsFacets = specWantsFacets(anchorEl || bar);
   const htmx = getGlobal().htmx;
-  if (frag && htmx && typeof htmx.ajax === "function") {
-    htmx.ajax("GET", buildFragmentRequestUrl(frag.endpoint, pageUrl), {
-      target: frag.target,
-      swap: frag.swap,
-    });
-    window.history.pushState({}, "", pageUrl);
-    window.setTimeout(() => syncToolbarCounterFromTable(frag.gridId), 0);
-    return true;
+  if (htmx && typeof htmx.ajax === "function") {
+    // Faceted pages refresh the whole spec (bar + table) so option counts
+    // recompute; skip the table-only fragment swap in that case.
+    // Explicit fragment config (GridViewFilters.fragment_endpoint or GridViewTablePagination).
+    if (frag && !wantsFacets) {
+      htmx.ajax("GET", buildFragmentRequestUrl(frag.endpoint, pageUrl), {
+        target: frag.target,
+        swap: frag.swap,
+      });
+      window.history.pushState({}, "", pageUrl);
+      window.setTimeout(() => syncToolbarCounterFromTable(frag.gridId), 0);
+      return true;
+    }
+    // Auto-fragment: swap the spec root using HTMX select to extract only the spec
+    // element from the host page's partial response. No application config needed — spec.html gives every spec root a stable id ("cm-spec-{spec.id}").
+    const ref = anchorEl || bar;
+    const specRoot = ref instanceof Element ? (ref.closest("[data-cm-grid-view-spec]") as HTMLElement | null) : null;
+    if (specRoot?.id) {
+      const wrapId = "cm-spec-wrap-" + specRoot.dataset.specId;
+      htmx.ajax("GET", pageUrl, {
+        target: "#" + wrapId,
+        swap: "innerHTML",
+        select: "#" + specRoot.id,
+      });
+      window.history.pushState({}, "", pageUrl);
+      return true;
+    }
   }
   window.location.href = pageUrl;
   return false;
 }
 
 function toolbarSearchUsesFragmentNavigation(searchInput: HTMLInputElement): boolean {
+  // Faceted pages route search through a server refresh so option counts update.
+  if (specWantsFacets(searchInput)) return true;
   return !!tableFragmentConfig(resolveToolbarGridId(searchInput));
 }
 
@@ -417,13 +453,18 @@ export function bindFilterBar(barEl: Element, opts?: FilterBarOptions) {
   const onChange = () => {
     const state = selectedFilterValues(bar);
     state.page = "1";
+    // When we won't navigate, sync the URL BEFORE notifying listeners: AG-Grid
+    // datasources rebuild their query params from window.location (see
+    // host.ts::_pageStateFromUrl), so the URL must already reflect the new state
+    // when the cm-filter-change listener triggers a datasource reload.
+    if (typeof options.onChange !== "function" && !navigateOnChange) {
+      const nextUrl = withActiveTableColumns(buildFilterUrl(filterNavigateHref(), state), bar);
+      window.history.replaceState({}, "", nextUrl);
+    }
     document.dispatchEvent(new CustomEvent("cm-filter-change", { detail: { state, bar } }));
     if (typeof options.onChange === "function") options.onChange(state);
     else if (navigateOnChange) {
       navigateFilterState(state, bar, bar);
-    } else {
-      const nextUrl = withActiveTableColumns(buildFilterUrl(filterNavigateHref(), state), bar);
-      window.history.replaceState({}, "", nextUrl);
     }
   };
   bar.addEventListener("cm-filter-change", onChange);
@@ -451,7 +492,7 @@ export function getCsrfToken() {
   return "";
 }
 
-export function setSavedSearchPanelOpen(dropdown, open) {
+export function setSavedSearchPanelOpen(dropdown: HTMLElement | null, open: boolean) {
   if (!dropdown) return;
   var scopeId = dropdown.dataset.cmSavedDropdownFor || "";
   var loadBtn = scopeId
@@ -486,13 +527,9 @@ export const ToolbarSearch = {
     }
     if (!root) return null;
     var scope = root.dataset.cmSearchScopeId || scopeId || "";
-    var prefId = root.dataset.cmPrefGridId || scope;
+    var prefId = root.dataset.cmTableGridId || root.dataset.cmPrefGridId || scope;
     var backend = root.dataset.cmSearchBackend || "";
-    var inputEl =
-      backend === "ag_grid"
-        ? document.getElementById("ag-quick-filter-" + scope)
-        : document.getElementById("cm-toolbar-search-" + scope);
-    const input = inputEl instanceof HTMLInputElement ? inputEl : null;
+    const input = resolveToolbarSearchInputForCtx(root, scope);
     return {
       root,
       scopeId: scope,
@@ -561,14 +598,17 @@ export const ToolbarSearch = {
     ctx.input.value = text;
     syncToolbarSearchChrome(ctx.input);
     if (ctx.backend === "ag_grid") {
-      var host = byId.get(ctx.scopeId);
+      // The AG-Grid host is registered under the bound table id (prefId), not the
+      // toolbar block id (scopeId) — using scopeId returned no host, so applying a
+      // saved search set the input value but never filtered the grid.
+      var host = byId.get(ctx.prefId);
       if (host) {
         if (host.gridApi && typeof host.gridApi.setFilterModel === "function") {
           host.gridApi.setFilterModel(null);
         }
-        const onQuickFilterChanged = host.onQuickFilterChanged;
-        if (typeof onQuickFilterChanged === "function") {
-          onQuickFilterChanged();
+        // Call on the host so `this` binds (it reads this.gridApi internally).
+        if (typeof host.onQuickFilterChanged === "function") {
+          host.onQuickFilterChanged();
         }
       }
     } else if (typeof onPick === "function") {
@@ -798,8 +838,14 @@ export function initToolbarSearch(scope: Document | Element | null | undefined):
       e.preventDefault();
       input.value = "";
       syncStateUi();
-      applyClient();
-      navigate();
+      // Mirror the typing handler: fragment pages navigate via HTMX, client-live
+      // pages just re-filter in place. Unconditionally navigating here caused a
+      // full window.location reload on non-fragment pages (e.g. departments).
+      if (fragmentSearch) {
+        navigate();
+      } else {
+        applyClient();
+      }
     });
     syncStateUi();
     syncToolbarSearchChrome(input);
@@ -856,8 +902,6 @@ export function initFilterBars(scope: Document | Element | null | undefined): vo
 }
 
 /** Re-bind grid-view widgets after HTMX swaps (Phase 7: unified runtime boot). */
-export { bootGridViewScope } from "../runtime/boot";
-
 export function initTabGroups(scope: Document | Element | null | undefined): void {
   const root = scope && "querySelectorAll" in scope ? scope : document;
   root.querySelectorAll("[data-cm-tab-group]").forEach((groupEl) => {

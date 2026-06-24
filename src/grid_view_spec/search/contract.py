@@ -210,6 +210,10 @@ def classify_term_tokens(term: str, *, quoted: bool = False) -> frozenset[Search
             break
     if "%" in t:
         tokens.add(SearchToken.WILDCARD)
+    # Text operators ^prefix / suffix$ / !negation are wildcard-class (allowed
+    # wherever % is): keep them usable on text, numeric, and default profiles.
+    if len(t) > 1 and (t[0] == "^" or t[-1] == "$" or t[0] == "!"):
+        tokens.add(SearchToken.WILDCARD)
     if not tokens:
         tokens.add(SearchToken.PLAIN_TEXT)
     return frozenset(tokens)

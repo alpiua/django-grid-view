@@ -2,9 +2,10 @@
 {% if block.backend == "ag_grid" %}
 {% set ag_spec_json = resolved.extra.get('ag_grid_spec_config_json', '{}') %}
 <div
-  class="cm-ag-grid-shell"
+  class="cm-table-surface cm-table-shell cm-ag-grid-shell cm-layout-text-left"
   id="cm-table-{{ block.id | e }}"
   data-grid-id="{{ block.id | e }}"
+  data-cm-table-backend="ag_grid"
 >
   <div
     id="cm-ag-grid-container-{{ block.id | e }}"
@@ -18,9 +19,10 @@
 {% set prefs_url = host.url_for('grid_prefs') %}
 {% set edit_config_json = resolved.extra.get('edit_config_json', '') %}
 <div
-  class="cm-table-shell cm-layout-text-left"
+  class="cm-table-surface cm-table-shell cm-layout-text-left"
   id="cm-table-{{ block.id | e }}"
   data-grid-id="{{ block.id | e }}"
+  data-cm-table-backend="simple"
   data-search-mode="{{ block.search_mode | e }}"
   {% if block.pagination and block.pagination.mode == 'fragment' %}
   data-cm-fragment-endpoint="{{ block.pagination.fragment_endpoint | e }}"
@@ -37,7 +39,7 @@
   {% endif %}
 >
   <div class="cm-table-viewport">
-    <table class="cm-table{% if block.striped %} cm-striped{% endif %}" data-cm-table data-cm-col-filters="1"{% if block.header.groups %} data-cm-grouped-headers="1"{% endif %}>
+    <table class="cm-table{% if block.striped %} cm-striped{% endif %}" data-cm-table data-cm-col-filters="1"{% if block.header.groups %} data-cm-grouped-headers="1"{% endif %}{% if block.hide_sole_section_header %} data-cm-hide-sole-section="1"{% endif %}>
       <thead>
         <tr>
           {% for col in block.columns %}
@@ -77,9 +79,6 @@
                     <button type="button" class="cm-col-filter-btn" data-cm-col-filter-trigger aria-label="{{ host.translate('column_filter.open') | e }}">
                       <svg class="cm-col-filter-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
                     </button>
-                    <button type="button" class="cm-col-filter-clear" data-cm-col-filter-clear aria-label="{{ host.translate('column_filter.clear') | e }}">
-                      <svg class="cm-col-filter-clear-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
-                    </button>
                   </span>
                 </span>
                 {% endif %}
@@ -103,6 +102,8 @@
           {% if row.get('__chart_row_json__') %}data-cm-chart-row="{{ row.get('__chart_row_json__') | e }}"{% endif %}
           {% if row.get('care') %}data-cm-care="{{ row.get('care') | e }}"{% endif %}
           {% if row.get('period') %}data-cm-period="{{ row.get('period') | e }}"{% endif %}
+          {% if row.get('dept_id') %}data-cm-dept-id="{{ row.get('dept_id') | e }}"{% endif %}
+          {% if row.get('_no_modal') %}data-cm-no-modal="1"{% endif %}
           {% if block.row_action %}
             {% if block.row_action.type == 'link' and block.row_action.href %}
           data-cm-row-url="{{ row_link_url(block.row_action.href, row) | e }}"
@@ -118,6 +119,11 @@
           {% set val = row.get(field) %}
           {% set cf = column_filter_wire(col) %}
           {% set css = col.extra.get('css_class', '') if col.extra else '' %}
+          {% set vc = row.get(field ~ '__value_color', col.extra.get('value_color', '') if col.extra else '') %}
+          {% set val_f = val | float(0) if val is not none else 0 %}
+          {% set val_css = '' %}
+          {% if vc == 'signed' %}{% set val_css = 'cm-val-positive' if val_f > 0 else ('cm-val-negative' if val_f < 0 else '') %}
+          {% elif vc and (val_f != 0 if col.type in ('number', 'currency') else (val is not none and val != '' and val != '0')) %}{% set val_css = 'cm-val-' + vc %}{% endif %}
           {% set sort_val = row.get(field ~ '__sort_val', val | string if val is not none else '') %}
           {% set export_raw = row.get(field ~ '__export_raw', val | string if val is not none else '') %}
           <td
@@ -245,11 +251,11 @@
                 {% if link_target == '_blank' %}onclick="event.stopPropagation();"{% endif %}
               >{{ val | e }}</a>
             {% elif col.type == 'currency' %}
-              <span class="cm-currency{% if css %} {{ css | e }}{% endif %}">{{ "{:,.0f}".format(val | float) }} ₴</span>
+              <span class="cm-currency{% if css %} {{ css | e }}{% endif %}{% if val_css %} {{ val_css }}{% endif %}">{{ "{:,.0f}".format(val | float) }} ₴</span>
             {% elif col.type == 'number' %}
-              <span class="cm-number{% if css %} {{ css | e }}{% endif %}">{{ val }}</span>
+              <span class="cm-number{% if css %} {{ css | e }}{% endif %}{% if val_css %} {{ val_css }}{% endif %}">{{ val }}</span>
             {% else %}
-              <span class="cm-cell">{{ val | e }}</span>
+              <span class="cm-cell{% if css %} {{ css | e }}{% endif %}{% if val_css %} {{ val_css }}{% endif %}">{{ val | e }}</span>
             {% endif %}
           </td>
           {% endfor %}
@@ -281,15 +287,20 @@
           {% set field = col.field or col.id %}
           {% set fval = footer_row.get(field) %}
           {% set fcss = col.extra.get('css_class', '') if col.extra else '' %}
+          {% set fvc = col.extra.get('value_color', '') if col.extra else '' %}
+          {% set fval_f = fval | float(0) if fval is not none else 0 %}
+          {% set fval_css = '' %}
+          {% if fvc == 'signed' %}{% set fval_css = 'cm-val-positive' if fval_f > 0 else ('cm-val-negative' if fval_f < 0 else '') %}
+          {% elif fvc and (fval_f != 0 if col.type in ('number', 'currency') else (fval is not none and fval != '' and fval != '0')) %}{% set fval_css = 'cm-val-' + fvc %}{% endif %}
           <td data-cm-col-key="{{ col.id | e }}" data-cm-align="{{ col.align | e }}" class="{{ fcss | e }}">
             {% if fval is none or fval == '' %}
             <span class="cm-muted">—</span>
             {% elif col.type == 'currency' %}
-            <span class="cm-currency">{{ "{:,.0f}".format(fval | float) }} ₴</span>
+            <span class="cm-currency{% if fval_css %} {{ fval_css }}{% endif %}">{{ "{:,.0f}".format(fval | float) }} ₴</span>
             {% elif col.type == 'number' %}
-            <span class="cm-number">{{ fval }}</span>
+            <span class="cm-number{% if fval_css %} {{ fval_css }}{% endif %}">{{ fval }}</span>
             {% else %}
-            <span class="cm-cell">{{ fval | e }}</span>
+            <span class="cm-cell{% if fval_css %} {{ fval_css }}{% endif %}">{{ fval | e }}</span>
             {% endif %}
           </td>
           {% endif %}

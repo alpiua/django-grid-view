@@ -13,11 +13,17 @@
   </thead>
   <tbody>
     {% for row in table.rows %}
+    {% if row.get('is_section') %}
+    <tr class="section-row">
+      <td colspan="{{ table.columns | length }}">{{ row.get('section_label', '') }}</td>
+    </tr>
+    {% else %}
     <tr{% if row.row_class %} class="{{ row.row_class }}"{% endif %}>
       {% for cell in row.cells %}
       <td>{{ cell }}</td>
       {% endfor %}
     </tr>
+    {% endif %}
     {% endfor %}
   </tbody>
   {% if table.footer_cells %}

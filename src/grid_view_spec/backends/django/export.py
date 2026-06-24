@@ -47,6 +47,7 @@ class DjangoExportContext:
             _base=ExportRequestContext(
                 query=normalize_query_params(_django_query_params(request)),
                 subtitle=(request.GET.get("subtitle") or "").strip(),
+                title=(request.GET.get("title") or "").strip(),
                 table_id=table_id,
                 builder=(request.GET.get("builder") or "").strip(),
             ),
@@ -59,6 +60,10 @@ class DjangoExportContext:
     @property
     def subtitle(self) -> str:
         return self._base.subtitle
+
+    @property
+    def title(self) -> str:
+        return self._base.title
 
     @property
     def table_id(self) -> str:

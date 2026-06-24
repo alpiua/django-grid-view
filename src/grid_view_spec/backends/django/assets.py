@@ -80,7 +80,7 @@ def build_assets_context(
         return {
             "include": True,
             "load_ag_grid": load_ag_grid_css,
-            "ag_grid_bundled": load_ag_grid_css and ag_grid_stylesheets_bundled(),
+            "ag_grid_bundled": ag_grid_stylesheets_bundled(),
             "ag_grid_css_url": ag_grid_css,
             "ag_grid_theme_css_url": ag_grid_theme_css,
         }
@@ -134,7 +134,12 @@ def build_assets_context(
         "include_scripts": include_scripts,
         "load_charts": load_charts,
         "load_ag_grid": load_ag_grid,
-        "ag_grid_bundled": load_ag_grid and ag_grid_stylesheets_bundled(),
+        # Selects static-vs-CDN URLs in the __GridViewAssets manifest. Must reflect
+        # whether vendor assets are bundled regardless of load_ag_grid: the manifest
+        # is consumed by the client lazy-loader after HTMX swaps, when AG-Grid was
+        # not eagerly loaded this render. Gating on load_ag_grid emitted raw relative
+        # vendor paths that resolved against the page URL (NS_ERROR_CORRUPTED_CONTENT).
+        "ag_grid_bundled": ag_grid_stylesheets_bundled(),
         "grid_view_i18n_catalog": mark_safe(get_js_i18n_catalog_json()),
         "preferences_url": grid_preferences_url(),
         "ag_grid_cdn_url": ag_grid_cdn_url(),

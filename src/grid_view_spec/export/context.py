@@ -45,6 +45,7 @@ class ExportRequestContext:
     subtitle: str = ""
     table_id: str = ""
     builder: str = ""
+    title: str = ""
 
     def builder_key(self) -> str:
         return self.builder.strip()
@@ -78,6 +79,9 @@ class ExportContextLike(Protocol):
 
     @property
     def subtitle(self) -> str: ...
+
+    @property
+    def title(self) -> str: ...
 
     @property
     def table_id(self) -> str: ...

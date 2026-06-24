@@ -5,9 +5,12 @@ import { matchAgGridQuickFilter } from "./grid-view/search/filter-engine";
   gv.AgGrid = gv.AgGrid || {};
   gv.AgGrid.matchQuickFilter = matchAgGridQuickFilter;
 
-  gv.AgGrid.createAdvancedSearch = function (inputSelector) {
+  gv.AgGrid.createAdvancedSearch = function (inputSelector?: string) {
     if (inputSelector === void 0) inputSelector = "#ag-quick-filter";
-    return function (_quickFilterParts, rowQuickFilterAggregateText) {
+    return function (
+      _quickFilterParts: readonly string[],
+      rowQuickFilterAggregateText: string,
+    ): boolean {
       const inputElement = document.querySelector(inputSelector);
       const searchExpr =
         inputElement instanceof HTMLInputElement ? inputElement.value : "";

@@ -74,6 +74,17 @@ export interface GridHandle {
   saveColPresetsToServer?: () => void;
   syncExportLinks?: () => void;
   getColumnState?: () => unknown[];
+  /**
+   * Optional (feature-detected): true when this grid has any active search or
+   * filter state. Backends mirror exactly what their clearAllFilters() clears.
+   */
+  hasActiveFilters?: () => boolean;
+  /**
+   * Optional (feature-detected): re-sync filter chrome (column-filter header
+   * state, AG filtered classes) and toggle the scoped "clear all" button
+   * visibility based on hasActiveFilters().
+   */
+  syncFilterChrome?: () => void;
 }
 
 export interface ByIdRegistry {

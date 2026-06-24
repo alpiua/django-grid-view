@@ -32,10 +32,15 @@ def _json_attr(value: object) -> str:
 
 
 def column_filter_wire(column: GridViewColumn) -> str:
-    """Map vNext ``GridViewColumn.filter`` to DOM wire kind."""
+    """Map ``GridViewColumn.filter`` to the DOM column-filter wire kind.
+
+    A column with no typed ``filter`` still exposes the generic expression filter,
+    unless it is also non-searchable — in which case it has no column-filter UI at
+    all (``"nosearch"``), the v2 way to express "this column is not filterable".
+    """
     filt = column.filter
     if filt is None:
-        return "default"
+        return "default" if column.searchable else "nosearch"
     if filt.type == "set":
         return "list"
     if filt.type == "number":

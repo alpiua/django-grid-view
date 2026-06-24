@@ -2,4 +2,5 @@
 import "./ag-grid-host";
 import "./ag-grid-tooltip";
 import "./ag-grid-smart-filter";
+import "./ag-grid-expr-filter";
 import "./ag-grid-advanced-search";

@@ -24,7 +24,6 @@ import { initTableCellUi } from "./table-cell-ui";
 import { initSimpleTableColumnResize } from "./simple-table-column-resize";
 import { ChartsBridge } from "./charts-bridge";
 import { initSimpleTableColumnSettings } from "./actions";
-import { bootGridViewScope } from "./filter-bar";
 import { queryRecordCounters } from "./dom-utils";
 import { invokeAction } from "./registry-api";
 import { asHTMLElement, eventTargetElement, isRecord } from "./dom-guards";
@@ -38,7 +37,11 @@ type RowGroup = {
 function isRowDict(value: unknown): value is RowDict {
   if (!isRecord(value)) return false;
   return Object.values(value).every(
-    (v) => v === null || typeof v === "string" || typeof v === "number" || typeof v === "boolean"
+    (v) =>
+      v === null ||
+      typeof v === "string" ||
+      typeof v === "number" ||
+      typeof v === "boolean",
   );
 }
 
@@ -52,12 +55,15 @@ function asHtmlTable(el: Element | null | undefined): HTMLTableElement | null {
 
 function simpleTableWrapper(table: HTMLTableElement): HTMLElement | null {
   const wrapper =
-    table.closest(".cm-simple-wrapper, .cm-table-shell, .cm-page-table-layout, .cm-dashboard-page") ||
-    table.parentElement;
+    table.closest(
+      ".cm-simple-wrapper, .cm-table-shell, .cm-page-table-layout, .cm-dashboard-page",
+    ) || table.parentElement;
   return asHTMLElement(wrapper);
 }
 
-export function ensureSimpleTableForTable(tableEl: Element | null | undefined): SimpleTable | null {
+export function ensureSimpleTableForTable(
+  tableEl: Element | null | undefined,
+): SimpleTable | null {
   if (!tableEl) return null;
   const table = tableEl.matches("[data-cm-table]")
     ? asHtmlTable(tableEl)
@@ -71,10 +77,37 @@ export function ensureSimpleTableForTable(tableEl: Element | null | undefined): 
   return instance;
 }
 
-export function resolveDataTable(el: Element | null | undefined): HTMLTableElement | null {
+export function resolveDataTable(
+  el: Element | null | undefined,
+): HTMLTableElement | null {
   if (!el) return null;
-  if (el.matches("[data-cm-table][data-cm-col-filters]")) return asHtmlTable(el);
+  if (el.matches("[data-cm-table][data-cm-col-filters]"))
+    return asHtmlTable(el);
   return asHtmlTable(el.querySelector("[data-cm-table][data-cm-col-filters]"));
+}
+
+/**
+ * Clear a simple table's column filters + search by grid id. The byId registry
+ * holds the column-settings host (not the SimpleTable) for simple grids, so the
+ * toolbar clear-all action resolves the table from the DOM instead.
+ */
+export function clearSimpleTableFiltersForGrid(gridId: string): boolean {
+  if (!gridId) return false;
+  const esc =
+    typeof CSS !== "undefined" && CSS.escape
+      ? CSS.escape(gridId)
+      : gridId.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const shell = document.getElementById("cm-table-" + gridId);
+  let table = resolveDataTable(shell);
+  if (!table)
+    table = resolveDataTable(
+      document.querySelector('[data-grid-id="' + esc + '"]'),
+    );
+  if (!table) return false;
+  const simple = ensureSimpleTableForTable(table);
+  if (!simple) return false;
+  simple.clearAllFilters();
+  return true;
 }
 
 export function applyTableFilters(tableEl: Element | null | undefined): void {
@@ -90,15 +123,21 @@ export function applyTableFilters(tableEl: Element | null | undefined): void {
   new SimpleTable(wrapper, table).applyAllFilters();
 }
 
-export function applyFiltersInScope(scope: Document | Element | null | undefined): void {
+export function applyFiltersInScope(
+  scope: Document | Element | null | undefined,
+): void {
   const root = scope && "querySelectorAll" in scope ? scope : document;
-  root.querySelectorAll("[data-cm-table][data-cm-col-filters]").forEach((tableEl) => {
-    const table = asHtmlTable(tableEl);
-    if (table) ensureSimpleTableForTable(table)?.applyAllFilters();
-  });
+  root
+    .querySelectorAll("[data-cm-table][data-cm-col-filters]")
+    .forEach((tableEl) => {
+      const table = asHtmlTable(tableEl);
+      if (table) ensureSimpleTableForTable(table)?.applyAllFilters();
+    });
 }
 
-export function ensureSimpleTableLayout(layout: Element | null | undefined): SimpleTable | null {
+export function ensureSimpleTableLayout(
+  layout: Element | null | undefined,
+): SimpleTable | null {
   if (!layout) return null;
   const table = layout.querySelector("[data-cm-table]");
   return ensureSimpleTableForTable(table);
@@ -115,11 +154,13 @@ export class SimpleTable {
     this.sortKey = null;
     this.sortDir = null;
     this.w = wrapper;
-    const table = tableEl || asHtmlTable(wrapper.querySelector("[data-cm-table]"));
+    const table =
+      tableEl || asHtmlTable(wrapper.querySelector("[data-cm-table]"));
     if (!table) throw new Error("SimpleTable: missing [data-cm-table]");
     this.table = table;
     const tbody = table.querySelector("tbody");
-    if (!(tbody instanceof HTMLTableSectionElement)) throw new Error("SimpleTable: missing tbody");
+    if (!(tbody instanceof HTMLTableSectionElement))
+      throw new Error("SimpleTable: missing tbody");
     this.tbody = tbody;
     Array.from(this.tbody.querySelectorAll("tr")).forEach((row, index) => {
       row.dataset.cmIdx = String(index);
@@ -150,13 +191,19 @@ export class SimpleTable {
     });
     return groups;
   }
-  _compareRows(a: HTMLTableRowElement, b: HTMLTableRowElement, idx: number): number {
+  _compareRows(
+    a: HTMLTableRowElement,
+    b: HTMLTableRowElement,
+    idx: number,
+  ): number {
     const num2 = (value: string): number | null => {
       const parsed = parseFloat(String(value).replace(/[^\d.-]/g, ""));
       return Number.isNaN(parsed) ? null : parsed;
     };
-    const cellA = a.querySelector('td[data-cm-col="' + idx + '"]') || a.children[idx];
-    const cellB = b.querySelector('td[data-cm-col="' + idx + '"]') || b.children[idx];
+    const cellA =
+      a.querySelector('td[data-cm-col="' + idx + '"]') || a.children[idx];
+    const cellB =
+      b.querySelector('td[data-cm-col="' + idx + '"]') || b.children[idx];
     const cellAEl = asHTMLElement(cellA);
     const cellBEl = asHTMLElement(cellB);
     const va = cellAEl?.dataset.cmSortVal ?? cellAEl?.textContent?.trim() ?? "";
@@ -184,7 +231,7 @@ export class SimpleTable {
         const target = eventTargetElement(e.target);
         if (
           target?.closest(
-            "[data-cm-col-filter-trigger], [data-cm-col-filter-clear], [data-cm-col-resize], .cm-th-header-tools, [data-cm-th-tools]"
+            "[data-cm-col-filter-trigger], [data-cm-col-filter-clear], [data-cm-col-resize], .cm-th-header-tools, [data-cm-th-tools]",
           )
         ) {
           return;
@@ -208,7 +255,10 @@ export class SimpleTable {
       row.style.cursor = "pointer";
       row.addEventListener("click", (event) => {
         const target = eventTargetElement(event.target);
-        if (target?.closest("a,button,[data-cm-cell-action],[data-cm-cell-edit]")) return;
+        if (
+          target?.closest("a,button,[data-cm-cell-action],[data-cm-cell-edit]")
+        )
+          return;
         const url = row.dataset.cmRowUrl;
         if (url) window.location.href = url;
       });
@@ -221,7 +271,10 @@ export class SimpleTable {
       row.style.cursor = "pointer";
       row.addEventListener("click", (event) => {
         const target = eventTargetElement(event.target);
-        if (target?.closest("a,button,[data-cm-cell-action],[data-cm-cell-edit]")) return;
+        if (
+          target?.closest("a,button,[data-cm-cell-action],[data-cm-cell-edit]")
+        )
+          return;
         const action = row.dataset.cmRowAction;
         if (!action) return;
         invokeAction(action, {
@@ -237,11 +290,20 @@ export class SimpleTable {
     if (idx !== void 0 && idx !== "") {
       return parseInt(idx, 10);
     }
-    return th.parentElement ? Array.from(th.parentElement.children).indexOf(th) : 0;
+    return th.parentElement
+      ? Array.from(th.parentElement.children).indexOf(th)
+      : 0;
   }
   _sort(th: HTMLElement): void {
     const key = th.dataset.cmSort || "";
-    this.sortDir = this.sortKey === key ? this.sortDir === "asc" ? "desc" : this.sortDir === "desc" ? null : "asc" : "asc";
+    this.sortDir =
+      this.sortKey === key
+        ? this.sortDir === "asc"
+          ? "desc"
+          : this.sortDir === "desc"
+            ? null
+            : "asc"
+        : "asc";
     this.sortKey = this.sortDir ? key : null;
     const idx = this._colIndex(th);
     if (this._hasSectionGroups()) {
@@ -261,7 +323,9 @@ export class SimpleTable {
         this._appendRowGroups(groups);
       }
     } else {
-      const rows = Array.from(this.tbody.querySelectorAll<HTMLTableRowElement>(".cm-row"));
+      const rows = Array.from(
+        this.tbody.querySelectorAll<HTMLTableRowElement>(".cm-row"),
+      );
       if (!this.sortDir) {
         rows.sort((a, b) => Number(a.dataset.cmIdx) - Number(b.dataset.cmIdx));
       } else {
@@ -276,17 +340,103 @@ export class SimpleTable {
     this.w.querySelectorAll("[data-cm-sort]").forEach((headerEl) => {
       const headerTh = asHTMLElement(headerEl);
       if (!headerTh) return;
-      headerTh.classList.toggle("cm-th-sorted", this.sortDir !== null && headerTh.dataset.cmSort === this.sortKey);
+      const isSorted =
+        this.sortDir !== null && headerTh.dataset.cmSort === this.sortKey;
+      headerTh.classList.toggle("cm-th-sorted", isSorted);
+      headerTh.classList.toggle(
+        "cm-th-sort-asc",
+        isSorted && this.sortDir === "asc",
+      );
+      headerTh.classList.toggle(
+        "cm-th-sort-desc",
+        isSorted && this.sortDir === "desc",
+      );
     });
-    this.w.querySelectorAll(".cm-sort-arrow").forEach((arrow2) => {
-      arrow2.textContent = "\u21C9";
-    });
-    const arrow = th.querySelector(".cm-sort-arrow");
-    if (arrow) {
-      arrow.textContent = this.sortDir === "asc" ? "\u25B2" : this.sortDir === "desc" ? "\u25BC" : "\u21C9";
-    }
+    // Sort glyphs are rendered from CSS tokens (table-header-chrome.css),
+    // driven by the cm-th-sort-asc / cm-th-sort-desc state classes set above.
+    // The .cm-sort-arrow span is a mask-only icon box; no textContent mutation.
   }
-  _queryUsesNumericCellText(query) {
+  clearAllFilters(): void {
+    const toolbarSearch = this.w
+      .closest(".cm-dashboard-page, .cm-grid-view-spec")
+      ?.querySelector("[data-cm-toolbar-search]");
+    if (toolbarSearch instanceof HTMLInputElement) {
+      toolbarSearch.value = "";
+      delete toolbarSearch.dataset.cmSearchCommitted;
+      toolbarSearch.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    this.w
+      .querySelectorAll<HTMLElement>("th[data-cm-col-key]")
+      .forEach((th) => {
+        delete th.dataset.cmColFilterValue;
+      });
+    this.w
+      .querySelectorAll<HTMLElement>(".cm-col-filter-btn")
+      .forEach((btn) => {
+        btn.classList.remove("is-active", "is-open");
+      });
+    this.w
+      .querySelectorAll<HTMLElement>(".cm-col-filter-clear")
+      .forEach((btn) => {
+        btn.classList.remove("is-visible");
+      });
+    const url = new URL(window.location.href);
+    ["q", "filters", "col_q"].forEach((key) => url.searchParams.delete(key));
+    window.history.replaceState({}, "", url);
+    const gridId =
+      this.w.dataset.gridId ||
+      this.table.closest<HTMLElement>("[data-grid-id]")?.dataset.gridId ||
+      "";
+    if (gridId) {
+      localStorage.removeItem("cmColState_" + gridId);
+      localStorage.removeItem("cmTableState_" + gridId);
+    }
+    this.applyAllFilters();
+    document.dispatchEvent(
+      new CustomEvent("cm-grid-state-change", { detail: { gridId } }),
+    );
+  }
+  _gridId(): string {
+    return (
+      this.w.dataset.gridId ||
+      this.table.closest<HTMLElement>("[data-grid-id]")?.dataset.gridId ||
+      ""
+    );
+  }
+  hasActiveFilters(): boolean {
+    const toolbarSearch = this.w
+      .closest(".cm-dashboard-page, .cm-grid-view-spec")
+      ?.querySelector("[data-cm-toolbar-search]");
+    if (toolbarSearch instanceof HTMLInputElement) {
+      if ((toolbarSearch.value || "").trim()) return true;
+      if ((toolbarSearch.dataset.cmSearchCommitted || "").trim()) return true;
+    }
+    if (Object.keys(collectColumnFiltersFromTable(this.table)).length)
+      return true;
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("q") || params.has("col_q")) return true;
+    return false;
+  }
+  syncFilterChrome(): void {
+    syncColumnFilterChrome(this.table);
+    const active = this.hasActiveFilters();
+    const gridId = this._gridId();
+    const esc =
+      typeof CSS !== "undefined" && CSS.escape
+        ? CSS.escape(gridId)
+        : gridId.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    const buttons = gridId
+      ? document.querySelectorAll<HTMLElement>(
+          '[data-cm-grid-action="clearAllFilters"][data-cm-grid-id="' +
+            esc +
+            '"]',
+        )
+      : document.querySelectorAll<HTMLElement>(
+          '[data-cm-grid-action="clearAllFilters"]',
+        );
+    buttons.forEach((btn) => btn.classList.toggle("is-hidden", !active));
+  }
+  _queryUsesNumericCellText(query: string) {
     const q = String(query || "").trim();
     if (!q) return false;
     if (termIsExpression(q)) return true;
@@ -299,11 +449,17 @@ export class SimpleTable {
   }
   _resolveToolbarQuery(
     toolbarSearch: Element | null,
-    localSearch: Element | null
+    localSearch: Element | null,
   ): string {
-    const toolbarInput = toolbarSearch instanceof HTMLInputElement ? toolbarSearch : null;
-    const localInput = localSearch instanceof HTMLInputElement ? localSearch : null;
-    const raw = ((toolbarInput && toolbarInput.value) || (localInput && localInput.value) || "").trim();
+    const toolbarInput =
+      toolbarSearch instanceof HTMLInputElement ? toolbarSearch : null;
+    const localInput =
+      localSearch instanceof HTMLInputElement ? localSearch : null;
+    const raw = (
+      (toolbarInput && toolbarInput.value) ||
+      (localInput && localInput.value) ||
+      ""
+    ).trim();
     const input = toolbarInput || localInput;
     const searchColumns = collectSearchColumnsFromTable(this.table);
     if (input) {
@@ -320,21 +476,37 @@ export class SimpleTable {
       ""
     ).trim();
   }
-  _cellTextForFilter(row: HTMLTableRowElement, colKey: string, query: string): string {
+  _cellTextForFilter(
+    row: HTMLTableRowElement,
+    colKey: string,
+    query: string,
+  ): string {
     var esc =
       typeof CSS !== "undefined" && CSS.escape
         ? CSS.escape(colKey)
-        : colKey.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+        : colKey.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
     var cell = row.querySelector('td[data-cm-col-key="' + esc + '"]');
     const cellEl = asHTMLElement(cell);
     if (!cellEl) return "";
     if (this._queryUsesNumericCellText(query)) {
-      return (cellEl.dataset.cmExportRaw || cellEl.dataset.cmSortVal || cellEl.textContent || "").trim();
+      return (
+        cellEl.dataset.cmExportRaw ||
+        cellEl.dataset.cmSortVal ||
+        cellEl.textContent ||
+        ""
+      ).trim();
     }
-    return (cellEl.dataset.cmSortVal || cellEl.textContent || cellEl.dataset.cmExportRaw || "").trim();
+    return (
+      cellEl.dataset.cmSortVal ||
+      cellEl.textContent ||
+      cellEl.dataset.cmExportRaw ||
+      ""
+    ).trim();
   }
   _syncTableEmptyState(shownRows: number, filtered: boolean): void {
-    const emptyRow = asHTMLElement(this.tbody.querySelector("tr[data-cm-table-empty]"));
+    const emptyRow = asHTMLElement(
+      this.tbody.querySelector("tr[data-cm-table-empty]"),
+    );
     if (!emptyRow) return;
     const hasDataRows = this.tbody.querySelectorAll(".cm-row").length > 0;
     if (!hasDataRows) {
@@ -351,49 +523,64 @@ export class SimpleTable {
       let next = sectionRow.nextElementSibling;
       while (next && !next.classList.contains("cm-row-section")) {
         const rowEl = asHTMLElement(next);
-        if (rowEl?.classList.contains("cm-row") && !rowEl.hidden) visibleRows.push(rowEl);
+        if (rowEl?.classList.contains("cm-row") && !rowEl.hidden)
+          visibleRows.push(rowEl);
         next = next.nextElementSibling;
       }
-      sectionRow.querySelectorAll<HTMLElement>("td[data-cm-section-aggregate]").forEach((el) => {
-        const key = el.dataset.cmColKey;
-        if (!key) return;
-        if (!el.dataset.cmSectionHtml) {
-          el.dataset.cmSectionHtml = el.innerHTML;
-        }
-        if (!active) {
-          el.innerHTML = el.dataset.cmSectionHtml;
-          return;
-        }
-        let sum = 0;
-        let hasNum = false;
-        const esc =
-          typeof CSS !== "undefined" && CSS.escape
-            ? CSS.escape(key)
-            : key.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-        visibleRows.forEach((row) => {
-          const bodyCell = row.querySelector<HTMLElement>('td[data-cm-col-key="' + esc + '"]');
-          const raw = bodyCell?.dataset.cmExportRaw ?? bodyCell?.dataset.cmSortVal ?? "";
-          const parsed = parseFloat(String(raw).replace(/[^\d.-]/g, ""));
-          if (!Number.isNaN(parsed)) {
-            sum += parsed;
-            hasNum = true;
+      sectionRow
+        .querySelectorAll<HTMLElement>("td[data-cm-section-aggregate]")
+        .forEach((el) => {
+          const key = el.dataset.cmColKey;
+          if (!key) return;
+          if (!el.dataset.cmSectionHtml) {
+            el.dataset.cmSectionHtml = el.innerHTML;
+          }
+          if (!active) {
+            el.innerHTML = el.dataset.cmSectionHtml;
+            return;
+          }
+          let sum = 0;
+          let hasNum = false;
+          const esc =
+            typeof CSS !== "undefined" && CSS.escape
+              ? CSS.escape(key)
+              : key.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+          visibleRows.forEach((row) => {
+            const bodyCell = row.querySelector<HTMLElement>(
+              'td[data-cm-col-key="' + esc + '"]',
+            );
+            const raw =
+              bodyCell?.dataset.cmExportRaw ??
+              bodyCell?.dataset.cmSortVal ??
+              "";
+            const parsed = parseFloat(String(raw).replace(/[^\d.-]/g, ""));
+            if (!Number.isNaN(parsed)) {
+              sum += parsed;
+              hasNum = true;
+            }
+          });
+          if (!hasNum) {
+            el.innerHTML = '<span class="cm-muted">—</span>';
+            return;
+          }
+          const base = el.dataset.cmExportRaw || "";
+          if (base.includes("₴") || el.dataset.cmSectionHtml.includes("₴")) {
+            el.textContent =
+              sum.toLocaleString(undefined, { maximumFractionDigits: 2 }) +
+              " ₴";
+          } else {
+            el.textContent = String(Math.round(sum) === sum ? sum : sum);
           }
         });
-        if (!hasNum) {
-          el.innerHTML = '<span class="cm-muted">—</span>';
-          return;
-        }
-        const base = el.dataset.cmExportRaw || "";
-        if (base.includes("₴") || el.dataset.cmSectionHtml.includes("₴")) {
-          el.textContent = sum.toLocaleString(undefined, { maximumFractionDigits: 2 }) + " ₴";
-        } else {
-          el.textContent = String(Math.round(sum) === sum ? sum : sum);
-        }
-      });
     });
   }
   _syncSectionVisibility(colKeys: string[], globalActive: boolean): void {
     const filtering = colKeys.length > 0 || globalActive;
+    const hideSole = !!this.table.dataset.cmHideSoleSection;
+
+    // Collect section rows and whether each has visible rows.
+    type SectionEntry = { el: HTMLElement; hasVisible: boolean };
+    const sections: SectionEntry[] = [];
     this.tbody.querySelectorAll(".cm-row-section").forEach((sectionEl) => {
       const sectionRow = asHTMLElement(sectionEl);
       if (!sectionRow) return;
@@ -401,11 +588,27 @@ export class SimpleTable {
       let anyVisible = false;
       while (next && !next.classList.contains("cm-row-section")) {
         const rowEl = asHTMLElement(next);
-        if (rowEl?.classList.contains("cm-row") && !rowEl.hidden) anyVisible = true;
+        if (rowEl?.classList.contains("cm-row") && !rowEl.hidden)
+          anyVisible = true;
         next = next.nextElementSibling;
       }
-      sectionRow.hidden = filtering && !anyVisible;
+      sections.push({ el: sectionRow, hasVisible: anyVisible });
     });
+
+    const visibleSectionCount = sections.filter((s) => s.hasVisible).length;
+    for (const { el, hasVisible } of sections) {
+      if (!filtering) {
+        el.hidden = false;
+      } else if (!hasVisible) {
+        // Always hide empty sections during filtering.
+        el.hidden = true;
+      } else if (hideSole && visibleSectionCount === 1) {
+        // Single remaining section: header is redundant, hide it.
+        el.hidden = true;
+      } else {
+        el.hidden = false;
+      }
+    }
   }
   applyAllFilters(): void {
     const layout = this.w;
@@ -415,14 +618,19 @@ export class SimpleTable {
     this.tbody = tbody;
     const toolbarSearch =
       layout.querySelector("[data-cm-toolbar-search]") ||
-      layout.closest(".cm-page-table-layout, .cm-dashboard-page")?.querySelector("[data-cm-toolbar-search]") ||
+      layout
+        .closest(".cm-page-table-layout, .cm-dashboard-page")
+        ?.querySelector("[data-cm-toolbar-search]") ||
       null;
     const localSearch = layout.querySelector("[data-cm-search]");
     const shell = this.table.closest(".cm-table-shell");
-    const hasServerPagination = !!shell?.querySelector("[data-cm-table-pagination]");
+    const hasServerPagination = !!shell?.querySelector(
+      "[data-cm-table-pagination]",
+    );
     const toolbarSearchEl = asHTMLElement(toolbarSearch);
     const serverToolbarSearch =
-      hasServerPagination && toolbarSearchEl?.dataset?.cmSearchBackend === "server";
+      hasServerPagination &&
+      toolbarSearchEl?.dataset?.cmSearchBackend === "server";
     const globalQ = serverToolbarSearch
       ? ""
       : this._resolveToolbarQuery(toolbarSearch, localSearch);
@@ -443,16 +651,18 @@ export class SimpleTable {
           var esc =
             typeof CSS !== "undefined" && CSS.escape
               ? CSS.escape(key)
-              : key.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+              : key.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
           const th = table.querySelector('th[data-cm-col-key="' + esc + '"]');
-          const td = row.querySelector<HTMLElement>('td[data-cm-col-key="' + esc + '"]');
+          const td = row.querySelector<HTMLElement>(
+            'td[data-cm-col-key="' + esc + '"]',
+          );
           const colMatch = headerFilterMatch(th);
           const profile = headerSearchProfile(th);
           const tokens = parseCellFilterTokens(td, colMatch);
           const cellText = this._cellTextForFilter(
             row,
             key,
-            typeof entry === "string" ? entry : ""
+            typeof entry === "string" ? entry : "",
           );
           return matchColumnFilterEntry(cellText, entry, {
             tokens,
@@ -484,7 +694,7 @@ export class SimpleTable {
     this._syncTableEmptyState(shown, filtered);
     this._syncRecordCounters(shown);
     this._syncTableFooter(filtered);
-    if (table) syncColumnFilterChrome(table);
+    this.syncFilterChrome();
     this._syncGridViewCharts();
   }
   _syncRecordCounters(shownRows: number): void {
@@ -499,19 +709,25 @@ export class SimpleTable {
       const field = counter.dataset.cmCountField;
       if (field) {
         let sum = 0;
-        this.tbody.querySelectorAll(".cm-row:not([hidden])").forEach((rowEl) => {
-          const row = asHTMLElement(rowEl);
-          if (!row) return;
-          const esc =
-            typeof CSS !== "undefined" && CSS.escape
-              ? CSS.escape(field)
-              : field.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
-          const cell = row.querySelector('td[data-cm-col-key="' + esc + '"]');
-          const cellEl = asHTMLElement(cell);
-          const raw = cellEl?.dataset.cmExportRaw ?? cellEl?.dataset.cmSortVal ?? cellEl?.textContent ?? "";
-          const parsed = parseFloat(String(raw).replace(/[^\d.-]/g, ""));
-          if (!Number.isNaN(parsed)) sum += parsed;
-        });
+        this.tbody
+          .querySelectorAll(".cm-row:not([hidden])")
+          .forEach((rowEl) => {
+            const row = asHTMLElement(rowEl);
+            if (!row) return;
+            const esc =
+              typeof CSS !== "undefined" && CSS.escape
+                ? CSS.escape(field)
+                : field.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+            const cell = row.querySelector('td[data-cm-col-key="' + esc + '"]');
+            const cellEl = asHTMLElement(cell);
+            const raw =
+              cellEl?.dataset.cmExportRaw ??
+              cellEl?.dataset.cmSortVal ??
+              cellEl?.textContent ??
+              "";
+            const parsed = parseFloat(String(raw).replace(/[^\d.-]/g, ""));
+            if (!Number.isNaN(parsed)) sum += parsed;
+          });
         counter.textContent = String(Math.round(sum) === sum ? sum : sum);
         return;
       }
@@ -522,53 +738,67 @@ export class SimpleTable {
     const tfoot = this.table.querySelector("tfoot");
     if (!(tfoot instanceof HTMLElement)) return;
     if (this._hasSectionGroups()) {
-      const visibleSections = this.tbody.querySelectorAll(".cm-row-section:not([hidden])").length;
+      const visibleSections = this.tbody.querySelectorAll(
+        ".cm-row-section:not([hidden])",
+      ).length;
       tfoot.hidden = active && visibleSections <= 1;
       if (tfoot.hidden) return;
     }
     tfoot.hidden = false;
-    tfoot.querySelectorAll("td[data-cm-footer-aggregate][data-cm-col-key]").forEach((cellEl) => {
-      const cell = asHTMLElement(cellEl);
-      if (!cell) return;
-      const key = cell.dataset.cmColKey;
-      if (!key) return;
-      if (!cell.dataset.cmFooterHtml) {
-        cell.dataset.cmFooterHtml = cell.innerHTML;
-      }
-      if (!active) {
-        cell.innerHTML = cell.dataset.cmFooterHtml;
-        return;
-      }
-      let sum = 0;
-      let hasNum = false;
-      this.tbody.querySelectorAll(".cm-row:not([hidden])").forEach((rowEl) => {
-        const row = asHTMLElement(rowEl);
-        if (!row) return;
-        const esc =
-          typeof CSS !== "undefined" && CSS.escape
-            ? CSS.escape(key)
-            : key.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
-        const bodyCell = row.querySelector('td[data-cm-col-key="' + esc + '"]');
-        const bodyCellEl = asHTMLElement(bodyCell);
-        const raw = bodyCellEl?.dataset.cmExportRaw ?? bodyCellEl?.dataset.cmSortVal ?? "";
-        const parsed = parseFloat(String(raw).replace(/[^\d.-]/g, ""));
-        if (!Number.isNaN(parsed)) {
-          sum += parsed;
-          hasNum = true;
+    tfoot
+      .querySelectorAll("td[data-cm-footer-aggregate][data-cm-col-key]")
+      .forEach((cellEl) => {
+        const cell = asHTMLElement(cellEl);
+        if (!cell) return;
+        const key = cell.dataset.cmColKey;
+        if (!key) return;
+        if (!cell.dataset.cmFooterHtml) {
+          cell.dataset.cmFooterHtml = cell.innerHTML;
+        }
+        if (!active) {
+          cell.innerHTML = cell.dataset.cmFooterHtml;
+          return;
+        }
+        let sum = 0;
+        let hasNum = false;
+        this.tbody
+          .querySelectorAll(".cm-row:not([hidden])")
+          .forEach((rowEl) => {
+            const row = asHTMLElement(rowEl);
+            if (!row) return;
+            const esc =
+              typeof CSS !== "undefined" && CSS.escape
+                ? CSS.escape(key)
+                : key.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+            const bodyCell = row.querySelector(
+              'td[data-cm-col-key="' + esc + '"]',
+            );
+            const bodyCellEl = asHTMLElement(bodyCell);
+            const raw =
+              bodyCellEl?.dataset.cmExportRaw ??
+              bodyCellEl?.dataset.cmSortVal ??
+              "";
+            const parsed = parseFloat(String(raw).replace(/[^\d.-]/g, ""));
+            if (!Number.isNaN(parsed)) {
+              sum += parsed;
+              hasNum = true;
+            }
+          });
+        if (!hasNum) {
+          cell.textContent = "—";
+          return;
+        }
+        const base = cell.dataset.cmExportRaw || "";
+        if (
+          base.includes("₴") ||
+          String(cell.textContent || "").includes("₴")
+        ) {
+          cell.textContent =
+            sum.toLocaleString(undefined, { maximumFractionDigits: 2 }) + " ₴";
+        } else {
+          cell.textContent = String(Math.round(sum) === sum ? sum : sum);
         }
       });
-      if (!hasNum) {
-        cell.textContent = "—";
-        return;
-      }
-      const base = cell.dataset.cmExportRaw || "";
-      if (base.includes("₴") || String(cell.textContent || "").includes("₴")) {
-        cell.textContent =
-          sum.toLocaleString(undefined, { maximumFractionDigits: 2 }) + " ₴";
-      } else {
-        cell.textContent = String(Math.round(sum) === sum ? sum : sum);
-      }
-    });
   }
   _syncGridViewCharts(): void {
     if (!this.tbody.querySelector(".cm-row[data-cm-chart-row]")) return;
@@ -585,13 +815,16 @@ export class SimpleTable {
         /* ignore malformed row payload */
       }
     });
-    const chartNodes = this.w.querySelectorAll("[data-cm-chart-config]");
-    if (!chartNodes.length) return;
-    chartNodes.forEach((node) => {
+    // Charts share the table's data: refresh every chart in the same spec root
+    // from the currently-visible rows. refreshChartWrap is self-guarding — with
+    // no rows it shows the empty state, and before echarts loads it no-ops without
+    // blanking — so no readiness gate here (one would stick after an empty state,
+    // since that path clears cmChartReady, and the chart would never recover).
+    const scope = this.w.closest("[data-cm-grid-view-spec]") ?? this.w;
+    scope.querySelectorAll("[data-cm-chart-config]").forEach((node) => {
       const el = asHTMLElement(node);
-      if (!el) return;
-      if (el.dataset.cmChartInteractive) return;
-      let config: ChartRuntimeDict = {};
+      if (!el || el.dataset.cmChartInteractive) return;
+      let config: ChartRuntimeDict;
       try {
         const parsed: unknown = JSON.parse(el.dataset.cmChartConfig || "{}");
         if (!isChartRuntimeDict(parsed)) return;
@@ -607,26 +840,39 @@ export class SimpleTable {
     this.applyAllFilters();
   }
 }
-export function initAllSimpleTables(root: Document | Element | null | undefined): void {
+export function initAllSimpleTables(
+  root: Document | Element | null | undefined,
+): void {
   const scope = root && "querySelectorAll" in root ? root : document;
-  initColumnFilters(scope);
-  scope.querySelectorAll('[data-cm-column-settings="1"]').forEach(function (shell) {
-    initSimpleTableColumnSettings(shell);
-  });
-  initSimpleTableColumnResize(scope);
-  initTableCellUi(scope);
-  applyFiltersInScope(scope);
+  // Isolate each sub-step: a throw in one (e.g. column filters) must not prevent
+  // column settings, cell UI, or initial filtering from initializing.
+  const safe = (name: string, fn: () => void): void => {
+    try {
+      fn();
+    } catch (err) {
+      console.error("[GridView] simple-table init failed: " + name, err);
+    }
+  };
+  safe("initColumnFilters", () => initColumnFilters(scope));
+  scope
+    .querySelectorAll('[data-cm-column-settings="1"]')
+    .forEach(function (shell) {
+      safe("initSimpleTableColumnSettings", () =>
+        initSimpleTableColumnSettings(shell),
+      );
+    });
+  safe("initSimpleTableColumnResize", () => initSimpleTableColumnResize(scope));
+  safe("initTableCellUi", () => initTableCellUi(scope));
+  safe("applyFiltersInScope", () => applyFiltersInScope(scope));
 }
 export function attachSimpleTableGlobals() {
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => initAllSimpleTables(document));
+    document.addEventListener("DOMContentLoaded", () =>
+      initAllSimpleTables(document),
+    );
   } else {
     initAllSimpleTables(document);
   }
-  document.addEventListener("htmx:afterSwap", (event) => {
-    const detail = (event as CustomEvent<{ target?: Element }>).detail;
-    const target = detail?.target;
-    bootGridViewScope(target instanceof Element ? target : null);
-  });
+  // htmx:afterSwap re-boot is owned solely by installRuntimeBoot() — binding it
+  // here too caused redundant concurrent bootScope passes per swap.
 }
-

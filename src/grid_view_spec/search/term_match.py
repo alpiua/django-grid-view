@@ -94,6 +94,11 @@ def term_is_expression(term: str) -> bool:
     for op in NUMERIC_OPS:
         if t.startswith(op):
             return bool(t[len(op) :].strip())
+    # Text operators: ^prefix, suffix$ (intuitive aliases for prefix%/%suffix).
+    if len(t) > 1 and t[0] == "^":
+        return True
+    if len(t) > 1 and t[-1] == "$":
+        return True
     return "%" in t
 
 
@@ -126,6 +131,14 @@ def match_column_expression(cell_text: str, query: str) -> bool:
         return True
     hay = str(cell_text or "").strip()
     hay_fold = hay.casefold()
+
+    # Text operators: ^prefix (starts with), suffix$ (ends with).
+    if len(q) > 1 and q[0] == "^":
+        prefix = q[1:].strip().casefold()
+        return bool(prefix) and hay_fold.startswith(prefix)
+    if len(q) > 1 and q[-1] == "$":
+        suffix = q[:-1].strip().casefold()
+        return bool(suffix) and hay_fold.endswith(suffix)
 
     bounds = parse_range_bounds(q)
     if bounds is not None:
@@ -174,6 +187,9 @@ def match_query_term(haystack: str, term: str, *, quoted: bool = False) -> bool:
     if not t:
         return True
     hay = str(haystack or "")
+    # Negation: !<term> matches when the cell does NOT match <term> (text or expr).
+    if not quoted and len(t) > 1 and t[0] == "!":
+        return not match_query_term(hay, t[1:].strip(), quoted=quoted)
     if term_is_expression(t):
         return match_column_expression(hay, t)
     if quoted or " " in t:

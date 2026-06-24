@@ -127,7 +127,7 @@ def tokenize_smart_query(text: str) -> list[list[SmartAndTerm]]:
 
 
 def parse_smart_query(text: str) -> tuple[dict[int, list[str]], dict[int, list[str]]]:
-    """Parse OR groups and AND tokens; ``-`` prefix excludes (legacy flat view)."""
+    """Parse OR groups and AND tokens; ``-`` prefix excludes."""
     positives: dict[int, list[str]] = defaultdict(list)
     negatives: dict[int, list[str]] = defaultdict(list)
     groups = tokenize_smart_query(text)

@@ -9,6 +9,11 @@ from typing import TypeVar
 
 from django.db.models import F, Model, Q, QuerySet
 from django.http import HttpRequest
+from grid_view_spec.search.term_match import (
+    NUMERIC_OPS,
+    parse_range_bounds,
+    parse_search_number,
+)
 from grid_view_spec.types.json import as_str_object_dict, json_object_list_from
 from grid_view_spec.types.narrowing import is_object_list
 
@@ -96,10 +101,10 @@ def apply_grid_filters(
 
         mode = rule_map.get("mode")
         if mode == "empty":
-            qs = qs.filter(_empty_field_q(db_field))
+            qs = qs.filter(empty_field_q(db_field, numeric=bool(rule_map.get("numeric"))))
             continue
         if mode == "non_empty":
-            qs = qs.exclude(_empty_field_q(db_field))
+            qs = qs.exclude(empty_field_q(db_field, numeric=bool(rule_map.get("numeric"))))
             continue
 
         values = rule_map.get("values")
@@ -111,6 +116,14 @@ def apply_grid_filters(
                 else:
                     target_vals.append(val)
             qs = qs.filter(**{f"{db_field}__in": target_vals})
+            continue
+
+        if rule_map.get("filterType") == "cm-expr":
+            expr = str(rule_map.get("expr", "")).strip()
+            if expr:
+                expr_q = build_expr_q(db_field, expr, numeric=bool(rule_map.get("numeric")))
+                if expr_q is not None:
+                    qs = qs.filter(expr_q)
             continue
 
         if rule_map.get("filterType") == "text":
@@ -154,8 +167,14 @@ def apply_grid_sort(
     return qs.order_by(f_obj, tie_breaker)
 
 
-def _empty_field_q(db_field: str) -> Q:
-    """Null, blank, or dash-only values treated as empty in SmartFilter."""
+def empty_field_q(db_field: str, *, numeric: bool = False) -> Q:
+    """Values treated as empty: null always; 0 for numeric columns, else blank/dash.
+
+    Comparing a numeric column against ``""``/``"-"`` raises a DB type error, so
+    numeric columns use ``isnull`` + ``= 0`` instead.
+    """
+    if numeric:
+        return Q(**{f"{db_field}__isnull": True}) | Q(**{db_field: 0})
     return Q(**{f"{db_field}__isnull": True}) | Q(**{db_field: ""}) | Q(**{db_field: "-"})
 
 
@@ -169,3 +188,48 @@ def _text_lookup(db_field: str, operator: str) -> str | None:
         "endsWith": f"{db_field}__iendswith",
     }
     return mapping.get(operator)
+
+
+_NUMERIC_OP_LOOKUPS = {">": "__gt", ">=": "__gte", "<": "__lt", "<=": "__lte", "=": ""}
+
+
+def build_expr_q(db_field: str, expr: str, *, numeric: bool = False) -> Q | None:
+    """Translate a smart-search expression into an ORM ``Q`` for *db_field*.
+
+    Mirrors the client matcher (``grid_view_spec.search.term_match``). Numeric
+    comparison/range lookups are emitted only for ``numeric`` columns to avoid
+    type-mismatch errors when comparing a text column against a number.
+    """
+    q = str(expr or "").strip()
+    if not q:
+        return None
+    # Negation: !<expr>
+    if len(q) > 1 and q[0] == "!":
+        inner = build_expr_q(db_field, q[1:].strip(), numeric=numeric)
+        return ~inner if inner is not None else None
+    if numeric:
+        bounds = parse_range_bounds(q)
+        if bounds is not None:
+            return Q(**{f"{db_field}__gte": bounds[0], f"{db_field}__lte": bounds[1]})
+        for op in NUMERIC_OPS:
+            if q.startswith(op):
+                num = parse_search_number(q[len(op) :].strip())
+                if num is None:
+                    return None
+                suffix = _NUMERIC_OP_LOOKUPS[op]
+                return Q(**{db_field if suffix == "" else f"{db_field}{suffix}": num})
+        num = parse_search_number(q)
+        return Q(**{db_field: num}) if num is not None else None
+    # Text operators (safe on text columns).
+    if len(q) > 1 and q[0] == "^":
+        return Q(**{f"{db_field}__istartswith": q[1:].strip()})
+    if len(q) > 1 and q[-1] == "$":
+        return Q(**{f"{db_field}__iendswith": q[:-1].strip()})
+    if "%" in q:
+        if q.startswith("%") and q.endswith("%") and len(q) >= 2:
+            return Q(**{f"{db_field}__icontains": q[1:-1]})
+        if q.startswith("%"):
+            return Q(**{f"{db_field}__iendswith": q[1:]})
+        if q.endswith("%"):
+            return Q(**{f"{db_field}__istartswith": q[:-1]})
+    return Q(**{f"{db_field}__icontains": q})

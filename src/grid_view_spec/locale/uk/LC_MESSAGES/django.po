@@ -31,9 +31,6 @@ msgstr "Немає записів"
 msgid "grid.records_label"
 msgstr "Записів:"
 
-msgid "grid.refresh"
-msgstr "Оновити дані"
-
 msgid "chart.empty"
 msgstr "Дані не завантажені"
 
@@ -172,6 +169,24 @@ msgstr "Пошук лише в колонках, чия назва збігає�
 msgid "search.tip_mean_wildcard"
 msgstr "Маска % — містить, починається або закінчується"
 
+msgid "search.tip_mean_prefix"
+msgstr "Починається з"
+
+msgid "search.tip_mean_suffix"
+msgstr "Закінчується на"
+
+msgid "search.tip_mean_not"
+msgstr "Не містить"
+
+msgid "search.tip_ex_prefix"
+msgstr "^Київ"
+
+msgid "search.tip_ex_suffix"
+msgstr "доросла$"
+
+msgid "search.tip_ex_not"
+msgstr "!чернетка"
+
 msgid "search.tip_mean_compare"
 msgstr "Числове порівняння значення комірки"
 
@@ -229,9 +244,6 @@ msgstr "Завантажити збережений пошук"
 msgid "filter_bar.filters_label"
 msgstr "Фільтри:"
 
-msgid "filter_bar.apply"
-msgstr "Застосувати"
-
 msgid "table.grand_total"
 msgstr "Усього"
 
@@ -244,6 +256,12 @@ msgstr "Збережені запити"
 
 msgid "search.saved_searches"
 msgstr "Збережені пошуки"
+
+msgid "toolbar.clear_all_filters"
+msgstr "Очистити всі фільтри і пошук"
+
+msgid "toolbar.reload"
+msgstr "Оновити"
 
 msgid "filter_bar.all"
 msgstr "Усі"
@@ -281,9 +299,6 @@ msgstr "Разом"
 msgid "column_filter.open"
 msgstr "Фільтр колонки"
 
-msgid "column_filter.tooltip"
-msgstr "Фільтр колонки (натисніть ? у полі)"
-
 msgid "column_filter.placeholder"
 msgstr "слово1 +слово2, 10..20"
 
@@ -305,11 +320,11 @@ msgstr "Копіювати значення"
 msgid "cell_link.open"
 msgstr "Відкрити в новому вікні"
 
-msgid "export.meta.search %(query)s"
+msgid "export.meta.search"
 msgstr "Пошук: \"%(query)s\""
 
-msgid "export.meta.filters %(filters)s"
+msgid "export.meta.filters"
 msgstr "Фільтри: %(filters)s"
 
-msgid "export.meta.filter_part %(label)s %(values)s"
+msgid "export.meta.filter_part"
 msgstr "%(label)s: %(values)s"

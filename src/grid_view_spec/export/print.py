@@ -12,6 +12,8 @@ from grid_view_spec.types.table_v2 import GridViewColumn, GridViewColumnGroup
 class PrintTableRow(TypedDict):
     cells: list[str]
     row_class: NotRequired[str]
+    is_section: NotRequired[bool]
+    section_label: NotRequired[str]
 
 
 class PrintFooterCell(TypedDict):
@@ -113,6 +115,13 @@ def grid_table_print_context(resolved: ResolvedExportTable) -> GridViewTablePrin
     body: list[PrintTableRow] = []
     for row in resolved.rows:
         if row.get("__section__"):
+            body.append(
+                {
+                    "cells": [],
+                    "is_section": True,
+                    "section_label": str(row.get("section_label", "")),
+                }
+            )
             continue
         body.append(
             {

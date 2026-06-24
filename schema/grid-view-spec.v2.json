@@ -12,6 +12,7 @@
       "minLength": 1,
       "pattern": "^[a-z][a-z0-9_-]*$"
     },
+    "title": { "type": "string" },
     "meta": { "$ref": "#/$defs/GridViewMeta" },
     "config": { "$ref": "#/$defs/GridViewConfig" },
     "blocks": {
@@ -27,7 +28,10 @@
         { "type": "number" },
         { "type": "boolean" },
         { "type": "null" },
-        { "type": "object", "additionalProperties": { "$ref": "#/$defs/JsonValue" } },
+        {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/JsonValue" }
+        },
         { "type": "array", "items": { "$ref": "#/$defs/JsonValue" } }
       ]
     },
@@ -47,8 +51,14 @@
       "properties": {
         "enabled": { "type": "boolean", "default": false },
         "method": { "enum": ["get", "post"], "default": "get" },
-        "placeholder": { "enum": ["skeleton", "spinner", "empty"], "default": "skeleton" },
-        "mode": { "enum": ["replace", "merge", "append"], "default": "replace" },
+        "placeholder": {
+          "enum": ["skeleton", "spinner", "empty"],
+          "default": "skeleton"
+        },
+        "mode": {
+          "enum": ["replace", "merge", "append"],
+          "default": "replace"
+        },
         "timeout_ms": { "type": "integer", "default": 30000 }
       }
     },
@@ -58,7 +68,10 @@
       "properties": {
         "htmx": { "type": "boolean", "default": true },
         "template": { "type": "string" },
-        "assets": { "type": "array", "items": { "$ref": "#/$defs/GridViewTemplateAsset" } },
+        "assets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/GridViewTemplateAsset" }
+        },
         "lazy": { "$ref": "#/$defs/GridViewLazyDefaults" }
       }
     },
@@ -66,7 +79,10 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "css_vars": { "type": "object", "additionalProperties": { "type": "string" } }
+        "css_vars": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
       }
     },
     "GridViewStyle": {
@@ -80,7 +96,17 @@
         "overflow": { "enum": ["", "visible", "hidden", "auto"] },
         "padding": { "enum": ["", "none", "xs", "sm", "md", "lg"] },
         "gap": { "enum": ["", "none", "xs", "sm", "md", "lg"] },
-        "tone": { "enum": ["", "default", "muted", "primary", "success", "warning", "danger"] },
+        "tone": {
+          "enum": [
+            "",
+            "default",
+            "muted",
+            "primary",
+            "success",
+            "warning",
+            "danger"
+          ]
+        },
         "surface": { "enum": ["", "none", "plain", "card", "panel"] },
         "sticky": { "enum": ["", "top", "bottom"] }
       }
@@ -91,8 +117,14 @@
       "additionalProperties": false,
       "properties": {
         "endpoint": { "type": "string" },
-        "trigger": { "enum": ["load", "visible", "manual"], "default": "visible" },
-        "params": { "type": "object", "additionalProperties": { "$ref": "#/$defs/JsonValue" } },
+        "trigger": {
+          "enum": ["load", "visible", "manual"],
+          "default": "visible"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/JsonValue" }
+        },
         "method": { "enum": ["get", "post"] },
         "placeholder": { "enum": ["skeleton", "spinner", "empty"] },
         "mode": { "enum": ["replace", "merge", "append"] },
@@ -106,10 +138,16 @@
         "id": { "type": "string", "minLength": 1 },
         "type": { "type": "string" },
         "title": { "type": "string" },
-        "extra": { "type": "object", "additionalProperties": { "$ref": "#/$defs/JsonValue" } },
+        "extra": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/JsonValue" }
+        },
         "style": { "$ref": "#/$defs/GridViewStyle" },
         "trusted_style": {
-          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/GridViewTrustedStyle" }]
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/GridViewTrustedStyle" }
+          ]
         },
         "lazy": {
           "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/GridViewLazyBlock" }]
@@ -126,6 +164,7 @@
         { "$ref": "#/$defs/GridViewCharts" },
         { "$ref": "#/$defs/GridViewKpi" },
         { "$ref": "#/$defs/GridViewCards" },
+        { "$ref": "#/$defs/GridViewCardGroups" },
         { "$ref": "#/$defs/GridViewGallery" },
         { "$ref": "#/$defs/GridViewImage" },
         { "$ref": "#/$defs/GridViewTabs" },
@@ -143,7 +182,9 @@
           "type": "object",
           "properties": {
             "type": { "const": "header" },
-            "presentation": { "enum": ["plain", "entity", "split", "compact", "hero"] },
+            "presentation": {
+              "enum": ["plain", "entity", "split", "compact", "hero", "section"]
+            },
             "nav": { "type": ["string", "null"] },
             "entity": {
               "oneOf": [{ "type": "null" }, { "type": "object" }]
@@ -156,6 +197,20 @@
         }
       ]
     },
+    "GridViewCounter": {
+      "type": "object",
+      "required": ["id", "label", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "value": { "type": ["string", "integer", "number"] },
+        "tone": { "enum": ["", "muted", "success", "warning", "danger"] },
+        "field": { "type": ["string", "null"] },
+        "total": { "type": ["integer", "null"] },
+        "server_only": { "type": "boolean" }
+      }
+    },
     "GridViewToolbar": {
       "allOf": [
         { "$ref": "#/$defs/GridViewBlockBase" },
@@ -165,10 +220,18 @@
             "type": { "const": "toolbar" },
             "presentation": { "enum": ["default", "compact", "panel"] },
             "search": {
-              "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/GridViewSearch" }]
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/GridViewSearch" }
+              ]
             },
             "filters": { "type": ["string", "null"] },
-            "counters": { "type": "array" },
+            "clear_all": { "type": "boolean" },
+            "reload": { "type": "boolean" },
+            "counters": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/GridViewCounter" }
+            },
             "actions": { "type": ["string", "null"] },
             "target": { "type": ["string", "null"] }
           }
@@ -182,7 +245,10 @@
         "param": { "type": "string", "default": "q" },
         "value": { "type": "string" },
         "placeholder": { "type": "string" },
-        "backend": { "enum": ["server", "ag_grid", "client"], "default": "server" },
+        "backend": {
+          "enum": ["server", "ag_grid", "client"],
+          "default": "server"
+        },
         "mode": { "enum": ["simple", "smart"], "default": "smart" },
         "bind": { "type": ["string", "null"] },
         "saved": { "type": "boolean", "default": true },
@@ -210,7 +276,10 @@
           ]
         },
         "scope": { "enum": ["server", "client"], "default": "server" },
-        "options": { "type": "array" },
+        "options": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/GridViewFilterOption" }
+        },
         "options_endpoint": { "type": "string" },
         "placeholder": { "type": "string" },
         "select_all": { "type": "boolean" },
@@ -228,7 +297,9 @@
           "required": ["mode", "match"],
           "properties": {
             "mode": { "enum": ["empty", "non_empty"] },
-            "match": { "enum": ["exact", "contains", "starts_with", "ends_with"] }
+            "match": {
+              "enum": ["exact", "any_token"]
+            }
           }
         },
         {
@@ -236,10 +307,28 @@
           "required": ["values", "match"],
           "properties": {
             "values": { "type": "array", "items": { "type": "string" } },
-            "match": { "enum": ["exact", "contains", "starts_with", "ends_with"] }
+            "match": {
+              "enum": ["exact", "any_token"]
+            }
           }
         }
       ]
+    },
+    "GridViewFilterOption": {
+      "type": "object",
+      "required": ["value", "label"],
+      "properties": {
+        "value": { "type": "string" },
+        "label": { "type": "string" },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/GridViewFilterOption" }
+        },
+        "exclusive": { "type": "boolean" },
+        "meta": { "type": "object" },
+        "count": { "type": ["integer", "null"] },
+        "disabled": { "type": "boolean" }
+      }
     },
     "GridViewFilters": {
       "allOf": [
@@ -248,14 +337,41 @@
           "type": "object",
           "properties": {
             "type": { "const": "filters" },
-            "presentation": { "enum": ["toolbar", "inline", "panel", "drawer"] },
-            "schema": { "type": "array", "items": { "$ref": "#/$defs/GridViewFilter" } },
+            "presentation": {
+              "enum": ["toolbar", "inline", "panel", "drawer"]
+            },
+            "schema": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/GridViewFilter" }
+            },
             "state": { "type": "object" },
             "target": { "type": ["string", "null"] },
-            "auto_apply": { "type": "boolean", "default": true }
+            "auto_apply": { "type": "boolean", "default": true },
+            "navigate_on_change": { "type": "boolean", "default": true },
+            "facets": { "type": "boolean", "default": false },
+            "fragment_endpoint": { "type": "string" },
+            "fragment_target": { "type": "string" },
+            "fragment_swap": { "type": "string", "default": "outerHTML" }
           }
         }
       ]
+    },
+    "GridViewTablePagination": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "page": { "type": "integer" },
+        "page_size": { "type": "integer" },
+        "total": { "type": "integer" },
+        "mode": { "enum": ["server", "client", "fragment"] },
+        "page_param": { "type": "string" },
+        "page_size_param": { "type": "string" },
+        "fragment_endpoint": { "type": "string" },
+        "fragment_target": { "type": "string" },
+        "fragment_swap": { "type": "string" },
+        "page_endpoint": { "type": "string" },
+        "page_size_options": { "type": "array", "items": { "type": "integer" } }
+      }
     },
     "GridViewTable": {
       "allOf": [
@@ -266,19 +382,34 @@
             "type": { "const": "table" },
             "backend": { "enum": ["simple", "ag_grid"], "default": "simple" },
             "columns": { "type": "array" },
-            "column_source": { "oneOf": [{ "type": "null" }, { "type": "object" }] },
+            "column_source": {
+              "oneOf": [{ "type": "null" }, { "type": "object" }]
+            },
             "rows": { "type": "array" },
-            "datasource": { "oneOf": [{ "type": "null" }, { "type": "object" }] },
+            "datasource": {
+              "oneOf": [{ "type": "null" }, { "type": "object" }]
+            },
             "header": { "type": "object" },
-            "search_mode": { "enum": ["global", "per_column", "disabled"], "default": "global" },
+            "search_mode": {
+              "enum": ["global", "per_column", "disabled"],
+              "default": "global"
+            },
             "sort": { "type": "object" },
             "settings": { "oneOf": [{ "type": "null" }, { "type": "object" }] },
             "edit": { "oneOf": [{ "type": "null" }, { "type": "object" }] },
             "assets": { "type": "array" },
-            "row_action": { "oneOf": [{ "type": "null" }, { "type": "object" }] },
+            "row_action": {
+              "oneOf": [{ "type": "null" }, { "type": "object" }]
+            },
             "footer": { "oneOf": [{ "type": "null" }, { "type": "object" }] },
             "empty_message": { "type": "string" },
             "per_page": { "type": "integer" },
+            "pagination": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/GridViewTablePagination" }
+              ]
+            },
             "striped": { "type": "boolean" }
           }
         }
@@ -311,7 +442,7 @@
         "height": { "type": "integer" },
         "orientation": { "enum": ["vertical", "horizontal"] },
         "stacked": { "type": "boolean" },
-        "data_source": { "enum": ["static", "rows"] },
+        "data_source": { "enum": ["static", "grid_filtered"] },
         "overlay": { "type": "object" },
         "pie_variant": { "type": "string" },
         "tooltip_kind": { "type": "string" },
@@ -348,6 +479,36 @@
         }
       ]
     },
+    "GridViewCardGroup": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "tone": {
+          "enum": ["default", "muted", "success", "warning", "danger"]
+        },
+        "items": { "type": "array", "items": { "type": "string" } },
+        "count": { "type": ["string", "integer"] },
+        "empty_message": { "type": "string" }
+      }
+    },
+    "GridViewCardGroups": {
+      "allOf": [
+        { "$ref": "#/$defs/GridViewBlockBase" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "card_groups" },
+            "groups": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/GridViewCardGroup" }
+            }
+          }
+        }
+      ]
+    },
     "GridViewGallery": {
       "allOf": [
         { "$ref": "#/$defs/GridViewBlockBase" },
@@ -355,7 +516,9 @@
           "type": "object",
           "properties": {
             "type": { "const": "gallery" },
-            "presentation": { "enum": ["grid", "carousel", "masonry", "filmstrip"] }
+            "presentation": {
+              "enum": ["grid", "carousel", "masonry", "filmstrip"]
+            }
           }
         }
       ]
@@ -397,7 +560,9 @@
           "properties": {
             "type": { "const": "nav" },
             "items": { "type": "array" },
-            "presentation": { "enum": ["breadcrumbs", "tabs", "sidebar", "menu", "back"] }
+            "presentation": {
+              "enum": ["breadcrumbs", "tabs", "sidebar", "menu", "back"]
+            }
           }
         }
       ]
@@ -409,13 +574,115 @@
           "type": "object",
           "properties": {
             "type": { "const": "content" },
-            "role": { "enum": ["text", "info", "formula", "empty", "warning", "callout", "banner"] },
+            "role": {
+              "enum": [
+                "text",
+                "info",
+                "formula",
+                "empty",
+                "warning",
+                "callout",
+                "banner"
+              ]
+            },
             "body": { "type": "string" },
-            "tone": { "enum": ["", "default", "info", "success", "warning", "danger"] },
+            "tone": {
+              "enum": ["", "default", "info", "success", "warning", "danger"]
+            },
             "dismissible": { "type": "boolean" }
           }
         }
       ]
+    },
+    "GridViewValidator": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "required",
+            "email",
+            "url",
+            "number",
+            "integer",
+            "min",
+            "max",
+            "min_length",
+            "max_length",
+            "pattern",
+            "domain",
+            "custom"
+          ]
+        },
+        "value": { "type": ["string", "integer", "number", "null"] },
+        "message": { "type": "string" },
+        "name": { "type": "string" }
+      }
+    },
+    "GridViewFieldCondition": {
+      "type": "object",
+      "required": ["field"],
+      "additionalProperties": false,
+      "properties": {
+        "field": { "type": "string" },
+        "equals": { "$ref": "#/$defs/JsonValue" }
+      }
+    },
+    "GridViewField": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "label": { "type": "string" },
+        "type": {
+          "enum": [
+            "text",
+            "textarea",
+            "number",
+            "select",
+            "multiselect",
+            "date",
+            "date_range",
+            "boolean",
+            "file"
+          ]
+        },
+        "options": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/GridViewFilterOption" }
+        },
+        "required": { "type": "boolean" },
+        "default": { "$ref": "#/$defs/JsonValue" },
+        "placeholder": { "type": "string" },
+        "help": { "type": "string" },
+        "validators": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/GridViewValidator" }
+        },
+        "visible_when": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/GridViewFieldCondition" }
+          ]
+        },
+        "extra": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/JsonValue" }
+        }
+      }
+    },
+    "GridViewFieldset": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "fields": { "type": "array", "items": { "type": "string" } },
+        "columns": { "type": "integer" }
+      }
     },
     "GridViewForm": {
       "allOf": [
@@ -425,6 +692,26 @@
           "properties": {
             "type": { "const": "form" },
             "presentation": { "enum": ["stack", "inline", "grid", "panel"] },
+            "fields": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/GridViewField" }
+            },
+            "fieldsets": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/GridViewFieldset" }
+            },
+            "values": {
+              "type": "object",
+              "additionalProperties": { "$ref": "#/$defs/JsonValue" }
+            },
+            "errors": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            },
+            "submit": { "oneOf": [{ "type": "null" }, { "type": "object" }] },
             "endpoint": { "type": "string" },
             "method": { "enum": ["get", "post"] }
           }
@@ -455,9 +742,15 @@
             "type": { "const": "template" },
             "mode": { "enum": ["file", "raw"] },
             "template": { "type": "string" },
-            "context": { "type": "object", "additionalProperties": { "$ref": "#/$defs/JsonValue" } },
+            "context": {
+              "type": "object",
+              "additionalProperties": { "$ref": "#/$defs/JsonValue" }
+            },
             "html": { "type": "string" },
-            "assets": { "type": "array", "items": { "$ref": "#/$defs/GridViewTemplateAsset" } }
+            "assets": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/GridViewTemplateAsset" }
+            }
           }
         }
       ]
@@ -493,13 +786,27 @@
       "properties": {
         "id": { "type": "string" },
         "type": {
-          "enum": ["stack", "grid", "sidebar", "split", "tabs", "modal", "table-card"],
+          "enum": [
+            "stack",
+            "grid",
+            "sidebar",
+            "split",
+            "tabs",
+            "modal",
+            "table-card"
+          ],
           "default": "stack"
         },
         "blocks": { "type": "array", "items": { "type": "string" } },
-        "areas": { "type": "array", "items": { "$ref": "#/$defs/GridViewArea" } },
+        "areas": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/GridViewArea" }
+        },
         "style": { "$ref": "#/$defs/GridViewStyle" },
-        "extra": { "type": "object", "additionalProperties": { "$ref": "#/$defs/JsonValue" } }
+        "extra": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/JsonValue" }
+        }
       }
     },
     "GridViewLayout": {
@@ -519,7 +826,10 @@
         "html": { "type": "string" },
         "block": { "$ref": "#/$defs/GridViewBlock" },
         "spec": { "$ref": "#" },
-        "data": { "type": "object", "additionalProperties": { "$ref": "#/$defs/JsonValue" } },
+        "data": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/JsonValue" }
+        },
         "error": { "type": "string" },
         "next_cursor": { "type": "string" }
       }

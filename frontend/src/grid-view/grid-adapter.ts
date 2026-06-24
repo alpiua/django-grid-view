@@ -1,6 +1,6 @@
 import { ChartsBridge } from "./charts-bridge";
 import { Kpi, resolveKpis } from "./kpi";
-import type { AgGridApi, GridRowsAdapter, RowDict } from "./types";
+import type { AgGridApi, GridRowsAdapter, KpiSpecDict, RowDict } from "./types";
 
 export function staticRowsAdapter(rows: RowDict[] | null | undefined): GridRowsAdapter {
   const snapshot = rows ?? [];
@@ -36,7 +36,7 @@ export function createAgGridAdapter(gridApi: AgGridApi | null | undefined): Grid
 
 export function initGridKpiStrip(
   kpiRoot: Element,
-  specs: unknown[],
+  specs: KpiSpecDict[],
   adapter: GridRowsAdapter,
   columns: number
 ): (() => void) | null {
@@ -59,9 +59,9 @@ export function bindGridKpis(opts: {
   scope.querySelectorAll("[data-cm-grid-kpi]").forEach((wrap) => {
     if (!(wrap instanceof HTMLElement)) return;
     if (wrap.dataset.cmGridKpiReady) return;
-    let specs: unknown[] = [];
+    let specs: KpiSpecDict[] = [];
     try {
-      specs = JSON.parse(wrap.dataset.cmGridKpiSpecs || "[]") as unknown[];
+      specs = JSON.parse(wrap.dataset.cmGridKpiSpecs || "[]");
     } catch (_e) {
       specs = [];
     }

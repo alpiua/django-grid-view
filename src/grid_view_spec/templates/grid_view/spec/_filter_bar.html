@@ -1,0 +1,57 @@
+{#
+  Shared filter-bar element. Rendered both inline in the toolbar and standalone
+  in filters.html, and re-rendered on its own for HTMX out-of-band swaps so that
+  faceted option lists can refresh against the current filter/search subset.
+
+  Context vars:
+    fb        — the GridViewFilters block (schema/state/auto_apply/facets/fragment_*)
+    host      — render host (translate)
+    fb_search — optional {param, value} → emits a hidden search input (toolbar use)
+    fb_oob    — when truthy, marks the element for HTMX outerHTML out-of-band swap
+#}
+<div class="cm-filter-bar" id="cm-fbar-{{ fb.id | e }}" data-cm-filter-bar{% if fb.auto_apply %} data-auto-apply="1"{% endif %}{% if not fb.navigate_on_change %} data-navigate-on-change="0"{% endif %}{% if fb.facets %} data-cm-facets="1"{% endif %}{% if fb.fragment_endpoint %} data-cm-fragment-endpoint="{{ fb.fragment_endpoint | e }}" data-cm-fragment-target="{{ fb.fragment_target | e }}" data-cm-fragment-swap="{{ fb.fragment_swap | e }}"{% endif %}{% if fb_oob %} hx-swap-oob="outerHTML"{% endif %}>
+  {% if fb_search %}
+  <input type="hidden" data-cm-search name="{{ fb_search.param | e }}" value="{{ fb_search.value | e }}">
+  {% endif %}
+  {% for filter in fb.schema %}
+  {% set selected = fb.state.values.get(filter.param, ()) if fb.state else () %}
+  <div
+    class="cm-multiselect cm-period-multiselect{% if filter.type == 'select' %} cm-multiselect--single{% endif %}"
+    data-cm-multiselect
+    data-filter-id="{{ filter.id | e }}"
+    data-filter-param="{{ filter.param | e }}"
+    data-filter-scope="{{ filter.scope | e }}"
+    {% if filter.type == 'select' %}data-cm-singleselect="1"{% endif %}
+    {% if filter.select_all %}data-select-all-option="1" data-select-all-value="{{ filter.select_all_value | e }}"{% endif %}
+    data-all-label="{{ filter.select_all_label or filter.placeholder or filter.label | e }}"
+    data-placeholder="{{ filter.placeholder or filter.label | e }}"
+  >
+    <button type="button" class="cm-multiselect-trigger" aria-haspopup="listbox">
+      <span class="cm-multiselect-trigger__label"></span>
+    </button>
+    <div class="cm-multiselect-panel" role="listbox">
+      {% if filter.select_all %}
+      <label class="cm-multiselect-option">
+        <input type="checkbox" value="{{ filter.select_all_value | e }}" data-label="{{ filter.select_all_label or host.translate('filter_bar.all') | e }}" data-select-all="1"
+          {% if filter.select_all_value in selected %}checked{% endif %}>
+        {{ filter.select_all_label or host.translate('filter_bar.all') | e }}
+      </label>
+      {% endif %}
+      {% for opt in filter.options %}
+      <label class="cm-multiselect-option{% if opt.disabled %} cm-multiselect-option--disabled{% endif %}">
+        <input type="checkbox" value="{{ opt.value | e }}" data-label="{{ opt.label | e }}"
+          {% if opt.exclusive %}data-exclusive-solo="1"{% endif %}
+          {% if opt.count is not none %}data-cm-facet-count="{{ opt.count }}"{% endif %}
+          {% if opt.disabled %}disabled{% endif %}
+          {% if opt.value in selected %}checked{% endif %}>
+        <span class="cm-multiselect-option__label">{{ opt.label | e }}</span>
+        {% if opt.count is not none %}<span class="cm-multiselect-option__count">{{ opt.count }}</span>{% endif %}
+      </label>
+      {% endfor %}
+      <div class="cm-multiselect-apply-wrap">
+        <button type="button" class="cm-multiselect-apply" data-cm-multiselect-apply>{{ host.translate('filter_bar.apply') | e }}</button>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>

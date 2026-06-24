@@ -4,6 +4,8 @@ export type ColumnFilterDictionary = {
   values: string[];
   hasEmpty: boolean;
   emptyCount: number;
+  /** Facet counts per value in the currently filtered table (server dictionary). */
+  counts?: Record<string, number>;
 };
 
 /** Collect distinct filter values from rendered SimpleTable rows. */

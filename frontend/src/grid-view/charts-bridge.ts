@@ -17,6 +17,7 @@ function applyToGridView(api: ChartsApi): void {
   gv.refreshChartWrap = api.refreshChartWrap.bind(api);
   gv.initAllCharts = api.initAllCharts.bind(api);
   gv.buildEchartsOption = api.buildEchartsOption.bind(api);
+  (gv as Record<string, unknown>)._chartsApiReady = true;
 }
 
 export function installChartsApi(api: ChartsApi): void {
@@ -24,17 +25,29 @@ export function installChartsApi(api: ChartsApi): void {
   applyToGridView(api);
 }
 
+// The charts runtime ships as a separate bundle; it calls installChartsApi() in
+// ITS module instance. Callers in the core bundle therefore see chartsApi === null
+// and must fall back to the api registered on window.GridView.Charts. Without this,
+// ChartsBridge.* silently no-op in the core bundle (e.g. simple-table chart refresh
+// on filter would do nothing). Guard against resolving back to this stub.
+function resolveApi(): ChartsApi | null {
+  if (chartsApi) return chartsApi;
+  const registered = window.GridView?.Charts as ChartsApi | undefined;
+  return registered && (registered as unknown) !== ChartsBridge ? registered : null;
+}
+
 export const ChartsBridge = {
   initChart(root: Element, config: ChartRuntimeDict, rows: RowDict[]): unknown {
-    return chartsApi?.initChart(root, config, rows);
+    return resolveApi()?.initChart(root, config, rows) ?? null;
   },
   refreshChartWrap(wrap: Element, config: ChartRuntimeDict, rows: RowDict[]): void {
-    chartsApi?.refreshChartWrap(wrap, config, rows);
+    resolveApi()?.refreshChartWrap(wrap, config, rows);
   },
   initAllCharts(scope?: Document | Element): void {
-    chartsApi?.initAllCharts(scope);
+    resolveApi()?.initAllCharts(scope);
   },
   buildEchartsOption(config: ChartRuntimeDict, rows: RowDict[]): unknown {
-    return chartsApi ? chartsApi.buildEchartsOption(config, rows) : null;
+    const api = resolveApi();
+    return api ? api.buildEchartsOption(config, rows) : null;
   },
 };

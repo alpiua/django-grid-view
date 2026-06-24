@@ -44,6 +44,7 @@ interface GridViewGlobal {
   AgGrid?: {
     Host?: typeof AgGridHost;
     SmartFilter?: new () => unknown;
+    ExprFilter?: new () => unknown;
     Tooltip?: new () => unknown;
     matchQuickFilter?: unknown;
     createAdvancedSearch?: (inputSelector?: string) => unknown;
@@ -90,7 +91,7 @@ interface EChartsInstance {
   setOption: (option: unknown, notMerge?: boolean) => void;
   resize: () => void;
   dispose: () => void;
-  _cmChartInstance?: EChartsInstance;
+  _cmChartInstance?: EChartsInstance | null;
 }
 
 interface EChartsStatic {
@@ -124,7 +125,7 @@ declare global {
   }
 
   interface Element {
-    _cmChartInstance?: EChartsInstance;
+    _cmChartInstance?: EChartsInstance | null;
     _cmFlushPendingAutoApply?: () => void;
     _cmUpdateLabel?: () => void;
     _cmPendingAutoApply?: boolean;

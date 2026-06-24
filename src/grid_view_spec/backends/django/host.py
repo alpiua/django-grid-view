@@ -51,11 +51,12 @@ class DjangoGridViewHost:
         return f"{base}?{query}"
 
     def template_exists(self, name: str, /) -> bool:
+        from django.template import TemplateDoesNotExist
         from django.template.loader import get_template
 
         try:
             get_template(name)
-        except Exception:
+        except TemplateDoesNotExist:
             return False
         return True
 

@@ -98,7 +98,7 @@ def export_action_href(
 
 
 def link_action_href(action: GridViewLinkAction) -> str:
-    """Return explicit link href; ``target`` is not resolved to URLs in v1."""
+    """Return explicit link href from ``GridViewLinkAction.href``."""
     return action.href
 
 

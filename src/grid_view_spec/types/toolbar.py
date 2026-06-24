@@ -42,6 +42,7 @@ class GridViewCounter:
     tone: GridViewCounterTone = ""
     field: str | None = None
     total: int | None = None
+    server_only: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -50,6 +51,8 @@ class GridViewToolbar(GridViewBlockBase):
     presentation: GridViewToolbarPresentation = "default"
     search: GridViewSearch | None = None
     filters: str | None = None
+    clear_all: bool = True
+    reload: bool = False
     counters: tuple[GridViewCounter, ...] = ()
     actions: str | None = None
     target: str | None = None

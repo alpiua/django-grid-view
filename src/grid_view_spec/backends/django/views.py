@@ -27,6 +27,7 @@ from grid_view_spec.types.narrowing import is_object_list
 from grid_view_spec.types.spec import GridViewSpec
 
 __all__ = [
+    "column_filter_dictionary",
     "django_host",
     "export_pdf",
     "export_xlsx",
@@ -203,6 +204,39 @@ def export_xlsx(
         filename = default_xlsx_filename(host, ctx, payload)
 
     return xlsx_response_from_report(report, filename)
+
+
+@require_GET
+def column_filter_dictionary(req: HttpRequest) -> JsonResponse:
+    """Faceted distinct values + counts for one column/facet (AG-Grid set filter).
+
+    ``GET /grid/filter-dictionary/?grid=<grid_id>&field=<field>`` plus the current
+    filter/search query params. Values reflect every active filter + search except
+    the column's own (exclude-own). Returns ``{values:[{value,count}]}``.
+    """
+    from grid_view_spec.backends.django.facets import queryset_value_counts
+    from grid_view_spec.search.facet_registry import (
+        FacetSourceNotFoundError,
+        exclude_for_field,
+        get_facet_source,
+    )
+
+    grid = (req.GET.get("grid") or req.GET.get("grid_id") or "").strip()
+    field = (req.GET.get("field") or "").strip()
+    if not grid or not field:
+        return JsonResponse({"values": []})
+    try:
+        source = get_facet_source(grid)
+    except FacetSourceNotFoundError:
+        return JsonResponse({"values": []})
+    schema = tuple(source.schema(req))
+    exclude = exclude_for_field(source, schema, field)
+    counts = queryset_value_counts(source.apply_filters(req, exclude), source.column_field(field))
+    values = [
+        {"value": value, "count": count}
+        for value, count in sorted(counts.items(), key=lambda kv: kv[0].lower())
+    ]
+    return JsonResponse({"values": values})
 
 
 save_grid_settings = save_grid_prefs

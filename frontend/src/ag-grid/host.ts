@@ -17,6 +17,7 @@ import {
   type UrlGridParams,
 } from "./types";
 import type { GridHandle } from "../grid-view/types";
+import { toolbarSearchScopeForTable } from "../grid-view/toolbar-search-input";
 
 function isColumnSettingsHandle(value: unknown): value is ColumnSettingsHandle {
   if (!value || typeof value !== "object") return false;
@@ -359,6 +360,7 @@ export class AgGridHost implements GridHandle {
 
     this.gridApi.addEventListener("filterChanged", () => {
       this.saveGridState();
+      this.syncFilterChrome();
       const ctx = this._getContextHooks();
       if (typeof ctx.onFilterChanged === "function") {
         ctx.onFilterChanged(this);
@@ -375,10 +377,12 @@ export class AgGridHost implements GridHandle {
       }
     });
 
-    window.GridView?.ToolbarSearch?.mount(this.gridId, this.savedQuickSearches);
+    const toolbarScopeId = toolbarSearchScopeForTable(this.gridId) ?? this.gridId;
+    window.GridView?.ToolbarSearch?.mount(toolbarScopeId, this.savedQuickSearches);
     this._initColSettings();
     this.renderSavedPresets();
     this._bindStorageSync();
+    this.syncFilterChrome();
   }
 
   loadState(options: LoadStateOptions = {}): void {
@@ -403,21 +407,18 @@ export class AgGridHost implements GridHandle {
       api.applyColumnState({ state: state.colState, applyOrder: true });
     }
 
-    const filterState = urlParams.filterState ?? state.filterState;
+    const filterState = urlParams.filterState;
     if (filterState) {
       api.setFilterModel(filterState);
+    } else {
+      api.setFilterModel(null);
     }
 
-    const ctx = this._getContextHooks();
-    const restoreQuickFilter = ctx.restoreQuickFilter !== false;
     const urlQ = urlParams.q ?? new URLSearchParams(window.location.search).get("q");
     const qsInput = this._resolveSearchInput();
     if (urlQ) {
       writeSearchInputValue(qsInput, urlQ);
       this._searchText = urlQ;
-    } else if (restoreQuickFilter && state.quickFilter) {
-      writeSearchInputValue(qsInput, state.quickFilter);
-      this._searchText = state.quickFilter;
     }
 
     const pageState = Object.keys(urlPageState).length
@@ -448,11 +449,11 @@ export class AgGridHost implements GridHandle {
     const state: PersistedGridState = {
       colState: api.getColumnState(),
       filterState: api.getFilterModel(),
-      quickFilter: readSearchInputValue(qfEl),
       pageState: this._collectPageState(),
     };
     localStorage.setItem(this._storageKey(), JSON.stringify(state));
     this.syncBrowserUrl();
+    document.dispatchEvent(new CustomEvent("cm-grid-state-change", { detail: { gridId: this.gridId } }));
   }
 
   _initColSettings(): void {
@@ -543,7 +544,7 @@ export class AgGridHost implements GridHandle {
     if (!api) return;
     const el = this._resolveSearchInput();
     this._searchText = readSearchInputTrimmed(el);
-    this.syncSearchToolbarUi();
+    this.syncFilterChrome();
     this.saveGridState();
     if (isInfiniteRowModel(api)) {
       api.purgeInfiniteCache();
@@ -613,14 +614,39 @@ export class AgGridHost implements GridHandle {
     this._searchText = "";
 
     const url = new URL(window.location.href);
-    if (url.searchParams.has("q")) {
-      url.searchParams.delete("q");
-      window.history.replaceState({}, "", url);
-    }
-    this.saveGridState();
+    ["q", "filters", "col_q"].forEach((key) => url.searchParams.delete(key));
+    window.history.replaceState({}, "", url);
+    localStorage.removeItem(this._storageKey());
+    this.syncSearchToolbarUi();
+    document.dispatchEvent(new CustomEvent("cm-grid-state-change", { detail: { gridId: this.gridId } }));
     if (isInfiniteRowModel(api)) {
       api.purgeInfiniteCache();
     }
+  }
+
+  hasActiveFilters(): boolean {
+    const el = this._resolveSearchInput();
+    if (el && readSearchInputTrimmed(el)) return true;
+    if (this._searchText.trim()) return true;
+    const model = this.gridApi?.getFilterModel() ?? {};
+    if (Object.keys(model).length) return true;
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("q") || params.has("filters")) return true;
+    return false;
+  }
+
+  syncFilterChrome(): void {
+    this.syncSearchToolbarUi();
+    const active = this.hasActiveFilters();
+    const esc =
+      typeof CSS !== "undefined" && CSS.escape
+        ? CSS.escape(this.gridId)
+        : this.gridId.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    document
+      .querySelectorAll<HTMLElement>(
+        '[data-cm-grid-action="clearAllFilters"][data-cm-grid-id="' + esc + '"]'
+      )
+      .forEach((btn) => btn.classList.toggle("is-hidden", !active));
   }
 
   applyUrlSearchFilter(): void {

@@ -14,7 +14,9 @@ from grid_view_spec.types.narrowing import is_object_dict, is_object_list
 JsonScalar: TypeAlias = str | int | float | bool | None
 
 # JSON-serializable leaf contract (architecture doc Typing Boundaries).
-JsonValue: TypeAlias = JsonScalar | Mapping[str, "JsonValue"] | tuple["JsonValue", ...]
+JsonValue: TypeAlias = (
+    JsonScalar | Mapping[str, "JsonValue"] | list["JsonValue"] | tuple["JsonValue", ...]
+)
 JsonObject: TypeAlias = dict[str, JsonValue]
 RowDict: TypeAlias = Mapping[str, JsonValue]
 

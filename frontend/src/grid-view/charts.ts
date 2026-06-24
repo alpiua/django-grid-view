@@ -5,7 +5,7 @@ import { resolveChartDataFromRuntime } from "./resolve-chart";
 import type { ResolvedChartData } from "./resolve-chart";
 import type { RowDict } from "./types";
 
-export function chartRowsHaveData(rows) {
+export function chartRowsHaveData(rows: RowDict[]) {
   if (!Array.isArray(rows) || !rows.length) return false;
   return rows.some(function (row) {
     if (!row || typeof row !== "object") return false;
@@ -17,17 +17,17 @@ export function chartRowsHaveData(rows) {
   });
 }
 
-export function setChartEmptyState(wrap, isEmpty) {
+export function setChartEmptyState(wrap: HTMLElement | null, isEmpty: boolean) {
   if (!wrap) return;
-  var plates = wrap.querySelectorAll("[data-cm-chart-empty]");
-  var roots = wrap.querySelectorAll("[data-cm-chart-root]");
+  var plates: HTMLElement[] | NodeListOf<HTMLElement> = wrap.querySelectorAll<HTMLElement>("[data-cm-chart-empty]");
+  var roots: HTMLElement[] | NodeListOf<HTMLElement> = wrap.querySelectorAll<HTMLElement>("[data-cm-chart-root]");
   if (!plates.length && wrap.matches?.("[data-cm-chart-empty]")) {
     plates = [wrap];
   }
   if (!roots.length && wrap.matches?.("[data-cm-chart-root]")) {
     roots = [wrap];
   }
-  plates.forEach((plate) => {
+  plates.forEach((plate: HTMLElement) => {
     if (!plate.textContent.trim()) {
       plate.textContent = i18n.t("chart.empty", "Data not loaded");
     }
@@ -35,7 +35,7 @@ export function setChartEmptyState(wrap, isEmpty) {
     plate.hidden = !isEmpty;
     plate.style.display = isEmpty ? "" : "none";
   });
-  roots.forEach((root) => {
+  roots.forEach((root: HTMLElement) => {
     root.classList.toggle("is-hidden", isEmpty);
     root.hidden = isEmpty;
     root.style.visibility = isEmpty ? "hidden" : "";
@@ -51,7 +51,7 @@ export function setChartEmptyState(wrap, isEmpty) {
       }
     }
     wrap._cmChartInstance = null;
-    roots.forEach((root) => {
+    roots.forEach((root: HTMLElement) => {
       root._cmChartInstance = null;
     });
     delete wrap.dataset.cmChartReady;
@@ -59,7 +59,11 @@ export function setChartEmptyState(wrap, isEmpty) {
 }
 
 export { num, uiLocale } from "./format";
-export function packagesTooltip(params, dataRows) {
+interface ChartTooltipParam {
+  dataIndex?: number;
+  name?: string;
+}
+export function packagesTooltip(params: ChartTooltipParam[], dataRows: RowDict[]): string {
   const pkg = dataRows[params[0]?.dataIndex ?? -1];
   if (!pkg || !params[0]) return params[0]?.name ?? "";
   const included = i18n.t("chart.packages.included", "Included");
@@ -92,17 +96,15 @@ function buildPieOption(
     return item;
   });
   const total = data.reduce((sum, item) => sum + (item.value || 0), 0);
+  const overlay = resolved.overlay ?? config.overlay;
   if (bind.pieVariant === "center-total") {
+    const overlayColor = overlay
+      ? (overlay.tone === "purple" ? "#9333ea" : overlay.tone === "red" ? "#ef4444" : overlay.tone === "green" ? "#10b981" : "#94a3b8")
+      : "#e2e8f0";
+    const centerValue = overlay ? overlay.value : String(total);
+    const centerLabel = overlay ? overlay.title : "";
     return {
       backgroundColor: "transparent",
-      title: {
-        text: String(total),
-        subtext: "Total",
-        left: "center",
-        top: "center",
-        textStyle: { color: "#e2e8f0", fontSize: 22, fontWeight: "bold" },
-        subtextStyle: { color: "#64748b", fontSize: 10, fontWeight: "bold" },
-      },
       tooltip: {
         trigger: "item",
         backgroundColor: "rgba(30,41,59,.95)",
@@ -112,20 +114,35 @@ function buildPieOption(
         formatter: (params: { name: string; value: number; percent: number }) =>
           `${params.name}: ${params.value} (${params.percent.toFixed(1)}%)`,
       },
+      graphic: [
+        ...(centerLabel ? [{
+          type: "text",
+          left: "center",
+          top: "42%",
+          style: { text: centerLabel, fill: "#94a3b8", fontSize: 10, textAlign: "center" },
+        }] : []),
+        {
+          type: "text",
+          left: "center",
+          top: centerLabel ? "50%" : "center",
+          style: { text: centerValue, fill: overlayColor, fontSize: 19, fontWeight: "bold", textAlign: "center" },
+        },
+      ],
       series: [
         {
           type: "pie",
-          radius: ["45%", "75%"],
+          radius: ["53%", "88%"],
           center: ["50%", "50%"],
           data,
           label: {
             show: true,
             position: "inner",
-            formatter: "{c}",
+            formatter: "{d}%",
             color: "#ffffff",
             fontSize: 11,
             fontWeight: "bold",
           },
+          labelLine: { show: false },
           emphasis: { itemStyle: { shadowBlur: 6, shadowColor: "rgba(0,0,0,0.3)" } },
           animationType: "scale",
           animationEasing: "elasticOut",
@@ -133,7 +150,6 @@ function buildPieOption(
       ],
     };
   }
-  const overlay = resolved.overlay ?? config.overlay;
   const pieSeries: {
     type: string;
     radius: string | string[];
@@ -258,7 +274,7 @@ function buildBarOptionFromResolved(
   const tooltip: {
     trigger: string;
     axisPointer: { type: string };
-    formatter?: (params: unknown) => string;
+    formatter?: (params: ChartTooltipParam[]) => string;
   } = { trigger: "axis", axisPointer: { type: "shadow" } };
   if (bind.tooltipKind === "packages") {
     tooltip.formatter = (params) => packagesTooltip(params, dataRows);
@@ -321,7 +337,10 @@ export function buildEchartsOption(config: ChartRuntimeDict, rows: RowDict[]) {
   const chartType = config.chartType;
   const theme = config.echartsTheme ?? "dark";
   const isDark = theme === "dark";
-  const dataRows = bind.rows ?? rows;
+  // Static charts carry their data in the separate rows payload (data-cm-chart-rows);
+  // the config's bind.rows is an empty array in that case, so fall back to `rows`
+  // when it has no entries (`??` alone keeps the empty array and blanks the chart).
+  const dataRows = bind.rows && bind.rows.length ? bind.rows : rows;
   const resolved = resolveChartDataFromRuntime(config, dataRows);
 
   if (chartType === "pie" || chartType === "donut") {
@@ -330,9 +349,9 @@ export function buildEchartsOption(config: ChartRuntimeDict, rows: RowDict[]) {
   return buildBarOptionFromResolved(resolved, bind, chartType, isDark, dataRows);
 }
 
-export function initChart(root, config, rows) {
+export function initChart(root: Element, config: ChartRuntimeDict, rows: RowDict[]) {
   if (!root) return null;
-  var wrap = root.closest("[data-cm-chart-config], .cm-chart-wrap") || root.parentElement;
+  var wrap = root.closest<HTMLElement>("[data-cm-chart-config], .cm-chart-wrap") || root.parentElement;
   var rowList = Array.isArray(rows) ? rows : [];
   if (!chartRowsHaveData(rowList)) {
     setChartEmptyState(wrap, true);
@@ -354,8 +373,9 @@ export function initChart(root, config, rows) {
   if (wrap) wrap._cmChartInstance = chart;
   return chart;
 }
-export function refreshChartWrap(wrap, config, rows) {
+export function refreshChartWrap(wrap: Element, config: ChartRuntimeDict, rows: RowDict[]) {
   if (!wrap) return null;
+  if (!(wrap instanceof HTMLElement)) return null;
   const chartRoot = wrap.querySelector("[data-cm-chart-root]") ?? wrap;
   const rowList = Array.isArray(rows) ? rows : [];
   wrap.dataset.cmChartRows = JSON.stringify(rowList);
@@ -372,9 +392,9 @@ export function refreshChartWrap(wrap, config, rows) {
   wrap._cmChartInstance = instance;
   return instance;
 }
-export function initAllCharts(scope) {
+export function initAllCharts(scope?: Document | Element) {
   const root = scope ?? document;
-  root.querySelectorAll("[data-cm-chart-config]").forEach((node) => {
+  root.querySelectorAll<HTMLElement>("[data-cm-chart-config]").forEach((node) => {
     if (node.dataset.cmChartInteractive) return;
     if (node.dataset.cmChartReady && node._cmChartInstance) {
       node._cmChartInstance?.resize();

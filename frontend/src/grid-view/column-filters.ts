@@ -25,6 +25,7 @@ import {
 } from "./search/column-filter-state";
 import { applyTableFilters, ensureSimpleTableForTable } from "./simple-table";
 import { SetFilterPanel } from "./set-filter-panel";
+import { ExprFilterPanel } from "./expr-filter-panel";
 import { scanTableColumnValues } from "./search/column-filter-dictionary";
 import {
   parseColumnFilterEntry,
@@ -41,6 +42,7 @@ import { appendSearchSyntaxHelp, refreshSearchSyntaxHelp } from "./search-help-u
 import { asHTMLElement, asHtmlInput } from "./dom-guards";
 
 let activeSetPanel: SetFilterPanel | null = null;
+let activeExprPanel: ExprFilterPanel | null = null;
 let exprFilterTimer: ReturnType<typeof setTimeout> | null = null;
 
 function exprRowForPortal(portal: Element | null | undefined): HTMLElement | null {
@@ -161,6 +163,7 @@ export function closeColumnFilterPortals() {
     flushExprFilterPortal(portalEl);
   });
   activeSetPanel = null;
+  activeExprPanel = null;
   document.querySelectorAll("[data-cm-col-filter-portal]").forEach(function (portalEl) {
     const portal = asHTMLElement(portalEl);
     if (!portal) return;
@@ -188,7 +191,8 @@ export function positionColumnFilterPortal(
   var anchorRect = anchorBtn.getBoundingClientRect();
   var thRect = th instanceof HTMLElement ? th.getBoundingClientRect() : anchorRect;
   var width = kind === "set" ? 300 : Math.max(196, Math.min(thRect.width, 260));
-  var left = thRect.left + (thRect.width - width) / 2;
+  // Centre the popup under the filter icon (not the whole column).
+  var left = anchorRect.left + anchorRect.width / 2 - width / 2;
   left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
   portal.classList.toggle("is-set", kind === "set");
   portal.style.top = Math.round(anchorRect.bottom + 6) + "px";
@@ -238,6 +242,7 @@ export function applyColumnFilterState(
   syncColumnFilterChrome(table);
   applyTableFilters(table);
   updateTableFilterUrl(anchorEl || table);
+  document.dispatchEvent(new CustomEvent("cm-grid-state-change", { detail: { source: "column-filter" } }));
 }
 
 export function navigateWithTableFilters(anchorEl: Element | null | undefined) {
@@ -305,34 +310,40 @@ function flushExprFilterPortal(portal: Element | null | undefined) {
 
 function openExprFilter(
   portal: HTMLElement,
-  portalInput: HTMLInputElement,
   th: HTMLElement,
-  _table: HTMLTableElement,
+  table: HTMLTableElement,
   btn: HTMLElement
 ): void {
-  var setHost = asHTMLElement(portal.querySelector("[data-cm-col-filter-set-host]"));
-  if (setHost) {
-    setHost.innerHTML = "";
-    setHost.hidden = true;
-  }
-  setExprRowVisible(portal, true);
+  const colKey = th.dataset.cmColKey || "";
+  const match = headerFilterMatch(th);
   const profile = bindSearchProfileForHeader(th);
-  portalInput.value = th.dataset.cmColFilterValue || "";
-  portalInput.dataset.cmColKey = th.dataset.cmColKey || "";
-  portalInput.placeholder = i18n.t(
-    columnFilterPlaceholderKey(profile),
-    i18n.t("column_filter.placeholder", "Search: >10, %name%")
-  );
-  const helpBtn = portal.querySelector(".cm-search-help-btn");
-  if (helpBtn instanceof HTMLElement) refreshSearchSyntaxHelp(helpBtn, profile);
-  positionColumnFilterPortal(portal, btn, "expr");
+  const setHost = asHTMLElement(portal.querySelector("[data-cm-col-filter-set-host]"));
+  if (!setHost) return;
+  setExprRowVisible(portal, false);
+  setHost.hidden = false;
+  setHost.innerHTML = "";
+
+  const panel = new ExprFilterPanel({
+    fieldId: colKey,
+    profile,
+    match,
+    onChange: function () {
+      const model = panel.getModel();
+      commitColumnFilterValue(table, colKey, model ? serializeColumnFilterEntry(model) : "");
+      applyColumnFilterState(table, setHost);
+    },
+  });
+  activeExprPanel = panel;
+  setHost.appendChild(panel.getGui());
+
+  const existing = parseColumnFilterEntry(th.dataset.cmColFilterValue || "");
+  if (existing) panel.setModel(existing);
+
+  positionColumnFilterPortal(portal, btn, "set");
   portal.classList.remove("is-hidden");
   portal.setAttribute("aria-hidden", "false");
   btn.classList.add("is-open");
-  setTimeout(function () {
-    portalInput.focus();
-    portalInput.select();
-  }, 0);
+  panel.focus();
 }
 
 function openSetFilter(
@@ -510,7 +521,7 @@ export function initColumnFilters(scope: Document | Element | null | undefined) 
         if (headerFilterKind(th) === "set") {
           openSetFilter(portal, boundPortalInput, th, table, shell, btn);
         } else {
-          openExprFilter(portal, boundPortalInput, th, table, btn);
+          openExprFilter(portal, th, table, btn);
         }
       });
     });

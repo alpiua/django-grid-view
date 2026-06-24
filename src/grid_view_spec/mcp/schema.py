@@ -36,6 +36,7 @@ SCHEMA_TARGETS: frozenset[str] = frozenset(
         "GridViewTemplate",
         # Shared defs frequently queried by agents
         "GridViewFilter",
+        "GridViewFilterOption",
         "GridViewSearch",
         "GridViewChartOptions",
         "GridViewLazyDefaults",

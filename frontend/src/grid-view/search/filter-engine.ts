@@ -4,7 +4,12 @@
  */
 
 import { bindSearchProfileForToolbar } from "./contract";
-import { matchColumnFilter, matchSmartHaystackClient, type SmartHaystackOptions } from "./match";
+import {
+  matchColumnFilter,
+  matchSmartHaystackClient,
+  parseNumberForColumnFilter,
+  type SmartHaystackOptions,
+} from "./match";
 import {
   SearchProfile,
   bindSearchProfileForHeader,
@@ -37,6 +42,11 @@ export function isSetFilterModel(value: unknown): value is SetFilterModel {
 export function isEmptyCellValue(val: unknown): boolean {
   const tv = String(val === null || val === undefined ? "" : val).trim();
   return tv === "" || tv === "-" || tv === "—" || tv === "–" || tv === "[]";
+}
+
+/** A numeric cell whose value is 0 — treated as empty for numeric columns. */
+function isNumericZeroCell(val: unknown): boolean {
+  return parseNumberForColumnFilter(val) === 0;
 }
 
 export function normalizeFilterMatch(match: unknown): FilterMatch {
@@ -92,15 +102,18 @@ function resolveSetFilterTokens(
 export function matchSetFilter(
   cellText: unknown,
   model: SetFilterModel | null | undefined,
-  options?: { tokens?: readonly string[]; match?: FilterMatch }
+  options?: { tokens?: readonly string[]; match?: FilterMatch; numeric?: boolean }
 ): boolean {
   if (!model) return true;
   const match = normalizeFilterMatch(options?.match ?? ("match" in model ? model.match : undefined));
   const tokens = resolveSetFilterTokens(cellText, match, options);
 
   if ("mode" in model) {
-    if (model.mode === "empty") return tokens.length === 0;
-    if (model.mode === "non_empty") return tokens.length > 0;
+    // Numeric columns treat 0 as empty.
+    const isEmpty =
+      tokens.length === 0 || (options?.numeric === true && isNumericZeroCell(cellText));
+    if (model.mode === "empty") return isEmpty;
+    if (model.mode === "non_empty") return !isEmpty;
   }
 
   const values = "values" in model ? model.values : undefined;
@@ -164,7 +177,11 @@ export function matchColumnFilterEntry(
   if (typeof entry === "string") {
     return matchColumnFilter(cellText, entry, { profile: options?.profile });
   }
-  return matchSetFilter(cellText, entry, options);
+  return matchSetFilter(cellText, entry, {
+    tokens: options?.tokens,
+    match: options?.match,
+    numeric: options?.profile === SearchProfile.Numeric,
+  });
 }
 
 /** True when a column filter value may be applied for the active header profile. */

@@ -6,6 +6,7 @@
 {% set table_block = table_resolved.block if table_resolved else none %}
 {% set has_settings = table_block is not none and table_block.settings is not none %}
 {% set search_value = resolved.extra.get('search_value', block.search.value if block.search else '') %}
+{% set pref_grid_id = resolved.extra.get('pref_grid_id', block.search.bind or block.target or block.id if block.search else block.id) %}
 <div class="cm-toolbar-unified cm-toolbar-outside" data-target="{{ block.target or '' | e }}">
   <div class="cm-toolbar-left">
     {% if actions_block %}
@@ -25,9 +26,9 @@
       data-cm-search-backend="{{ block.search.backend | e }}"
       data-cm-search-mode="{{ block.search.mode | e }}"
       data-cm-search-scope-id="{{ block.id | e }}"
-      data-cm-pref-grid-id="{{ block.id | e }}"
-      {% if block.search.bind %}data-cm-table-grid-id="{{ block.search.bind | e }}"{% endif %}
-      {% if block.search.saved %}data-cm-saved-searches='[]'{% endif %}
+      data-cm-pref-grid-id="{{ pref_grid_id | e }}"
+      {% if pref_grid_id != block.id %}data-cm-table-grid-id="{{ pref_grid_id | e }}"{% endif %}
+      {% if block.search.saved %}data-cm-saved-searches='{{ resolved.extra.get("saved_searches_json", "[]") | e }}'{% endif %}
     >
       <div class="cm-toolbar-search-field">
         <svg class="cm-toolbar-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -88,56 +89,29 @@
     {% if filters_block %}
     <div class="cm-toolbar-filters-block">
       <span class="cm-toolbar-filters-label">{{ host.translate('filter_bar.filters_label') | e }}</span>
-      <div class="cm-filter-bar" data-cm-filter-bar{% if filters_block.auto_apply %} data-auto-apply="1"{% endif %}{% if not filters_block.navigate_on_change %} data-navigate-on-change="0"{% endif %}>
-        {% if block.search %}
-        <input type="hidden" data-cm-search name="{{ block.search.param | e }}" value="{{ search_value | e }}">
-        {% endif %}
-        {% for filter in filters_block.schema %}
-        {% set selected = filters_block.state.values.get(filter.param, ()) if filters_block.state else () %}
-        <div
-          class="cm-multiselect cm-period-multiselect{% if filter.type == 'select' %} cm-multiselect--single{% endif %}"
-          data-cm-multiselect
-          data-filter-id="{{ filter.id | e }}"
-          data-filter-param="{{ filter.param | e }}"
-          data-filter-scope="{{ filter.scope | e }}"
-          {% if filter.type == 'select' %}data-cm-singleselect="1"{% endif %}
-          {% if filter.select_all %}data-select-all-option="1" data-select-all-value="{{ filter.select_all_value | e }}"{% endif %}
-          data-all-label="{{ filter.select_all_label or filter.placeholder or filter.label | e }}"
-          data-placeholder="{{ filter.placeholder or filter.label | e }}"
-        >
-          <button type="button" class="cm-multiselect-trigger" aria-haspopup="listbox">
-            <span class="cm-multiselect-trigger__label"></span>
-          </button>
-          <div class="cm-multiselect-panel" role="listbox">
-            {% if filter.select_all %}
-            <label class="cm-multiselect-option">
-              <input type="checkbox" value="{{ filter.select_all_value | e }}" data-label="{{ filter.select_all_label or host.translate('filter_bar.all') | e }}" data-select-all="1"
-                {% if filter.select_all_value in selected %}checked{% endif %}>
-              {{ filter.select_all_label or host.translate('filter_bar.all') | e }}
-            </label>
-            {% endif %}
-            {% for opt in filter.options %}
-            <label class="cm-multiselect-option">
-              <input type="checkbox" value="{{ opt.value | e }}" data-label="{{ opt.label | e }}"
-                {% if opt.exclusive %}data-exclusive-solo="1"{% endif %}
-                {% if opt.value in selected %}checked{% endif %}>
-              {{ opt.label | e }}
-            </label>
-            {% endfor %}
-            <div class="cm-multiselect-apply-wrap">
-              <button type="button" class="cm-multiselect-apply" data-cm-multiselect-apply>{{ host.translate('filter_bar.apply') | e }}</button>
-            </div>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
+      {% set fb = filters_block %}
+      {% set fb_search = {'param': block.search.param, 'value': search_value} if block.search else none %}
+      {% include '_filter_bar.html' %}
     </div>
+    {% endif %}
+    {% if block.clear_all and block.target %}
+    <button
+      type="button"
+      class="cm-toolbar-btn cm-toolbar-clear-all is-hidden"
+      data-cm-grid-action="clearAllFilters"
+      data-cm-grid-id="{{ block.target | e }}"
+      title="{{ host.translate('toolbar.clear_all_filters') | default('Очистити всі фільтри і пошук') | e }}"
+      aria-label="{{ host.translate('toolbar.clear_all_filters') | default('Очистити всі фільтри і пошук') | e }}"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/><path d="m19 5-4 4"/><path d="m15 5 4 4"/></svg>
+    </button>
     {% endif %}
   </div>
   <div class="cm-toolbar-right">
     {% for counter in block.counters %}
     <div class="cm-toolbar-stat-inline">
-      {{ counter.label | e }}: <span class="cm-toolbar-counter-value" data-cm-count data-cm-count-for="{{ block.target or '' | e }}"{% if counter.field %} data-cm-count-field="{{ counter.field | e }}"{% endif %}{% if counter.total is not none %} data-cm-count-total="{{ counter.total | e }}"{% endif %}>{% if counter.total is not none %}{{ counter.value | e }}/{{ counter.total | e }}{% else %}{{ counter.value | e }}{% endif %}</span>
+      {% set _tone_cls = {'success': 'cm-val-green', 'danger': 'cm-val-red', 'warning': 'cm-val-yellow', 'muted': 'cm-muted'} %}
+      {{ counter.label | e }}: <span class="cm-toolbar-counter-value{% if counter.tone %} {{ _tone_cls.get(counter.tone, '') | e }}{% endif %}"{% if not counter.server_only %}data-cm-count data-cm-count-for="{{ block.target or '' | e }}"{% if counter.field %} data-cm-count-field="{{ counter.field | e }}"{% endif %}{% if counter.total is not none %} data-cm-count-total="{{ counter.total | e }}"{% endif %}{% endif %}>{% if counter.total is not none %}{{ counter.value | e }}/{{ counter.total | e }}{% else %}{{ counter.value | e }}{% endif %}</span>
     </div>
     {% endfor %}
     {% if actions_block or has_settings %}
@@ -181,6 +155,18 @@
         class="cm-toolbar-btn"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+      {% endif %}
+      {% if block.reload and block.target %}
+      <button
+        type="button"
+        class="cm-toolbar-btn"
+        data-cm-grid-action="reloadData"
+        data-cm-grid-id="{{ block.target | e }}"
+        title="{{ host.translate('toolbar.reload') | e }}"
+        aria-label="{{ host.translate('toolbar.reload') | e }}"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
       </button>
       {% endif %}
     </div>

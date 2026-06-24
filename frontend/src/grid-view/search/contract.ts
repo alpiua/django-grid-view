@@ -158,6 +158,15 @@ export function classifyTermTokens(term: string, quoted = false): Set<SearchToke
     }
   }
   if (t.indexOf("%") >= 0) tokens.add(SearchToken.Wildcard);
+  // Text operators ^prefix / suffix$ / !negation are wildcard-class (allowed
+  // wherever % is): keep them usable on text, numeric, and default profiles.
+  if (
+    (t.length > 1 && t.charAt(0) === "^") ||
+    (t.length > 1 && t.charAt(t.length - 1) === "$") ||
+    (t.length > 1 && t.charAt(0) === "!")
+  ) {
+    tokens.add(SearchToken.Wildcard);
+  }
   if (!tokens.size) tokens.add(SearchToken.PlainText);
   return tokens;
 }

@@ -8,11 +8,17 @@ template). Documented ``GridViewTable.extra`` keys map to camelCase JS config ke
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 
 from grid_view_spec.types.table_v2 import GridViewTable
 
 
-def ag_grid_spec_config(block: GridViewTable, block_id: str) -> dict[str, object]:
+def ag_grid_spec_config(
+    block: GridViewTable,
+    block_id: str,
+    *,
+    searches: Sequence[str] = (),
+) -> dict[str, object]:
     """Return the AG-Grid boot config dict for one table block."""
     extra = block.extra or {}
     raw_url_keys = extra.get("url_page_state_keys", [])
@@ -55,6 +61,8 @@ def ag_grid_spec_config(block: GridViewTable, block_id: str) -> dict[str, object
         config["columnsVar"] = extra["columns_var"]
     if block.datasource:
         config["datasourceUrl"] = str(block.datasource.endpoint)
+    if extra.get("dictionary_url"):
+        config["dictionaryUrl"] = str(extra["dictionary_url"])
     if block.column_source is not None:
         src = block.column_source
         config["columnSource"] = {
@@ -67,9 +75,16 @@ def ag_grid_spec_config(block: GridViewTable, block_id: str) -> dict[str, object
         }
     if extra.get("row_selection"):
         config["rowSelection"] = extra["row_selection"]
+    if searches:
+        config["searches"] = list(searches)
     return config
 
 
-def ag_grid_spec_config_json(block: GridViewTable, block_id: str) -> str:
+def ag_grid_spec_config_json(
+    block: GridViewTable,
+    block_id: str,
+    *,
+    searches: Sequence[str] = (),
+) -> str:
     """Serialize :func:`ag_grid_spec_config` to a JSON string for the template."""
-    return json.dumps(ag_grid_spec_config(block, block_id))
+    return json.dumps(ag_grid_spec_config(block, block_id, searches=searches))
