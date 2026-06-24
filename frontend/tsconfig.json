@@ -5,11 +5,11 @@
     "moduleResolution": "bundler",
     "strict": true,
     "downlevelIteration": true,
-    "noImplicitAny": false,
+    "noImplicitAny": true,
     "noEmit": true,
     "skipLibCheck": true,
     "lib": ["ES2018", "DOM"],
-    "types": []
+    "types": [],
   },
   "include": [
     "src/globals.d.ts",
@@ -20,7 +20,7 @@
     "src/column-settings.ts",
     "src/column-settings/**/*.ts",
     "src/ag-grid/**/*.ts",
-    "src/ag-grid*.ts"
+    "src/ag-grid*.ts",
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules"],
 }

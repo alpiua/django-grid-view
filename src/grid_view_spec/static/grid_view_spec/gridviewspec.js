@@ -107,7 +107,12 @@
     return el instanceof HTMLInputElement ? el : null;
   }
   function eventTargetElement(target) {
-    return target instanceof HTMLElement ? target : null;
+    if (target instanceof HTMLElement) return target;
+    let el = target instanceof Element ? target : null;
+    while (el && !(el instanceof HTMLElement)) {
+      el = el.parentElement;
+    }
+    return el instanceof HTMLElement ? el : null;
   }
   function isRecord(value) {
     return !!value && typeof value === "object" && !Array.isArray(value);
@@ -320,6 +325,8 @@
     for (const op of NUMERIC_OPS) {
       if (t2.startsWith(op)) return t2.slice(op.length).trim().length > 0;
     }
+    if (t2.length > 1 && t2.charAt(0) === "^") return true;
+    if (t2.length > 1 && t2.charAt(t2.length - 1) === "$") return true;
     return t2.indexOf("%") >= 0;
   }
   function hasSmartSyntax(raw) {
@@ -344,6 +351,14 @@
     if (!q) return true;
     const hay = String(cellText != null ? cellText : "").trim();
     const hayFold = hay.toLowerCase();
+    if (q.length > 1 && q.charAt(0) === "^") {
+      const prefix = q.slice(1).trim().toLowerCase();
+      return !!prefix && hayFold.startsWith(prefix);
+    }
+    if (q.length > 1 && q.charAt(q.length - 1) === "$") {
+      const suffix = q.slice(0, -1).trim().toLowerCase();
+      return !!suffix && hayFold.endsWith(suffix);
+    }
     const bounds = parseRangeBounds(q);
     if (bounds !== null) {
       const numbers = extractNumericValues(hay);
@@ -388,6 +403,9 @@
     if (!t2) return true;
     const hay = String(haystack != null ? haystack : "");
     const quoted = (options == null ? void 0 : options.quoted) === true;
+    if (!quoted && t2.length > 1 && t2.charAt(0) === "!") {
+      return !matchQueryTerm(hay, t2.slice(1).trim(), options);
+    }
     if (termIsExpression(t2)) return matchColumnExpression(hay, t2);
     if (quoted || t2.indexOf(" ") >= 0) return literalContains(hay, t2);
     return spaceInsensitiveContains(hay, t2);
@@ -497,6 +515,9 @@
       }
     }
     if (t2.indexOf("%") >= 0) tokens.add("wildcard" /* Wildcard */);
+    if (t2.length > 1 && t2.charAt(0) === "^" || t2.length > 1 && t2.charAt(t2.length - 1) === "$" || t2.length > 1 && t2.charAt(0) === "!") {
+      tokens.add("wildcard" /* Wildcard */);
+    }
     if (!tokens.size) tokens.add("plain_text" /* PlainText */);
     return tokens;
   }
@@ -744,6 +765,9 @@
     const tv = String(val === null || val === void 0 ? "" : val).trim();
     return tv === "" || tv === "-" || tv === "\u2014" || tv === "\u2013" || tv === "[]";
   }
+  function isNumericZeroCell(val) {
+    return parseNumberForColumnFilter(val) === 0;
+  }
   function normalizeFilterMatch(match) {
     return match === "any_token" ? "any_token" : "exact";
   }
@@ -785,8 +809,9 @@
     const match = normalizeFilterMatch((_a = options == null ? void 0 : options.match) != null ? _a : "match" in model ? model.match : void 0);
     const tokens = resolveSetFilterTokens(cellText, match, options);
     if ("mode" in model) {
-      if (model.mode === "empty") return tokens.length === 0;
-      if (model.mode === "non_empty") return tokens.length > 0;
+      const isEmpty = tokens.length === 0 || (options == null ? void 0 : options.numeric) === true && isNumericZeroCell(cellText);
+      if (model.mode === "empty") return isEmpty;
+      if (model.mode === "non_empty") return !isEmpty;
     }
     const values = "values" in model ? model.values : void 0;
     if (Array.isArray(values)) {
@@ -838,7 +863,11 @@
     if (typeof entry === "string") {
       return matchColumnFilter(cellText, entry, { profile: options == null ? void 0 : options.profile });
     }
-    return matchSetFilter(cellText, entry, options);
+    return matchSetFilter(cellText, entry, {
+      tokens: options == null ? void 0 : options.tokens,
+      match: options == null ? void 0 : options.match,
+      numeric: (options == null ? void 0 : options.profile) === "numeric" /* Numeric */
+    });
   }
   function isExprFilterCommitReady(query, th) {
     return isCommitReadyForProfile(query, bindSearchProfileForHeader(th));
@@ -1848,24 +1877,42 @@
     }
     const root = scope && "querySelectorAll" in scope ? scope : document;
     root.querySelectorAll('[data-cm-column-settings="1"] [data-cm-table]').forEach(function(table) {
-      if (table instanceof HTMLTableElement) bindTableColumnResize(table);
+      if (!(table instanceof HTMLTableElement)) return;
+      bindTableColumnResize(table);
+      maybeSeedColumnWidths(table);
     });
+  }
+  function maybeSeedColumnWidths(table) {
+    if (table.classList.contains("cm-table--has-col-widths")) return;
+    if (!table.offsetWidth) return;
+    if (!table.querySelector("tbody tr")) return;
+    seedFixedColumnWidths(table);
   }
 
   // src/grid-view/charts-bridge.ts
   var chartsApi = null;
+  function resolveApi() {
+    var _a;
+    if (chartsApi) return chartsApi;
+    const registered = (_a = window.GridView) == null ? void 0 : _a.Charts;
+    return registered && registered !== ChartsBridge ? registered : null;
+  }
   var ChartsBridge = {
     initChart(root, config, rows) {
-      return chartsApi == null ? void 0 : chartsApi.initChart(root, config, rows);
+      var _a, _b;
+      return (_b = (_a = resolveApi()) == null ? void 0 : _a.initChart(root, config, rows)) != null ? _b : null;
     },
     refreshChartWrap(wrap, config, rows) {
-      chartsApi == null ? void 0 : chartsApi.refreshChartWrap(wrap, config, rows);
+      var _a;
+      (_a = resolveApi()) == null ? void 0 : _a.refreshChartWrap(wrap, config, rows);
     },
     initAllCharts(scope) {
-      chartsApi == null ? void 0 : chartsApi.initAllCharts(scope);
+      var _a;
+      (_a = resolveApi()) == null ? void 0 : _a.initAllCharts(scope);
     },
     buildEchartsOption(config, rows) {
-      return chartsApi ? chartsApi.buildEchartsOption(config, rows) : null;
+      const api = resolveApi();
+      return api ? api.buildEchartsOption(config, rows) : null;
     }
   };
 
@@ -1883,7 +1930,9 @@
     return el instanceof HTMLTableElement ? el : null;
   }
   function simpleTableWrapper(table) {
-    const wrapper = table.closest(".cm-simple-wrapper, .cm-table-shell, .cm-page-table-layout, .cm-dashboard-page") || table.parentElement;
+    const wrapper = table.closest(
+      ".cm-simple-wrapper, .cm-table-shell, .cm-page-table-layout, .cm-dashboard-page"
+    ) || table.parentElement;
     return asHTMLElement(wrapper);
   }
   function ensureSimpleTableForTable(tableEl) {
@@ -1899,8 +1948,24 @@
   }
   function resolveDataTable(el) {
     if (!el) return null;
-    if (el.matches("[data-cm-table][data-cm-col-filters]")) return asHtmlTable(el);
+    if (el.matches("[data-cm-table][data-cm-col-filters]"))
+      return asHtmlTable(el);
     return asHtmlTable(el.querySelector("[data-cm-table][data-cm-col-filters]"));
+  }
+  function clearSimpleTableFiltersForGrid(gridId) {
+    if (!gridId) return false;
+    const esc = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(gridId) : gridId.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    const shell = document.getElementById("cm-table-" + gridId);
+    let table = resolveDataTable(shell);
+    if (!table)
+      table = resolveDataTable(
+        document.querySelector('[data-grid-id="' + esc + '"]')
+      );
+    if (!table) return false;
+    const simple = ensureSimpleTableForTable(table);
+    if (!simple) return false;
+    simple.clearAllFilters();
+    return true;
   }
   function applyTableFilters(tableEl) {
     const table = resolveDataTable(tableEl);
@@ -1931,7 +1996,8 @@
       if (!table) throw new Error("SimpleTable: missing [data-cm-table]");
       this.table = table;
       const tbody = table.querySelector("tbody");
-      if (!(tbody instanceof HTMLTableSectionElement)) throw new Error("SimpleTable: missing tbody");
+      if (!(tbody instanceof HTMLTableSectionElement))
+        throw new Error("SimpleTable: missing tbody");
       this.tbody = tbody;
       Array.from(this.tbody.querySelectorAll("tr")).forEach((row, index) => {
         row.dataset.cmIdx = String(index);
@@ -2019,7 +2085,8 @@
         row.style.cursor = "pointer";
         row.addEventListener("click", (event) => {
           const target = eventTargetElement(event.target);
-          if (target == null ? void 0 : target.closest("a,button,[data-cm-cell-action],[data-cm-cell-edit]")) return;
+          if (target == null ? void 0 : target.closest("a,button,[data-cm-cell-action],[data-cm-cell-edit]"))
+            return;
           const url = row.dataset.cmRowUrl;
           if (url) window.location.href = url;
         });
@@ -2032,7 +2099,8 @@
         row.style.cursor = "pointer";
         row.addEventListener("click", (event) => {
           const target = eventTargetElement(event.target);
-          if (target == null ? void 0 : target.closest("a,button,[data-cm-cell-action],[data-cm-cell-edit]")) return;
+          if (target == null ? void 0 : target.closest("a,button,[data-cm-cell-action],[data-cm-cell-edit]"))
+            return;
           const action = row.dataset.cmRowAction;
           if (!action) return;
           invokeAction(action, {
@@ -2070,7 +2138,9 @@
           this._appendRowGroups(groups);
         }
       } else {
-        const rows = Array.from(this.tbody.querySelectorAll(".cm-row"));
+        const rows = Array.from(
+          this.tbody.querySelectorAll(".cm-row")
+        );
         if (!this.sortDir) {
           rows.sort((a, b) => Number(a.dataset.cmIdx) - Number(b.dataset.cmIdx));
         } else {
@@ -2085,15 +2155,76 @@
       this.w.querySelectorAll("[data-cm-sort]").forEach((headerEl) => {
         const headerTh = asHTMLElement(headerEl);
         if (!headerTh) return;
-        headerTh.classList.toggle("cm-th-sorted", this.sortDir !== null && headerTh.dataset.cmSort === this.sortKey);
+        const isSorted = this.sortDir !== null && headerTh.dataset.cmSort === this.sortKey;
+        headerTh.classList.toggle("cm-th-sorted", isSorted);
+        headerTh.classList.toggle(
+          "cm-th-sort-asc",
+          isSorted && this.sortDir === "asc"
+        );
+        headerTh.classList.toggle(
+          "cm-th-sort-desc",
+          isSorted && this.sortDir === "desc"
+        );
       });
-      this.w.querySelectorAll(".cm-sort-arrow").forEach((arrow2) => {
-        arrow2.textContent = "\u21C9";
-      });
-      const arrow = th.querySelector(".cm-sort-arrow");
-      if (arrow) {
-        arrow.textContent = this.sortDir === "asc" ? "\u25B2" : this.sortDir === "desc" ? "\u25BC" : "\u21C9";
+    }
+    clearAllFilters() {
+      var _a, _b;
+      const toolbarSearch = (_a = this.w.closest(".cm-dashboard-page, .cm-grid-view-spec")) == null ? void 0 : _a.querySelector("[data-cm-toolbar-search]");
+      if (toolbarSearch instanceof HTMLInputElement) {
+        toolbarSearch.value = "";
+        delete toolbarSearch.dataset.cmSearchCommitted;
+        toolbarSearch.dispatchEvent(new Event("input", { bubbles: true }));
       }
+      this.w.querySelectorAll("th[data-cm-col-key]").forEach((th) => {
+        delete th.dataset.cmColFilterValue;
+      });
+      this.w.querySelectorAll(".cm-col-filter-btn").forEach((btn) => {
+        btn.classList.remove("is-active", "is-open");
+      });
+      this.w.querySelectorAll(".cm-col-filter-clear").forEach((btn) => {
+        btn.classList.remove("is-visible");
+      });
+      const url = new URL(window.location.href);
+      ["q", "filters", "col_q"].forEach((key) => url.searchParams.delete(key));
+      window.history.replaceState({}, "", url);
+      const gridId = this.w.dataset.gridId || ((_b = this.table.closest("[data-grid-id]")) == null ? void 0 : _b.dataset.gridId) || "";
+      if (gridId) {
+        localStorage.removeItem("cmColState_" + gridId);
+        localStorage.removeItem("cmTableState_" + gridId);
+      }
+      this.applyAllFilters();
+      document.dispatchEvent(
+        new CustomEvent("cm-grid-state-change", { detail: { gridId } })
+      );
+    }
+    _gridId() {
+      var _a;
+      return this.w.dataset.gridId || ((_a = this.table.closest("[data-grid-id]")) == null ? void 0 : _a.dataset.gridId) || "";
+    }
+    hasActiveFilters() {
+      var _a;
+      const toolbarSearch = (_a = this.w.closest(".cm-dashboard-page, .cm-grid-view-spec")) == null ? void 0 : _a.querySelector("[data-cm-toolbar-search]");
+      if (toolbarSearch instanceof HTMLInputElement) {
+        if ((toolbarSearch.value || "").trim()) return true;
+        if ((toolbarSearch.dataset.cmSearchCommitted || "").trim()) return true;
+      }
+      if (Object.keys(collectColumnFiltersFromTable(this.table)).length)
+        return true;
+      const params = new URLSearchParams(window.location.search);
+      if (params.has("q") || params.has("col_q")) return true;
+      return false;
+    }
+    syncFilterChrome() {
+      syncColumnFilterChrome(this.table);
+      const active = this.hasActiveFilters();
+      const gridId = this._gridId();
+      const esc = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(gridId) : gridId.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      const buttons = gridId ? document.querySelectorAll(
+        '[data-cm-grid-action="clearAllFilters"][data-cm-grid-id="' + esc + '"]'
+      ) : document.querySelectorAll(
+        '[data-cm-grid-action="clearAllFilters"]'
+      );
+      buttons.forEach((btn) => btn.classList.toggle("is-hidden", !active));
     }
     _queryUsesNumericCellText(query) {
       const q = String(query || "").trim();
@@ -2133,7 +2264,9 @@
       return (cellEl.dataset.cmSortVal || cellEl.textContent || cellEl.dataset.cmExportRaw || "").trim();
     }
     _syncTableEmptyState(shownRows, filtered) {
-      const emptyRow = asHTMLElement(this.tbody.querySelector("tr[data-cm-table-empty]"));
+      const emptyRow = asHTMLElement(
+        this.tbody.querySelector("tr[data-cm-table-empty]")
+      );
       if (!emptyRow) return;
       const hasDataRows = this.tbody.querySelectorAll(".cm-row").length > 0;
       if (!hasDataRows) {
@@ -2150,7 +2283,8 @@
         let next = sectionRow.nextElementSibling;
         while (next && !next.classList.contains("cm-row-section")) {
           const rowEl = asHTMLElement(next);
-          if ((rowEl == null ? void 0 : rowEl.classList.contains("cm-row")) && !rowEl.hidden) visibleRows.push(rowEl);
+          if ((rowEl == null ? void 0 : rowEl.classList.contains("cm-row")) && !rowEl.hidden)
+            visibleRows.push(rowEl);
           next = next.nextElementSibling;
         }
         sectionRow.querySelectorAll("td[data-cm-section-aggregate]").forEach((el) => {
@@ -2168,7 +2302,9 @@
           const esc = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(key) : key.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
           visibleRows.forEach((row) => {
             var _a, _b;
-            const bodyCell = row.querySelector('td[data-cm-col-key="' + esc + '"]');
+            const bodyCell = row.querySelector(
+              'td[data-cm-col-key="' + esc + '"]'
+            );
             const raw = (_b = (_a = bodyCell == null ? void 0 : bodyCell.dataset.cmExportRaw) != null ? _a : bodyCell == null ? void 0 : bodyCell.dataset.cmSortVal) != null ? _b : "";
             const parsed = parseFloat(String(raw).replace(/[^\d.-]/g, ""));
             if (!Number.isNaN(parsed)) {
@@ -2191,6 +2327,8 @@
     }
     _syncSectionVisibility(colKeys, globalActive) {
       const filtering = colKeys.length > 0 || globalActive;
+      const hideSole = !!this.table.dataset.cmHideSoleSection;
+      const sections = [];
       this.tbody.querySelectorAll(".cm-row-section").forEach((sectionEl) => {
         const sectionRow = asHTMLElement(sectionEl);
         if (!sectionRow) return;
@@ -2198,11 +2336,24 @@
         let anyVisible = false;
         while (next && !next.classList.contains("cm-row-section")) {
           const rowEl = asHTMLElement(next);
-          if ((rowEl == null ? void 0 : rowEl.classList.contains("cm-row")) && !rowEl.hidden) anyVisible = true;
+          if ((rowEl == null ? void 0 : rowEl.classList.contains("cm-row")) && !rowEl.hidden)
+            anyVisible = true;
           next = next.nextElementSibling;
         }
-        sectionRow.hidden = filtering && !anyVisible;
+        sections.push({ el: sectionRow, hasVisible: anyVisible });
       });
+      const visibleSectionCount = sections.filter((s) => s.hasVisible).length;
+      for (const { el, hasVisible } of sections) {
+        if (!filtering) {
+          el.hidden = false;
+        } else if (!hasVisible) {
+          el.hidden = true;
+        } else if (hideSole && visibleSectionCount === 1) {
+          el.hidden = true;
+        } else {
+          el.hidden = false;
+        }
+      }
     }
     applyAllFilters() {
       var _a, _b;
@@ -2214,7 +2365,9 @@
       const toolbarSearch = layout.querySelector("[data-cm-toolbar-search]") || ((_a = layout.closest(".cm-page-table-layout, .cm-dashboard-page")) == null ? void 0 : _a.querySelector("[data-cm-toolbar-search]")) || null;
       const localSearch = layout.querySelector("[data-cm-search]");
       const shell = this.table.closest(".cm-table-shell");
-      const hasServerPagination = !!(shell == null ? void 0 : shell.querySelector("[data-cm-table-pagination]"));
+      const hasServerPagination = !!(shell == null ? void 0 : shell.querySelector(
+        "[data-cm-table-pagination]"
+      ));
       const toolbarSearchEl = asHTMLElement(toolbarSearch);
       const serverToolbarSearch = hasServerPagination && ((_b = toolbarSearchEl == null ? void 0 : toolbarSearchEl.dataset) == null ? void 0 : _b.cmSearchBackend) === "server";
       const globalQ = serverToolbarSearch ? "" : this._resolveToolbarQuery(toolbarSearch, localSearch);
@@ -2234,7 +2387,9 @@
             if (!entry) return true;
             var esc = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(key) : key.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
             const th = table.querySelector('th[data-cm-col-key="' + esc + '"]');
-            const td = row.querySelector('td[data-cm-col-key="' + esc + '"]');
+            const td = row.querySelector(
+              'td[data-cm-col-key="' + esc + '"]'
+            );
             const colMatch = headerFilterMatch(th);
             const profile = tokenProfileForHeader(th);
             const tokens = parseCellFilterTokens(td, colMatch);
@@ -2273,7 +2428,7 @@
       this._syncTableEmptyState(shown, filtered);
       this._syncRecordCounters(shown);
       this._syncTableFooter(filtered);
-      if (table) syncColumnFilterChrome(table);
+      this.syncFilterChrome();
       this._syncGridViewCharts();
     }
     _syncRecordCounters(shownRows) {
@@ -2309,7 +2464,9 @@
       const tfoot = this.table.querySelector("tfoot");
       if (!(tfoot instanceof HTMLElement)) return;
       if (this._hasSectionGroups()) {
-        const visibleSections = this.tbody.querySelectorAll(".cm-row-section:not([hidden])").length;
+        const visibleSections = this.tbody.querySelectorAll(
+          ".cm-row-section:not([hidden])"
+        ).length;
         tfoot.hidden = active && visibleSections <= 1;
         if (tfoot.hidden) return;
       }
@@ -2333,7 +2490,9 @@
           const row = asHTMLElement(rowEl);
           if (!row) return;
           const esc = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(key) : key.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-          const bodyCell = row.querySelector('td[data-cm-col-key="' + esc + '"]');
+          const bodyCell = row.querySelector(
+            'td[data-cm-col-key="' + esc + '"]'
+          );
           const bodyCellEl = asHTMLElement(bodyCell);
           const raw = (_b = (_a = bodyCellEl == null ? void 0 : bodyCellEl.dataset.cmExportRaw) != null ? _a : bodyCellEl == null ? void 0 : bodyCellEl.dataset.cmSortVal) != null ? _b : "";
           const parsed = parseFloat(String(raw).replace(/[^\d.-]/g, ""));
@@ -2355,6 +2514,7 @@
       });
     }
     _syncGridViewCharts() {
+      var _a;
       if (!this.tbody.querySelector(".cm-row[data-cm-chart-row]")) return;
       const rows = [];
       this.tbody.querySelectorAll(".cm-row:not([hidden])").forEach((trEl) => {
@@ -2368,13 +2528,11 @@
         } catch (e) {
         }
       });
-      const chartNodes = this.w.querySelectorAll("[data-cm-chart-config]");
-      if (!chartNodes.length) return;
-      chartNodes.forEach((node) => {
+      const scope = (_a = this.w.closest("[data-cm-grid-view-spec]")) != null ? _a : this.w;
+      scope.querySelectorAll("[data-cm-chart-config]").forEach((node) => {
         const el = asHTMLElement(node);
-        if (!el) return;
-        if (el.dataset.cmChartInteractive) return;
-        let config = {};
+        if (!el || el.dataset.cmChartInteractive) return;
+        let config;
         try {
           const parsed = JSON.parse(el.dataset.cmChartConfig || "{}");
           if (!isChartRuntimeDict(parsed)) return;
@@ -2392,25 +2550,33 @@
   };
   function initAllSimpleTables(root) {
     const scope = root && "querySelectorAll" in root ? root : document;
-    initColumnFilters(scope);
+    const safe = (name, fn) => {
+      try {
+        fn();
+      } catch (err) {
+        console.error("[GridView] simple-table init failed: " + name, err);
+      }
+    };
+    safe("initColumnFilters", () => initColumnFilters(scope));
     scope.querySelectorAll('[data-cm-column-settings="1"]').forEach(function(shell) {
-      initSimpleTableColumnSettings(shell);
+      safe(
+        "initSimpleTableColumnSettings",
+        () => initSimpleTableColumnSettings(shell)
+      );
     });
-    initSimpleTableColumnResize(scope);
-    initTableCellUi(scope);
-    applyFiltersInScope(scope);
+    safe("initSimpleTableColumnResize", () => initSimpleTableColumnResize(scope));
+    safe("initTableCellUi", () => initTableCellUi(scope));
+    safe("applyFiltersInScope", () => applyFiltersInScope(scope));
   }
   function attachSimpleTableGlobals() {
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", () => initAllSimpleTables(document));
+      document.addEventListener(
+        "DOMContentLoaded",
+        () => initAllSimpleTables(document)
+      );
     } else {
       initAllSimpleTables(document);
     }
-    document.addEventListener("htmx:afterSwap", (event) => {
-      const detail = event.detail;
-      const target = detail == null ? void 0 : detail.target;
-      bootScope(target instanceof Element ? target : null);
-    });
   }
 
   // src/grid-view/set-filter-panel.ts
@@ -2429,6 +2595,7 @@
     constructor(options) {
       this.selectedValues = /* @__PURE__ */ new Set();
       this.allValues = [];
+      this.valueCounts = /* @__PURE__ */ new Map();
       this.hasEmptyCells = false;
       this.emptyCount = 0;
       this.filterMode = "all";
@@ -2549,9 +2716,13 @@
         this.ingestRawValues(raw, emptyInValues > 0, emptyInValues);
         return;
       }
-      this.ingestRawValues(raw.values, raw.hasEmpty, raw.emptyCount);
+      this.ingestRawValues(raw.values, raw.hasEmpty, raw.emptyCount, raw.counts);
     }
-    ingestRawValues(rawValues, hasEmpty, emptyCount = 0) {
+    ingestRawValues(rawValues, hasEmpty, emptyCount = 0, counts) {
+      this.valueCounts.clear();
+      if (counts) {
+        for (const key in counts) this.valueCounts.set(String(key).trim(), counts[key]);
+      }
       this.hasEmptyCells = hasEmpty || rawValues.some(isEmptyCellValue);
       this.emptyCount = emptyCount || (this.hasEmptyCells ? 1 : 0);
       this.allValues = Array.from(
@@ -2652,7 +2823,9 @@
         const item = document.createElement("label");
         item.className = "cm-set-filter-item";
         item.htmlFor = id;
-        item.innerHTML = '<input type="checkbox" id="' + id + '"' + (isChecked ? " checked" : "") + '><span class="cm-set-filter-item-label">' + val + "</span>";
+        const count = this.valueCounts.get(val);
+        const countHtml = count === void 0 ? "" : '<span class="cm-set-filter-item-count">' + String(count) + "</span>";
+        item.innerHTML = '<input type="checkbox" id="' + id + '"' + (isChecked ? " checked" : "") + '><span class="cm-set-filter-item-label">' + val + "</span>" + countHtml;
         const checkbox = requiredElement(item, "input", HTMLInputElement);
         checkbox.addEventListener("mousedown", (e) => e.stopPropagation());
         checkbox.addEventListener("click", (e) => e.stopPropagation());
@@ -2696,6 +2869,8 @@
       return { values: Array.from(this.selectedValues), match };
     }
     setModel(model) {
+      this.searchDrivenFilter = false;
+      this.listSearchInput.value = "";
       if (!model) {
         this.filterMode = "all";
         this.selectAllNonEmptyValues();
@@ -2714,6 +2889,158 @@
       }
       this.syncPresetModesFromState();
       this.renderList();
+    }
+  };
+
+  // src/grid-view/expr-filter-panel.ts
+  function requiredInput(root, selector) {
+    const el = root.querySelector(selector);
+    if (el instanceof HTMLInputElement) return el;
+    throw new Error("ExprFilterPanel: missing " + selector);
+  }
+  var ExprFilterPanel = class {
+    constructor(options) {
+      this.mode = "all";
+      this.query = "";
+      this.debounceTimer = null;
+      var _a, _b;
+      this.fieldId = options.fieldId;
+      this.profile = (_a = options.profile) != null ? _a : "default" /* Default */;
+      this.match = (_b = options.match) != null ? _b : "exact";
+      this.onChange = options.onChange || (() => {
+      });
+      this.gui = document.createElement("div");
+      this.gui.className = "cm-set-filter-panel cm-expr-filter-panel";
+      this.gui.innerHTML = '<div class="cm-set-filter-modes">' + this._modeCheckbox("all", i18n.t("filter.select_all", "All"), true) + this._modeCheckbox("empty", i18n.t("filter.only_empty", "Empty"), false) + this._modeCheckbox("non_empty", i18n.t("filter.non_empty", "Non-empty"), false) + '</div><div class="cm-set-filter-search-row"><input type="search" class="cm-col-filter-input cm-expr-filter-input" autocomplete="off"></div>';
+      this.exprInput = requiredInput(this.gui, ".cm-expr-filter-input");
+      this.exprInput.placeholder = i18n.t(
+        columnFilterPlaceholderKey(this.profile),
+        i18n.t("column_filter.placeholder", "Search: >10, %name%")
+      );
+      this.modeCheckboxes = Array.from(
+        this.gui.querySelectorAll('input[type="checkbox"][data-cm-filter-mode]')
+      );
+      this.gui.addEventListener("mousedown", (e) => e.stopPropagation());
+      this.gui.addEventListener("click", (e) => e.stopPropagation());
+      this.exprInput.addEventListener("input", () => {
+        this.query = this.exprInput.value;
+        if (this.query.trim()) {
+          this.mode = "expr";
+          this._clearModeCheckboxes();
+        } else {
+          this.mode = "all";
+          this._syncAllChecked();
+        }
+        this._scheduleApply();
+      });
+      this.exprInput.addEventListener("keydown", (e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") {
+          e.preventDefault();
+          this._cancelTimer();
+          this.query = this.exprInput.value;
+          if (this.query.trim()) {
+            this.mode = "expr";
+            this._clearModeCheckboxes();
+          }
+          this.onChange();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          this.exprInput.value = "";
+          this.query = "";
+          this.mode = "all";
+          this._cancelTimer();
+          this.onChange();
+        }
+      });
+      this.modeCheckboxes.forEach((checkbox) => {
+        checkbox.addEventListener("mousedown", (e) => e.stopPropagation());
+        checkbox.addEventListener("click", (e) => e.stopPropagation());
+        checkbox.addEventListener("change", (e) => {
+          e.stopPropagation();
+          const target = e.target;
+          if (!(target instanceof HTMLInputElement)) return;
+          this._cancelTimer();
+          this.query = "";
+          this.exprInput.value = "";
+          if (target.checked && (target.value === "empty" || target.value === "non_empty")) {
+            this.mode = target.value;
+            this.modeCheckboxes.forEach((cb) => {
+              cb.checked = cb === target;
+            });
+          } else {
+            this.mode = "all";
+            this._syncAllChecked();
+          }
+          this.onChange();
+        });
+      });
+    }
+    _modeCheckbox(value, label, checked) {
+      return '<label class="cm-set-filter-mode"><input type="checkbox" data-cm-filter-mode="1" value="' + value + '"' + (checked ? " checked" : "") + "><span>" + label + "</span></label>";
+    }
+    _clearModeCheckboxes() {
+      this.modeCheckboxes.forEach((cb) => {
+        cb.checked = false;
+      });
+    }
+    /** Reflect "no filter" state — only the «Усі» checkbox is ticked. */
+    _syncAllChecked() {
+      this.modeCheckboxes.forEach((cb) => {
+        cb.checked = cb.value === "all";
+      });
+    }
+    _cancelTimer() {
+      if (this.debounceTimer) {
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = null;
+      }
+    }
+    _scheduleApply() {
+      this._cancelTimer();
+      this.debounceTimer = setTimeout(() => {
+        this.debounceTimer = null;
+        this.onChange();
+      }, 200);
+    }
+    getGui() {
+      return this.gui;
+    }
+    getModel() {
+      if (this.mode === "empty") return { mode: "empty", match: this.match };
+      if (this.mode === "non_empty") return { mode: "non_empty", match: this.match };
+      const q = this.query.trim();
+      return q ? q : null;
+    }
+    setModel(entry) {
+      this._clearModeCheckboxes();
+      if (!entry) {
+        this.mode = "all";
+        this.query = "";
+        this.exprInput.value = "";
+        this._syncAllChecked();
+      } else if (typeof entry === "string") {
+        this.mode = "expr";
+        this.query = entry;
+        this.exprInput.value = entry;
+      } else if ("mode" in entry && (entry.mode === "empty" || entry.mode === "non_empty")) {
+        const modeValue = entry.mode;
+        this.mode = modeValue;
+        this.query = "";
+        this.exprInput.value = "";
+        const cb = this.modeCheckboxes.find((c) => c.value === modeValue);
+        if (cb) cb.checked = true;
+      }
+    }
+    isFilterActive() {
+      if (this.mode === "empty" || this.mode === "non_empty") return true;
+      return !!this.query.trim();
+    }
+    focus() {
+      window.setTimeout(() => {
+        this.exprInput.focus();
+        this.exprInput.select();
+      }, 0);
     }
   };
 
@@ -2774,6 +3101,7 @@
 
   // src/grid-view/column-filters.ts
   var activeSetPanel = null;
+  var activeExprPanel = null;
   var exprFilterTimer = null;
   function exprRowForPortal(portal) {
     if (!portal) return null;
@@ -2883,6 +3211,7 @@
       flushExprFilterPortal(portalEl);
     });
     activeSetPanel = null;
+    activeExprPanel = null;
     document.querySelectorAll("[data-cm-col-filter-portal]").forEach(function(portalEl) {
       const portal = asHTMLElement(portalEl);
       if (!portal) return;
@@ -2905,7 +3234,7 @@
     var anchorRect = anchorBtn.getBoundingClientRect();
     var thRect = th instanceof HTMLElement ? th.getBoundingClientRect() : anchorRect;
     var width = kind === "set" ? 300 : Math.max(196, Math.min(thRect.width, 260));
-    var left = thRect.left + (thRect.width - width) / 2;
+    var left = anchorRect.left + anchorRect.width / 2 - width / 2;
     left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
     portal.classList.toggle("is-set", kind === "set");
     portal.style.top = Math.round(anchorRect.bottom + 6) + "px";
@@ -2942,6 +3271,7 @@
     syncColumnFilterChrome(table);
     applyTableFilters(table);
     updateTableFilterUrl(anchorEl || table);
+    document.dispatchEvent(new CustomEvent("cm-grid-state-change", { detail: { source: "column-filter" } }));
   }
   function navigateWithTableFilters(anchorEl) {
     var shell = tableFilterShell(anchorEl);
@@ -2993,30 +3323,34 @@
     }
     tryApplyExprFilterFromPortal(portal, portalInput);
   }
-  function openExprFilter(portal, portalInput, th, _table, btn) {
-    var setHost = asHTMLElement(portal.querySelector("[data-cm-col-filter-set-host]"));
-    if (setHost) {
-      setHost.innerHTML = "";
-      setHost.hidden = true;
-    }
-    setExprRowVisible(portal, true);
+  function openExprFilter(portal, th, table, btn) {
+    const colKey = th.dataset.cmColKey || "";
+    const match = headerFilterMatch(th);
     const profile = bindSearchProfileForHeader(th);
-    portalInput.value = th.dataset.cmColFilterValue || "";
-    portalInput.dataset.cmColKey = th.dataset.cmColKey || "";
-    portalInput.placeholder = i18n.t(
-      columnFilterPlaceholderKey(profile),
-      i18n.t("column_filter.placeholder", "Search: >10, %name%")
-    );
-    const helpBtn = portal.querySelector(".cm-search-help-btn");
-    if (helpBtn instanceof HTMLElement) refreshSearchSyntaxHelp(helpBtn, profile);
-    positionColumnFilterPortal(portal, btn, "expr");
+    const setHost = asHTMLElement(portal.querySelector("[data-cm-col-filter-set-host]"));
+    if (!setHost) return;
+    setExprRowVisible(portal, false);
+    setHost.hidden = false;
+    setHost.innerHTML = "";
+    const panel = new ExprFilterPanel({
+      fieldId: colKey,
+      profile,
+      match,
+      onChange: function() {
+        const model = panel.getModel();
+        commitColumnFilterValue(table, colKey, model ? serializeColumnFilterEntry(model) : "");
+        applyColumnFilterState(table, setHost);
+      }
+    });
+    activeExprPanel = panel;
+    setHost.appendChild(panel.getGui());
+    const existing = parseColumnFilterEntry(th.dataset.cmColFilterValue || "");
+    if (existing) panel.setModel(existing);
+    positionColumnFilterPortal(portal, btn, "set");
     portal.classList.remove("is-hidden");
     portal.setAttribute("aria-hidden", "false");
     btn.classList.add("is-open");
-    setTimeout(function() {
-      portalInput.focus();
-      portalInput.select();
-    }, 0);
+    panel.focus();
   }
   function openSetFilter(portal, portalInput, th, table, _shell, btn) {
     var colKey = th.dataset.cmColKey || "";
@@ -3171,7 +3505,7 @@
           if (headerFilterKind(th) === "set") {
             openSetFilter(portal, boundPortalInput, th, table, shell, btn);
           } else {
-            openExprFilter(portal, boundPortalInput, th, table, btn);
+            openExprFilter(portal, th, table, btn);
           }
         });
       });
@@ -3183,1070 +3517,32 @@
     });
   }
 
-  // src/grid-view/table-edit.ts
-  function csrfToken() {
-    const match = document.cookie.match(/csrftoken=([^;]+)/);
-    return match ? decodeURIComponent(match[1]) : "";
-  }
-  function interpolateEndpoint(template, rowId) {
-    return template.replace(/\{id\}/g, rowId);
-  }
-  async function postCommitEndpoint(endpoint, rowId, field, newValue) {
-    const url = interpolateEndpoint(endpoint, rowId);
-    const body = {};
-    if (field.includes("department")) {
-      body.department_id = newValue ? Number(newValue) : null;
-    } else {
-      body[field] = newValue;
-    }
-    const res = await fetch(url, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": csrfToken()
-      },
-      body: JSON.stringify(body)
-    });
-    if (!res.ok) return false;
-    try {
-      const data = await res.json();
-      return !data || data.status !== "error";
-    } catch (e) {
-      return res.ok;
-    }
-  }
-  function updateSelectView(cell, select, saved) {
-    var _a, _b;
-    const view = cell.querySelector(".cm-dept-view, .cm-cell-edit-view");
-    if (!view) return;
-    const emptyLabel = cell.getAttribute("data-cm-empty-label") || "\u2014";
-    if (!select.value) {
-      view.textContent = emptyLabel;
-      return;
-    }
-    const savedName = saved && typeof saved.department_name === "string" ? saved.department_name : "";
-    const optionText = ((_b = (_a = select.options[select.selectedIndex]) == null ? void 0 : _a.textContent) == null ? void 0 : _b.trim()) || "";
-    view.textContent = savedName || optionText;
-  }
-  function flashCell(cell) {
-    cell.classList.add("cm-dept-cell--saved", "cm-cell-edit--saved");
-    setTimeout(() => {
-      cell.classList.remove("cm-dept-cell--saved", "cm-cell-edit--saved");
-    }, 1500);
-  }
-  async function saveSelect(shell, config, select) {
-    const rowId = select.getAttribute("data-cm-row-id") || "";
-    const cell = select.closest("[data-cm-cell-edit]");
-    const field = (cell == null ? void 0 : cell.getAttribute("data-cm-field")) || "";
-    const prev = select.dataset.cmEditPrev || "";
-    const value = select.value;
-    if (value === prev) return true;
-    select.disabled = true;
-    let ok = false;
-    try {
-      if (config.commitCallback) {
-        ok = await invokeCommit(config.commitCallback, {
-          rowId,
-          gridId: shell.getAttribute("data-grid-id") || void 0,
-          columnId: field,
-          field,
-          oldValue: prev,
-          newValue: value
-        });
-      } else if (config.commitEndpoint) {
-        ok = await postCommitEndpoint(config.commitEndpoint, rowId, field, value);
-      }
-      if (!ok) {
-        select.value = prev;
-        window.alert("\u041D\u0435 \u0432\u0434\u0430\u043B\u043E\u0441\u044F \u0437\u0431\u0435\u0440\u0435\u0433\u0442\u0438 \u0437\u043C\u0456\u043D\u0438");
-        return false;
-      }
-      select.dataset.cmEditPrev = value;
-      if (cell) {
-        updateSelectView(cell, select);
-        flashCell(cell);
-      }
-      return true;
-    } catch (e) {
-      select.value = prev;
-      window.alert("\u041F\u043E\u043C\u0438\u043B\u043A\u0430 \u043C\u0435\u0440\u0435\u0436\u0456");
-      return false;
-    } finally {
-      select.disabled = false;
-    }
-  }
-  function findEditToolsSlot(shell, columnId) {
-    const th = shell.querySelector(`th[data-cm-col-key="${columnId}"]`);
-    return th ? th.querySelector("[data-cm-th-tools]") : null;
-  }
-  function ensureHeaderControls(shell, config) {
-    var _a;
-    if (!config.confirm || config.mode !== "row") return;
-    const firstCol = (_a = config.columns) == null ? void 0 : _a[0];
-    if (!firstCol) return;
-    const slot = findEditToolsSlot(shell, firstCol.id);
-    if (!slot || slot.querySelector(".cm-table-edit-tools")) return;
-    slot.removeAttribute("aria-hidden");
-    const tools = document.createElement("span");
-    tools.className = "cm-table-edit-tools cm-dept-header-tools";
-    tools.innerHTML = '<button type="button" class="cm-table-edit-toggle cm-dept-edit-toggle" title="\u0420\u0435\u0434\u0430\u0433\u0443\u0432\u0430\u0442\u0438" aria-label="\u0420\u0435\u0434\u0430\u0433\u0443\u0432\u0430\u0442\u0438"><svg class="cm-dept-pencil-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button><button type="button" class="cm-table-edit-done cm-dept-edit-done" hidden title="\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u0438" aria-label="\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u0438"><svg class="cm-dept-done-icon" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="1.5"/><path d="M8 12.5 10.5 15 16 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
-    slot.appendChild(tools);
-    const gv2 = getGlobal().GridView;
-    if (gv2 && typeof gv2.initButtonEllipsisTips === "function") {
-      gv2.initButtonEllipsisTips(tools);
-    }
-    const toggle = tools.querySelector(".cm-table-edit-toggle");
-    const done = tools.querySelector(".cm-table-edit-done");
-    const layout = shell.closest(".cm-page-table-layout, .cm-dashboard-page") || shell;
-    toggle == null ? void 0 : toggle.addEventListener("click", (e) => {
-      e.stopPropagation();
-      layout.classList.add("cm-table--row-edit", "cm-doctor-page--dept-edit");
-      shell.setAttribute("data-cm-inline-edit-active", "");
-      if (toggle) toggle.hidden = true;
-      if (done) done.hidden = false;
-    });
-    done == null ? void 0 : done.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const selects = shell.querySelectorAll(
-        "[data-cm-inline-edit]"
-      );
-      const pending = [];
-      selects.forEach((select) => {
-        if (select.value !== (select.dataset.cmEditPrev || "")) {
-          pending.push(saveSelect(shell, config, select));
-        }
-      });
-      const finish = () => {
-        layout.classList.remove("cm-table--row-edit", "cm-doctor-page--dept-edit");
-        shell.removeAttribute("data-cm-inline-edit-active");
-        if (done) done.hidden = true;
-        if (toggle) toggle.hidden = false;
-      };
-      if (!pending.length) {
-        finish();
-        return;
-      }
-      if (done) done.disabled = true;
-      Promise.all(pending).finally(() => {
-        if (done) done.disabled = false;
-        finish();
-      });
-    });
-  }
-  function bindSelectCells(shell, config) {
-    shell.querySelectorAll("[data-cm-inline-edit]").forEach((select) => {
-      if (!select.dataset.cmEditPrev) {
-        select.dataset.cmEditPrev = select.value;
-      }
-    });
-    if (shell.dataset.cmTableEditChangeBound) return;
-    shell.dataset.cmTableEditChangeBound = "1";
-    shell.addEventListener("change", (e) => {
-      const target = e.target;
-      if (!(target instanceof HTMLSelectElement)) return;
-      if (!target.matches("[data-cm-inline-edit]")) return;
-      if (!config.confirm) {
-        void saveSelect(shell, config, target);
-      }
-    });
-  }
-  function initTableEdit(scope = document) {
-    scope.querySelectorAll("[data-cm-table-edit]").forEach((shell) => {
-      var _a;
-      if (shell.dataset.cmTableEditBound) return;
-      let config;
-      try {
-        config = JSON.parse(shell.getAttribute("data-cm-table-edit") || "{}");
-      } catch (e) {
-        return;
-      }
-      if (!((_a = config.columns) == null ? void 0 : _a.length)) return;
-      shell.dataset.cmTableEditBound = "1";
-      bindSelectCells(shell, config);
-      ensureHeaderControls(shell, config);
-    });
-  }
-
-  // src/runtime/content-actions.ts
-  function resolveContentBlock(targetId) {
-    var _a;
-    return (_a = document.getElementById(`block-${targetId}`)) != null ? _a : document.querySelector(`[data-block-id="${targetId}"]`);
-  }
-  function showContentBlock(targetId, autoHideMs) {
-    const block = resolveContentBlock(targetId);
-    if (!block) return;
-    block.classList.remove("hidden");
-    if (autoHideMs && autoHideMs > 0) {
-      window.setTimeout(() => block.classList.add("hidden"), autoHideMs);
-    }
-  }
-  function applyDismissStorage(scope) {
-    scope.querySelectorAll("[data-cm-content-dismissible]").forEach((el) => {
-      var _a;
-      const key = el.getAttribute("data-cm-dismiss-key");
-      if (key && sessionStorage.getItem(key) === "1") {
-        (_a = el.closest(".cm-block")) == null ? void 0 : _a.classList.add("hidden");
-      }
-    });
-  }
-  function initContentActions(scope) {
-    applyDismissStorage(scope);
-    scope.querySelectorAll("[data-cm-content-dismiss]").forEach((btn) => {
-      if (btn.dataset.cmContentDismissInit) return;
-      btn.dataset.cmContentDismissInit = "1";
-      btn.addEventListener("click", () => {
-        var _a;
-        const host = btn.closest("[data-cm-content-dismissible]");
-        const key = host == null ? void 0 : host.getAttribute("data-cm-dismiss-key");
-        if (key) sessionStorage.setItem(key, "1");
-        (_a = btn.closest(".cm-block")) == null ? void 0 : _a.classList.add("hidden");
-      });
-    });
-    scope.querySelectorAll('[data-cm-action="show_content"]').forEach((btn) => {
-      if (btn.dataset.cmShowContentInit) return;
-      btn.dataset.cmShowContentInit = "1";
-      btn.addEventListener("click", () => {
-        var _a;
-        const targetId = (_a = btn.getAttribute("data-cm-action-target")) != null ? _a : "";
-        if (!targetId) return;
-        const autoHideRaw = btn.getAttribute("data-cm-auto-hide-ms");
-        const autoHideMs = autoHideRaw ? parseInt(autoHideRaw, 10) : void 0;
-        showContentBlock(targetId, Number.isFinite(autoHideMs) ? autoHideMs : void 0);
-      });
-    });
-  }
-
-  // src/grid-view/format.ts
-  function num(value) {
-    if (value === null || value === void 0 || value === "") return null;
-    const parsed = Number(String(value).replace(/\s/g, "").replace(",", "."));
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  function uiLocale() {
-    if (typeof document === "undefined" || !document.documentElement) return void 0;
-    return document.documentElement.lang || void 0;
-  }
-
-  // src/grid-view/kpi.ts
-  function formatKpiValue(value, fmt) {
-    var n = Number(value);
-    if (!Number.isFinite(n)) return String(value);
-    fmt = fmt || "number";
-    if (fmt === "currency") {
-      return n.toLocaleString(uiLocale(), { maximumFractionDigits: 0 });
-    }
-    if (fmt === "percent") {
-      return n.toFixed(1) + "%";
-    }
-    if (fmt === "number") {
-      if (Math.abs(n - Math.round(n)) < 1e-9) {
-        return Math.round(n).toLocaleString(uiLocale());
-      }
-      return n.toLocaleString(uiLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-    return String(value);
-  }
-  function aggregateKpi(spec, rows) {
-    var _a, _b;
-    const agg = spec.aggregate || "count";
-    const key = (_b = (_a = spec.columnKey) != null ? _a : spec.column_key) != null ? _b : spec.field;
-    if (!key) return 0;
-    if (agg === "count") return rows.length;
-    const nums = [];
-    rows.forEach((row) => {
-      const parsed = num(row[key]);
-      if (parsed !== null) nums.push(parsed);
-    });
-    if (agg === "sum") return nums.reduce(function(a, b) {
-      return a + b;
-    }, 0);
-    if (agg === "avg") return nums.length ? nums.reduce(function(a, b) {
-      return a + b;
-    }, 0) / nums.length : 0;
-    if (agg === "min") return nums.length ? Math.min.apply(null, nums) : 0;
-    if (agg === "max") return nums.length ? Math.max.apply(null, nums) : 0;
-    return 0;
-  }
-  function resolveKpis(specs, rows) {
-    return (specs || []).map(function(spec) {
-      var raw = aggregateKpi(spec, rows);
-      return {
-        label: spec.label || "",
-        valueFmt: formatKpiValue(raw, spec.format),
-        rawValue: raw,
-        tone: spec.tone || "default",
-        icon: spec.icon || null
-      };
-    });
-  }
-  function kpiCardHtml(kpi) {
-    var icon = kpi.icon || "\u{1F4CA}";
-    var label = kpi.label || "";
-    var value = kpi.valueFmt || kpi.value_fmt || "";
-    return '<span class="cm-kpi-icon" aria-hidden="true">' + icon + '</span><div class="cm-kpi-body"><span class="cm-kpi-label">' + label + '</span><span class="cm-kpi-value">' + value + "</span></div>";
-  }
-  function initKpiStrip(root, kpis, columns) {
-    if (!root || !(kpis == null ? void 0 : kpis.length)) return;
-    root.innerHTML = "";
-    root.className = `cm-kpi-grid cm-kpi-cols-${columns || 4}`;
-    kpis.forEach((kpi) => {
-      const card = document.createElement("div");
-      card.className = `cm-kpi-card cm-kpi-tone-${kpi.tone || "default"}`;
-      card.innerHTML = kpiCardHtml(kpi);
-      root.appendChild(card);
-    });
-  }
-  function initAllKpi(scope) {
-    const root = scope || document;
-    root.querySelectorAll("[data-cm-kpi-config]").forEach((node) => {
-      if (node.dataset.cmKpiReady) return;
-      const kpis = JSON.parse(node.dataset.cmKpiConfig || "[]");
-      const columns = parseInt(node.dataset.cmKpiColumns || "4", 10);
-      initKpiStrip(node, kpis, columns);
-      node.dataset.cmKpiReady = "1";
-    });
-  }
-  var Kpi = { initKpiStrip, initAllKpi, kpiCardHtml };
-
-  // src/runtime/gallery.ts
-  function initGalleryBlocks(_scope = document) {
-  }
-
-  // src/runtime/renderers/builtins.ts
-  function escHtml(value) {
-    if (value === void 0 || value === null || value === "") return "";
-    const d = document.createElement("div");
-    d.textContent = String(value);
-    return d.innerHTML;
-  }
-  function moneyRenderer(params) {
-    var _a, _b, _c, _d;
-    const value = params.value;
-    if (value === void 0 || value === null || value === "") return "";
-    const field = ((_a = params.colDef) == null ? void 0 : _a.field) || "";
-    const rowCurr = (_b = params.data) == null ? void 0 : _b[`${field}_currency`];
-    const curr = typeof rowCurr === "string" && rowCurr || "UAH";
-    const symbols = { USD: "$", EUR: "\u20AC", UAH: "\u20B4", PLN: "z\u0142", GBP: "\xA3" };
-    const colors = { USD: "#10b981", EUR: "#3b82f6", UAH: "#eab308" };
-    const sym = symbols[curr] || curr;
-    const color = colors[curr] || "#9ca3af";
-    const numValue = Number(value);
-    const useDecimals = curr !== "UAH";
-    const displayValue = useDecimals ? numValue.toLocaleString("uk-UA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : Math.round(numValue).toLocaleString("uk-UA");
-    const cssClass = String(((_d = (_c = params.colDef) == null ? void 0 : _c.cellRendererParams) == null ? void 0 : _d.css_class) || "");
-    const inner = displayValue + ` <span style="color:${color};font-size:12px;margin-left:2px">${sym}</span>`;
-    return cssClass ? `<span class="${escHtml(cssClass)}">${inner}</span>` : inner;
-  }
-  function linkRenderer(params) {
-    var _a, _b, _c, _d, _e;
-    const field = ((_a = params.colDef) == null ? void 0 : _a.field) || "";
-    const extra = ((_b = params.colDef) == null ? void 0 : _b.cellRendererParams) || {};
-    const url = (_c = params.data) == null ? void 0 : _c[`${field}__url`];
-    const text = (_d = params.value) != null ? _d : "";
-    const action = extra.action ? String(extra.action) : "";
-    const recordKey = String(extra.record_key || "id");
-    const rowId = (_e = params.data) == null ? void 0 : _e[recordKey];
-    const rowAttr = rowId != null ? ` data-cm-row-id="${escHtml(rowId)}"` : "";
-    if (typeof url === "string" && url) {
-      const actionAttr = action ? ` data-cm-cell-action="${escHtml(action)}"` : "";
-      return `<a href="${escHtml(url)}" class="cm-grid-link cm-link"${actionAttr}${rowAttr} style="font-weight:500;color:#818cf8">${escHtml(text)}</a>`;
-    }
-    if (action) {
-      return `<span class="cm-grid-link cm-link" role="button" tabindex="0" data-cm-cell-action="${escHtml(action)}"${rowAttr} style="font-weight:500;cursor:pointer;color:#818cf8">${escHtml(text)}</span>`;
-    }
-    return escHtml(text);
-  }
-  function badgeRenderer(params) {
-    var _a, _b;
-    const value = params.value;
-    if (value === void 0 || value === null || value === "") return "";
-    const extra = ((_a = params.colDef) == null ? void 0 : _a.cellRendererParams) || {};
-    const badges = extra.badges || {};
-    const labels = extra.badge_labels || {};
-    const labelField = extra.label_field ? String(extra.label_field) : "";
-    const key = String(value);
-    const cls = badges[key] || "badge-slate";
-    let label = labels[key] || key;
-    if (labelField && ((_b = params.data) == null ? void 0 : _b[labelField]) != null) {
-      label = String(params.data[labelField]);
-    }
-    return `<span class="badge ${escHtml(cls)}">${escHtml(label)}</span>`;
-  }
-  function dateRenderer(params) {
-    const value = params.value;
-    if (!value) return "";
-    const date = new Date(String(value));
-    if (Number.isNaN(date.getTime())) return escHtml(value);
-    return escHtml(date.toLocaleDateString("uk-UA"));
-  }
-  function buttonRenderer(params) {
-    var _a, _b, _c, _d;
-    const extra = ((_a = params.colDef) == null ? void 0 : _a.cellRendererParams) || {};
-    const action = String(extra.action || "");
-    if (!action) return escHtml((_b = params.value) != null ? _b : "");
-    const label = String(extra.label || "") || (extra.label_from_field && params.data ? String(params.data[String(extra.label_from_field)] || "") : "") || String((_c = params.value) != null ? _c : "");
-    const btnClass = String(extra.button_class || "cm-record-detail-btn");
-    const recordKey = String(extra.record_key || "id");
-    const rowId = (_d = params.data) == null ? void 0 : _d[recordKey];
-    return `<button type="button" class="${escHtml(btnClass)}" data-cm-cell-action="${escHtml(action)}" data-cm-row-id="${escHtml(rowId != null ? rowId : "")}">${escHtml(label)}</button>`;
-  }
-  var _registered = false;
-  function initBuiltinRenderers() {
-    if (_registered) return;
-    _registered = true;
-    registerRenderer("money", moneyRenderer);
-    registerRenderer("link", linkRenderer);
-    registerRenderer("badge", badgeRenderer);
-    registerRenderer("date", dateRenderer);
-    registerRenderer("button", buttonRenderer);
-  }
-
-  // src/runtime/renderers/image.ts
-  function initImageRenderers(_scope = document) {
-  }
-
-  // src/runtime/asset-loader.ts
-  function manifest() {
-    var _a;
-    const w = getGlobal();
-    return (_a = w.__GridViewAssets) != null ? _a : {};
-  }
-  function loadStylesheet(href, lazy = true) {
-    if (!href) return;
-    if (document.querySelector(`link[href="${href}"]`)) return;
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = href;
-    if (lazy) {
-      link.dataset.cmAgGridAsset = "1";
-    }
-    document.head.appendChild(link);
-  }
-  function unloadAgGridStyles() {
-    document.querySelectorAll('link[data-cm-ag-grid-asset="1"], link[href*="ag-grid"]').forEach((node) => node.remove());
-  }
-  function loadScript(src, isReady) {
-    if (!src) return Promise.resolve();
-    if (isReady()) return Promise.resolve();
-    const existing = document.querySelector(`script[src="${src}"]`);
-    if (existing) {
-      return new Promise((resolve) => {
-        const poll = window.setInterval(() => {
-          if (isReady()) {
-            window.clearInterval(poll);
-            resolve();
-          }
-        }, 50);
-        window.setTimeout(() => {
-          window.clearInterval(poll);
-          resolve();
-        }, 15e3);
-      });
-    }
-    return new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = src;
-      script.async = false;
-      script.onload = () => {
-        const poll = window.setInterval(() => {
-          if (isReady()) {
-            window.clearInterval(poll);
-            resolve();
-          }
-        }, 50);
-        window.setTimeout(() => {
-          window.clearInterval(poll);
-          resolve();
-        }, 15e3);
-      };
-      script.onerror = () => reject(new Error(`[GridView] Failed to load ${src}`));
-      document.head.appendChild(script);
-    });
-  }
-  var agGridLoadPromise = null;
-  function ensureAgGridAssetsLoaded() {
-    var _a;
-    const gv2 = getGlobal().GridView;
-    if ((_a = gv2 == null ? void 0 : gv2.AgGrid) == null ? void 0 : _a.Host) return Promise.resolve();
-    if (agGridLoadPromise) return agGridLoadPromise;
-    const cfg = manifest();
-    agGridLoadPromise = (async () => {
-      var _a2, _b, _c;
-      ((_a2 = cfg.agGridCss) != null ? _a2 : []).forEach((href) => loadStylesheet(href));
-      await loadScript((_b = cfg.agGridCdn) != null ? _b : "", () => typeof getGlobal().agGrid !== "undefined");
-      await loadScript((_c = cfg.agGridPlugin) != null ? _c : "", () => {
-        var _a3, _b2;
-        return !!((_b2 = (_a3 = getGlobal().GridView) == null ? void 0 : _a3.AgGrid) == null ? void 0 : _b2.Host);
-      });
-    })().catch((error) => {
-      agGridLoadPromise = null;
-      throw error;
-    });
-    return agGridLoadPromise;
-  }
-  var chartsLoadPromise = null;
-  function ensureChartsAssetsLoaded() {
-    var _a;
-    const gv2 = getGlobal().GridView;
-    if ((_a = gv2 == null ? void 0 : gv2.Charts) == null ? void 0 : _a.initAllCharts) return Promise.resolve();
-    if (chartsLoadPromise) return chartsLoadPromise;
-    const cfg = manifest();
-    chartsLoadPromise = (async () => {
-      var _a2, _b;
-      await loadScript((_a2 = cfg.chartsCdn) != null ? _a2 : "", () => typeof getGlobal().echarts !== "undefined");
-      await loadScript((_b = cfg.chartsPlugin) != null ? _b : "", () => {
-        var _a3, _b2;
-        return !!((_b2 = (_a3 = getGlobal().GridView) == null ? void 0 : _a3.Charts) == null ? void 0 : _b2.initAllCharts);
-      });
-    })().catch((error) => {
-      chartsLoadPromise = null;
-      throw error;
-    });
-    return chartsLoadPromise;
-  }
-  function installAssetLoader(gv2) {
-    var _a;
-    gv2.assets = (_a = gv2.assets) != null ? _a : {};
-    gv2.assets.ensureAgGrid = ensureAgGridAssetsLoaded;
-    gv2.assets.ensureCharts = ensureChartsAssetsLoaded;
-  }
-
-  // src/runtime/table-ag-grid.ts
-  var specFilterListeners = /* @__PURE__ */ new Set();
-  function resolvePresets(gridId, fromConfig) {
-    if (fromConfig && typeof fromConfig === "object") return fromConfig;
-    try {
-      const stored = localStorage.getItem(`agGridPresets_${gridId}`);
-      if (stored) return JSON.parse(stored);
-    } catch (e) {
-    }
-    return {};
-  }
-  function resolveSearches(gridId, fromConfig) {
-    if (Array.isArray(fromConfig)) return fromConfig;
-    if (fromConfig) {
-      try {
-        const parsed = JSON.parse(String(fromConfig));
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {
-      }
-    }
-    try {
-      const stored = localStorage.getItem(`cmSavedSearches_${gridId}`);
-      if (stored) return JSON.parse(stored);
-    } catch (e) {
-    }
-    return [];
-  }
-  function resolveAgColumnFilter(col) {
-    if (col.agFilter === "none") return false;
-    if (col.agFilter === "smart") return "GridView.AgGrid.SmartFilter";
-    if (col.type === "number") return "agNumberColumnFilter";
-    return true;
-  }
-  function resolveRendererId(col) {
-    if (col.renderer) return col.renderer;
-    if (col.type === "currency") return "money";
-    return "";
-  }
-  function wrapRegisteredRenderer(rendererId) {
-    return (params) => {
-      const regFn = getRegisteredRenderer(rendererId);
-      if (!regFn) return "";
-      return regFn(params);
-    };
-  }
-  function buildColumnDefsFromSpec(columns) {
-    return columns.map((col) => {
-      var _a;
-      const field = col.field || col.id;
-      const rendererId = resolveRendererId(col);
-      const def = {
-        field,
-        colId: col.id,
-        headerName: col.label,
-        hide: (_a = col.hidden) != null ? _a : false,
-        filter: resolveAgColumnFilter(col),
-        sortable: col.sortable !== false,
-        resizable: true,
-        enableCellTextSelection: true,
-        tooltipField: field
-      };
-      if (col.pinned === "left" || col.pinned === "right") def.pinned = col.pinned;
-      if (col.menuGroup) def.menuGroup = col.menuGroup;
-      if (col.checkboxSelection) def.checkboxSelection = true;
-      if (col.editable) def.editable = true;
-      if (col.width) {
-        const width = Number.parseInt(col.width, 10);
-        if (!Number.isNaN(width)) def.width = width;
-      }
-      if (col.minWidth) {
-        const minWidth = Number.parseInt(col.minWidth, 10);
-        if (!Number.isNaN(minWidth)) def.minWidth = minWidth;
-      } else if (!col.width && (col.id === "name" || col.id === "original_name")) {
-        def.flex = 1;
-        def.minWidth = 200;
-      }
-      if (rendererId) def.cellRenderer = wrapRegisteredRenderer(rendererId);
-      if (col.extra && Object.keys(col.extra).length > 0) {
-        def.cellRendererParams = col.extra;
-        const cellClass = col.extra.cell_class;
-        if (typeof cellClass === "string" && cellClass) def.cellClass = cellClass;
-      }
-      return def;
-    });
-  }
-  function columnSourceReady(source, pageState) {
-    const deps = source.dependsOn || [];
-    if (!deps.length) return true;
-    return deps.every((dep) => {
-      const val = pageState[dep];
-      if (val == null || val === "") return false;
-      if (Array.isArray(val)) return val.length > 0 && !(val.length === 1 && val[0] === "");
-      return true;
-    });
-  }
-  async function fetchColumnSourceColumns(source, pageState) {
-    if (!columnSourceReady(source, pageState)) return [];
-    const url = new URL(source.endpoint, window.location.origin);
-    (source.dependsOn || []).forEach((dep) => {
-      const val = pageState[dep];
-      if (Array.isArray(val)) url.searchParams.set(dep, val.join(","));
-      else if (val != null && val !== "") url.searchParams.set(dep, String(val));
-    });
-    if (source.params) {
-      Object.entries(source.params).forEach(([key, val]) => {
-        if (val != null && val !== "") url.searchParams.set(key, String(val));
-      });
-    }
-    const response = await fetch(url.toString(), { method: source.method || "GET" });
-    if (!response.ok) throw new Error(`[GridView.AgGrid] column_source HTTP ${response.status}`);
-    const data = await response.json();
-    return data.columns || [];
-  }
-  function mergeColumnDefsAtAnchor(base, dynamic, anchor, merge) {
-    const dynamicIds = new Set(dynamic.map((col) => String(col.colId || col.field)));
-    let result = merge === "replace" ? base.filter((col) => !dynamicIds.has(String(col.colId || col.field))) : base.filter((col) => !dynamicIds.has(String(col.colId || col.field)));
-    if (!anchor) return [...result, ...dynamic];
-    const idx = result.findIndex((col) => String(col.colId || col.field) === anchor);
-    if (idx < 0) return [...result, ...dynamic];
-    return [...result.slice(0, idx + 1), ...dynamic, ...result.slice(idx + 1)];
-  }
-  function mergeSpecOnlyColumns(base, specColumns, anchor) {
-    if (!(specColumns == null ? void 0 : specColumns.length)) return base;
-    const existingIds = new Set(base.map((col) => String(col.colId || col.field)));
-    const extra = specColumns.filter((col) => !existingIds.has(col.id));
-    if (!extra.length) return base;
-    return mergeColumnDefsAtAnchor(base, buildColumnDefsFromSpec(extra), anchor, "append");
-  }
-  async function resolveColumnDefs(config, getPageState) {
-    var _a, _b;
-    const g = getGlobal();
-    let columnDefs = [];
-    if (config.columnsVar) {
-      const parts = config.columnsVar.split(".");
-      let obj = g;
-      for (const part of parts) {
-        obj = obj == null ? void 0 : obj[part];
-      }
-      if (Array.isArray(obj)) columnDefs = obj;
-    }
-    if (!columnDefs.length && ((_a = config.columns) == null ? void 0 : _a.length)) {
-      columnDefs = buildColumnDefsFromSpec(config.columns);
-    }
-    const pageState = getPageState();
-    const anchor = ((_b = config.columnSource) == null ? void 0 : _b.anchor) || "price_retail";
-    if (config.columnSource) {
-      const dynamicCols = await fetchColumnSourceColumns(config.columnSource, pageState);
-      columnDefs = mergeColumnDefsAtAnchor(
-        columnDefs,
-        buildColumnDefsFromSpec(dynamicCols),
-        anchor,
-        config.columnSource.merge || "append"
-      );
-    } else {
-      columnDefs = mergeSpecOnlyColumns(columnDefs, config.columns, anchor);
-    }
-    return columnDefs;
-  }
-  function bootFromSpecConfig(config) {
-    var _a;
-    const gv2 = getGlobal().GridView;
-    if (!gv2 || !config.gridId) return;
-    const gridId = config.gridId;
-    const containerId = config.containerId || `cm-ag-grid-container-${gridId}`;
-    const groupsOrder = config.groupsOrder || [];
-    const presets = resolvePresets(gridId, void 0);
-    const searches = resolveSearches(gridId, void 0);
-    const startUp = async () => {
-      var _a2, _b, _c, _d, _e;
-      await ensureAgGridAssetsLoaded();
-      const g = getGlobal();
-      const agModule = gv2.AgGrid;
-      const HostCtor = agModule == null ? void 0 : agModule.Host;
-      if (!HostCtor) {
-        console.error("[GridView.AgGrid] Host plugin unavailable after asset load");
-        return;
-      }
-      const registry = gv2.byId;
-      if (!registry) return;
-      function getPageState() {
-        if (config.filtersSelector) {
-          const root = document.querySelector(config.filtersSelector);
-          const bar = (root == null ? void 0 : root.querySelector("[data-cm-filter-bar]")) || root;
-          if (bar && gv2.FilterBar) {
-            return gv2.FilterBar.selectedFilterValues(bar);
-          }
-        }
-        const url = new URL(window.location.href);
-        const dealer = url.searchParams.get("dealer");
-        if (dealer) return { dealer };
-        return {};
-      }
-      const columnDefs = await resolveColumnDefs(config, getPageState);
-      const optionsObj = {
-        columnDefs,
-        rowModelType: config.datasourceUrl ? "infinite" : "clientSide",
-        ...config.rowSelection ? { rowSelection: config.rowSelection } : {},
-        cacheBlockSize: (_a2 = config.cacheBlockSize) != null ? _a2 : 100,
-        maxBlocksInCache: 10,
-        rowBuffer: 20,
-        suppressPropertyNamesCheck: true,
-        enableCellTextSelection: true,
-        tooltipShowDelay: 500,
-        tooltipInteraction: true,
-        animateRows: false,
-        pagination: false,
-        defaultColDef: {
-          sortable: true,
-          filter: true,
-          resizable: true,
-          floatingFilter: false,
-          tooltipValueGetter: (p) => p.value
-        },
-        localeText: g.AG_GRID_LOCALE_UK || {},
-        getRowId: (params) => {
-          var _a3, _b2, _c2, _d2, _e2;
-          const id = (_a3 = params.data) == null ? void 0 : _a3.id;
-          return id != null && id !== "" ? String(id) : `cm-row-${String((_c2 = (_b2 = params.data) == null ? void 0 : _b2.sku) != null ? _c2 : "")}-${String((_e2 = (_d2 = params.data) == null ? void 0 : _d2.dealer_name) != null ? _e2 : "")}`;
-        },
-        components: {
-          customTooltip: agModule == null ? void 0 : agModule.Tooltip,
-          customSetFilter: agModule == null ? void 0 : agModule.SmartFilter
-        },
-        context: {
-          gridId,
-          storageScope: config.storageScope || gridId,
-          syncUrlState: (_b = config.syncUrlState) != null ? _b : true,
-          urlPageStateKeys: config.urlPageStateKeys || [],
-          getPageState,
-          dictionaryUrl: ""
-        }
-      };
-      if (config.datasourceUrl && typeof (agModule == null ? void 0 : agModule.createInfiniteDatasource) === "function") {
-        const createDs = agModule.createInfiniteDatasource;
-        optionsObj.datasource = createDs({
-          url: config.datasourceUrl,
-          gridId,
-          getExtraParams: getPageState,
-          onLastRow: (count) => {
-            if (config.rowCountSelector) {
-              const el = document.querySelector(config.rowCountSelector);
-              if (el) el.textContent = String(count >= 0 ? count : 0);
-            }
-            if (config.xlsxExportSelector && typeof (agModule == null ? void 0 : agModule.syncExportHref) === "function") {
-              const exportEl = document.querySelector(config.xlsxExportSelector);
-              if (exportEl) {
-                agModule.syncExportHref(exportEl, gridId, { getExtraParams: getPageState, exportColumns: true });
-              }
-            }
-          }
-        });
-      }
-      let host = registry.get(gridId);
-      if (!host) {
-        host = new HostCtor(gridId, containerId, optionsObj, presets, searches, groupsOrder);
-      } else {
-        host.gridOptions = optionsObj;
-        host.savedColPresets = presets || {};
-        host.savedQuickSearches = searches || [];
-        if (host.gridApi) {
-          try {
-            (_d = (_c = host.gridApi).destroy) == null ? void 0 : _d.call(_c);
-          } catch (error) {
-            console.warn(
-              "[GridView.AgGrid] Clean destruction of old grid failed. Proceeding with DOM swap. Error:",
-              error
-            );
-          }
-          host.gridApi = null;
-        }
-      }
-      if (!host.gridApi) {
-        if (typeof getGlobal().agGrid !== "undefined") {
-          (_e = host.initGrid) == null ? void 0 : _e.call(host);
-        } else {
-          const poll = window.setInterval(() => {
-            var _a3;
-            if (typeof getGlobal().agGrid !== "undefined") {
-              window.clearInterval(poll);
-              (_a3 = host == null ? void 0 : host.initGrid) == null ? void 0 : _a3.call(host);
-            }
-          }, 50);
-          window.setTimeout(() => window.clearInterval(poll), 15e3);
-        }
-      }
-      if (!specFilterListeners.has(gridId)) {
-        specFilterListeners.add(gridId);
-        document.addEventListener("cm-filter-change", (e) => {
-          void (async () => {
-            var _a3, _b2, _c2, _d2, _e2;
-            const detail = e.detail;
-            const bar = detail == null ? void 0 : detail.bar;
-            if (!bar) return;
-            if (config.filtersSelector && !bar.closest(config.filtersSelector)) return;
-            const filterBar = bar.closest("[data-cm-filter-bar]");
-            const navigates = ((_a3 = filterBar == null ? void 0 : filterBar.dataset) == null ? void 0 : _a3.navigateOnChange) !== "0";
-            if (((_b2 = filterBar == null ? void 0 : filterBar.dataset) == null ? void 0 : _b2.autoApply) === "1" && navigates) return;
-            const current = registry.get(gridId);
-            if (!current) return;
-            if (config.columnSource && current.gridApi) {
-              try {
-                const nextDefs = await resolveColumnDefs(config, getPageState);
-                (_d2 = (_c2 = current.gridApi).setGridOption) == null ? void 0 : _d2.call(_c2, "columnDefs", nextDefs);
-              } catch (error) {
-                console.error("[GridView.AgGrid] column_source refresh failed:", error);
-              }
-            }
-            (_e2 = current.reloadData) == null ? void 0 : _e2.call(current);
-          })();
-        });
-      }
-    };
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", startUp);
-    } else {
-      startUp();
-    }
-    (_a = gv2.byId) == null ? void 0 : _a.registerBoot(gridId, startUp);
-  }
-  function queryRoot(root) {
-    if (root && typeof root === "object" && "querySelectorAll" in root) {
-      return root;
-    }
-    return document;
-  }
-  function bootAgGridSpecFromDocument(root = document) {
-    const scope = queryRoot(root);
-    scope.querySelectorAll("script.cm-ag-grid-spec-config").forEach((node) => {
-      try {
-        const config = JSON.parse(node.textContent || "{}");
-        if (config.gridId) bootFromSpecConfig(config);
-      } catch (error) {
-        console.error("[GridView.AgGrid] Invalid spec config JSON:", error);
-      }
-    });
-  }
-
-  // src/runtime/boot.ts
-  var LAZY_SEL = ".cm-lazy-placeholder[data-endpoint]";
-  async function fetchAndReplace(placeholder, gv2) {
-    var _a;
-    if (placeholder.dataset.cmLazyLoading) return;
-    placeholder.dataset.cmLazyLoading = "1";
-    const endpoint = placeholder.dataset.endpoint;
-    const method = ((_a = placeholder.dataset.method) != null ? _a : "get").toLowerCase();
-    const timeoutMs = placeholder.dataset.timeout ? parseInt(placeholder.dataset.timeout, 10) : 3e4;
-    try {
-      const ctrl = new AbortController();
-      const timer = window.setTimeout(() => ctrl.abort(), timeoutMs);
-      const url = new URL(endpoint, window.location.href);
-      const pageParams = new URLSearchParams(window.location.search);
-      pageParams.forEach((value, key) => {
-        if (!url.searchParams.has(key)) {
-          url.searchParams.set(key, value);
-        }
-      });
-      const resp = await fetch(url.toString(), {
-        method,
-        signal: ctrl.signal,
-        credentials: "same-origin"
-      });
-      window.clearTimeout(timer);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const html = await resp.text();
-      const wrapper = document.createElement("div");
-      wrapper.innerHTML = html;
-      placeholder.replaceWith(wrapper);
-      bootScope(wrapper, gv2);
-      wrapper.replaceWith(...Array.from(wrapper.childNodes));
-    } catch (e) {
-      placeholder.classList.add("cm-lazy-error");
-      delete placeholder.dataset.cmLazyLoading;
-      delete placeholder.dataset.cmLazyInit;
-    }
-  }
-  function initLazyBlocks(scope, gv2) {
-    scope.querySelectorAll(LAZY_SEL).forEach((el) => {
-      var _a;
-      if (el.dataset.cmLazyInit) return;
-      el.dataset.cmLazyInit = "1";
-      const trigger = (_a = el.dataset.trigger) != null ? _a : "visible";
-      if (trigger === "load") {
-        void fetchAndReplace(el, gv2);
-      } else if (trigger === "visible") {
-        const obs = new IntersectionObserver((entries, o) => {
-          var _a2;
-          if ((_a2 = entries[0]) == null ? void 0 : _a2.isIntersecting) {
-            o.disconnect();
-            void fetchAndReplace(el, gv2);
-          }
-        });
-        obs.observe(el);
-      }
-    });
-  }
-  var CHART_BOOT_INTERVAL_MS = 50;
-  var MAX_CHART_BOOT_ATTEMPTS = 200;
-  function scopeElement(scope) {
-    if (scope && "querySelectorAll" in scope) return scope;
-    return document;
-  }
-  function hasWidgetMarkers(root) {
-    return !!(root.querySelector("[data-cm-table]") || root.querySelector("[data-cm-filter-bar]") || root.querySelector("[data-cm-chart-config]") || root.querySelector("[data-cm-kpi-root]") || root.querySelector("[data-cm-tab-group]") || root.querySelector('[data-cm-action="show_content"]') || root.querySelector("[data-cm-content-dismissible]") || root.querySelector("[data-cm-grid-view-spec]") || root.querySelector("[data-cm-grid-artifact-boot]") || root.querySelector("script.cm-ag-grid-spec-config") || root.querySelector(LAZY_SEL));
-  }
-  function bootAgGridInScope(root, gridView2) {
-    var _a;
-    if (!root.querySelector("script.cm-ag-grid-spec-config")) return;
-    const ensure = (_a = gridView2.assets) == null ? void 0 : _a.ensureAgGrid;
-    if (ensure) {
-      void ensure().then(() => bootAgGridSpecFromDocument(root));
-      return;
-    }
-    bootAgGridSpecFromDocument(root);
-  }
-  function bootChartsWhenReady(scope, gv2) {
-    if (!scope.querySelector("[data-cm-chart-config]")) return;
-    let attempts = 0;
-    const tryInit = () => {
-      var _a;
-      const g = window;
-      const chartsReady = typeof g.echarts !== "undefined" || !scope.querySelector("[data-cm-chart-config]");
-      if (gv2 && chartsReady) {
-        gv2.initAllCharts(scope);
-        return;
-      }
-      if (attempts === 0 && ((_a = gv2.assets) == null ? void 0 : _a.ensureCharts)) {
-        void gv2.assets.ensureCharts().then(() => {
-          attempts += 1;
-          tryInit();
-        });
-        return;
-      }
-      attempts += 1;
-      if (attempts >= MAX_CHART_BOOT_ATTEMPTS) return;
-      window.setTimeout(tryInit, CHART_BOOT_INTERVAL_MS);
-    };
-    tryInit();
-  }
-  function bootSingleArtifactRoot(root, gv2) {
-    if (root.dataset.cmGridViewSpecBooted) return;
-    root.dataset.cmGridViewSpecBooted = "1";
-    let attempts = 0;
-    const tryInit = () => {
-      const g = window;
-      if (gv2 && (typeof g.echarts !== "undefined" || !root.querySelector("[data-cm-chart-config]"))) {
-        gv2.init({ root });
-        return;
-      }
-      attempts += 1;
-      if (attempts >= MAX_CHART_BOOT_ATTEMPTS) return;
-      window.setTimeout(tryInit, CHART_BOOT_INTERVAL_MS);
-    };
-    tryInit();
-  }
-  function bootArtifactRoots(scope, gv2) {
-    scope.querySelectorAll("[data-cm-grid-artifact-boot]").forEach((root) => {
-      bootSingleArtifactRoot(root, gv2);
-    });
-  }
-  function bootSpecRoots(scope, gv2) {
-    scope.querySelectorAll("[data-cm-grid-view-spec]").forEach((specRoot) => {
-      const el = specRoot;
-      if (el.dataset.cmGridViewSpecBooted) return;
-      el.dataset.cmGridViewSpecBooted = "1";
-      bootScope(el, gv2);
-    });
-  }
-  function syncAgGridStyles() {
-    if (!document.querySelector("script.cm-ag-grid-spec-config")) {
-      unloadAgGridStyles();
-    }
-  }
-  function bootScope(scope, gv2) {
-    syncAgGridStyles();
-    const gridView2 = gv2 != null ? gv2 : window.GridView;
-    if (!gridView2) return;
-    const root = scopeElement(scope);
-    if (!("querySelector" in root)) return;
-    if (!hasWidgetMarkers(root)) return;
-    initLazyBlocks(root, gridView2);
-    initAllSimpleTables(root);
-    initTableEdit(root);
-    initFilterBars(root);
-    initButtonEllipsisTips(root);
-    initTabGroups(root);
-    initContentActions(root);
-    initGalleryBlocks(root);
-    initImageRenderers(root);
-    gridView2.initAllKpi(root);
-    bootChartsWhenReady(root, gridView2);
-    bootArtifactRoots(root, gridView2);
-    bootSpecRoots(root, gridView2);
-    bootAgGridInScope(root, gridView2);
-  }
-  function boot(root, gv2) {
-    const gridView2 = gv2 != null ? gv2 : window.GridView;
-    if (!gridView2 || !root) {
-      bootScope(document, gv2);
-      return;
-    }
-    if (root === document || root instanceof Document) {
-      bootScope(root, gridView2);
-      return;
-    }
-    const el = root;
-    if (el.matches("[data-cm-grid-artifact-boot]")) {
-      const host = el;
-      delete host.dataset.cmGridViewSpecBooted;
-      bootSingleArtifactRoot(host, gridView2);
-      return;
-    }
-    if (el.matches("[data-cm-grid-view-spec]")) {
-      const host = el;
-      delete host.dataset.cmGridViewSpecBooted;
-      bootScope(host, gridView2);
-      return;
-    }
-    bootScope(el, gridView2);
-  }
-  var _htmxBound = false;
-  function installRuntimeBoot(gv2) {
-    initBuiltinRenderers();
-    if (_htmxBound || typeof document.body === "undefined") return;
-    _htmxBound = true;
-    document.body.addEventListener("htmx:afterSwap", (event) => {
-      var _a;
-      const detail = event.detail;
-      const target = detail == null ? void 0 : detail.target;
-      if (!target) return;
-      if ((_a = target.matches) == null ? void 0 : _a.call(target, "[data-cm-grid-artifact-boot]")) {
-        boot(target, gv2);
-        return;
-      }
-      bootScope(target, gv2);
-    });
+  // src/grid-view/toolbar-search-input.ts
+  function cssEscapeId(id) {
+    return typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  }
+  function resolveToolbarSearchInput(gridId) {
+    if (!gridId) return null;
+    const legacy = document.getElementById("ag-quick-filter-" + gridId);
+    if (legacy instanceof HTMLInputElement) return legacy;
+    const esc = cssEscapeId(gridId);
+    const toolbarRoot = document.querySelector(
+      '[data-cm-toolbar-search-root][data-cm-table-grid-id="' + esc + '"]'
+    );
+    const toolbarSearch = toolbarRoot == null ? void 0 : toolbarRoot.querySelector("[data-cm-toolbar-search]");
+    if (toolbarSearch) return toolbarSearch;
+    const wrapper = document.querySelector('[data-grid-id="' + esc + '"]');
+    const localSearch = wrapper == null ? void 0 : wrapper.querySelector("[data-cm-search]");
+    return localSearch != null ? localSearch : null;
+  }
+  function resolveToolbarSearchInputForCtx(root, scope) {
+    const tableGridId2 = root.dataset.cmTableGridId || scope;
+    const bound = resolveToolbarSearchInput(tableGridId2);
+    if (bound) return bound;
+    const local = document.getElementById("cm-toolbar-search-" + scope);
+    if (local instanceof HTMLInputElement) return local;
+    const fromRoot = root.querySelector("[data-cm-toolbar-search]");
+    return fromRoot != null ? fromRoot : null;
   }
 
   // src/grid-view/filter-bar.ts
@@ -4320,7 +3616,7 @@
     }
     setMultiselectTriggerLabel(
       ms,
-      valueChecked.length + " " + i18n.t("multiselect.selected_count", "selected")
+      valueChecked.map((cb) => cb.dataset.label || cb.value).join(", ")
     );
   }
   function applyFilterValues(root, state) {
@@ -4370,17 +3666,18 @@
     const root = asHTMLElement(anchorEl == null ? void 0 : anchorEl.closest("[data-cm-toolbar-search-root]")) || asHTMLElement((_a = anchorEl == null ? void 0 : anchorEl.closest(".cm-toolbar-unified")) == null ? void 0 : _a.querySelector("[data-cm-toolbar-search-root]"));
     return ((_b = root == null ? void 0 : root.dataset) == null ? void 0 : _b.cmTableGridId) || ((_c = root == null ? void 0 : root.dataset) == null ? void 0 : _c.cmPrefGridId) || "";
   }
-  function tableFragmentConfig(gridId) {
-    var _a;
+  function tableFragmentConfig(gridId, bar) {
+    var _a, _b, _c, _d, _e, _f, _g;
     if (!gridId) return null;
+    const barEl = bar instanceof HTMLElement ? bar : (_a = bar == null ? void 0 : bar.closest) == null ? void 0 : _a.call(bar, "[data-cm-filter-bar]");
+    const b = barEl;
     const shell = document.getElementById("cm-table-" + gridId);
-    if (!shell) return null;
-    const endpoint = ((_a = shell.dataset) == null ? void 0 : _a.cmFragmentEndpoint) || "";
+    const endpoint = ((_b = b == null ? void 0 : b.dataset) == null ? void 0 : _b.cmFragmentEndpoint) || ((_c = shell == null ? void 0 : shell.dataset) == null ? void 0 : _c.cmFragmentEndpoint) || "";
     if (!endpoint) return null;
     return {
       endpoint,
-      target: shell.dataset.cmFragmentTarget || "#block-" + gridId,
-      swap: shell.dataset.cmFragmentSwap || "outerHTML",
+      target: ((_d = b == null ? void 0 : b.dataset) == null ? void 0 : _d.cmFragmentTarget) || ((_e = shell == null ? void 0 : shell.dataset) == null ? void 0 : _e.cmFragmentTarget) || "#block-" + gridId,
+      swap: ((_f = b == null ? void 0 : b.dataset) == null ? void 0 : _f.cmFragmentSwap) || ((_g = shell == null ? void 0 : shell.dataset) == null ? void 0 : _g.cmFragmentSwap) || "outerHTML",
       gridId
     };
   }
@@ -4389,6 +3686,15 @@
     const frag = new URL(fragmentEndpoint, window.location.origin);
     frag.search = page.search;
     return frag.pathname + frag.search;
+  }
+  function specWantsFacets(ref) {
+    var _a;
+    const el = asHTMLElement(ref);
+    if (!el) return false;
+    if ((_a = el.matches) == null ? void 0 : _a.call(el, "[data-cm-filter-bar][data-cm-facets]")) return true;
+    const spec = el.closest("[data-cm-grid-view-spec]");
+    if (spec == null ? void 0 : spec.querySelector("[data-cm-filter-bar][data-cm-facets]")) return true;
+    return !!el.closest("[data-cm-filter-bar][data-cm-facets]");
   }
   function syncToolbarCounterFromTable(gridId) {
     var _a;
@@ -4412,21 +3718,37 @@
       anchorEl || bar
     );
     const gridId = resolveToolbarGridId(anchorEl || bar);
-    const frag = tableFragmentConfig(gridId);
+    const frag = tableFragmentConfig(gridId, bar);
+    const wantsFacets = specWantsFacets(anchorEl || bar);
     const htmx = getGlobal().htmx;
-    if (frag && htmx && typeof htmx.ajax === "function") {
-      htmx.ajax("GET", buildFragmentRequestUrl(frag.endpoint, pageUrl), {
-        target: frag.target,
-        swap: frag.swap
-      });
-      window.history.pushState({}, "", pageUrl);
-      window.setTimeout(() => syncToolbarCounterFromTable(frag.gridId), 0);
-      return true;
+    if (htmx && typeof htmx.ajax === "function") {
+      if (frag && !wantsFacets) {
+        htmx.ajax("GET", buildFragmentRequestUrl(frag.endpoint, pageUrl), {
+          target: frag.target,
+          swap: frag.swap
+        });
+        window.history.pushState({}, "", pageUrl);
+        window.setTimeout(() => syncToolbarCounterFromTable(frag.gridId), 0);
+        return true;
+      }
+      const ref = anchorEl || bar;
+      const specRoot = ref instanceof Element ? ref.closest("[data-cm-grid-view-spec]") : null;
+      if (specRoot == null ? void 0 : specRoot.id) {
+        const wrapId = "cm-spec-wrap-" + specRoot.dataset.specId;
+        htmx.ajax("GET", pageUrl, {
+          target: "#" + wrapId,
+          swap: "innerHTML",
+          select: "#" + specRoot.id
+        });
+        window.history.pushState({}, "", pageUrl);
+        return true;
+      }
     }
     window.location.href = pageUrl;
     return false;
   }
   function toolbarSearchUsesFragmentNavigation(searchInput) {
+    if (specWantsFacets(searchInput)) return true;
     return !!tableFragmentConfig(resolveToolbarGridId(searchInput));
   }
   function buildFilterUrl(baseUrl, state) {
@@ -4590,13 +3912,14 @@
     const onChange = () => {
       const state = selectedFilterValues(bar);
       state.page = "1";
+      if (typeof options.onChange !== "function" && !navigateOnChange) {
+        const nextUrl = withActiveTableColumns(buildFilterUrl(filterNavigateHref(), state), bar);
+        window.history.replaceState({}, "", nextUrl);
+      }
       document.dispatchEvent(new CustomEvent("cm-filter-change", { detail: { state, bar } }));
       if (typeof options.onChange === "function") options.onChange(state);
       else if (navigateOnChange) {
         navigateFilterState(state, bar, bar);
-      } else {
-        const nextUrl = withActiveTableColumns(buildFilterUrl(filterNavigateHref(), state), bar);
-        window.history.replaceState({}, "", nextUrl);
       }
     };
     bar.addEventListener("cm-filter-change", onChange);
@@ -4650,10 +3973,9 @@
       }
       if (!root) return null;
       var scope = root.dataset.cmSearchScopeId || scopeId || "";
-      var prefId = root.dataset.cmPrefGridId || scope;
+      var prefId = root.dataset.cmTableGridId || root.dataset.cmPrefGridId || scope;
       var backend = root.dataset.cmSearchBackend || "";
-      var inputEl = backend === "ag_grid" ? document.getElementById("ag-quick-filter-" + scope) : document.getElementById("cm-toolbar-search-" + scope);
-      const input = inputEl instanceof HTMLInputElement ? inputEl : null;
+      const input = resolveToolbarSearchInputForCtx(root, scope);
       return {
         root,
         scopeId: scope,
@@ -4720,14 +4042,13 @@
       ctx.input.value = text;
       syncToolbarSearchChrome(ctx.input);
       if (ctx.backend === "ag_grid") {
-        var host = byId.get(ctx.scopeId);
+        var host = byId.get(ctx.prefId);
         if (host) {
           if (host.gridApi && typeof host.gridApi.setFilterModel === "function") {
             host.gridApi.setFilterModel(null);
           }
-          const onQuickFilterChanged = host.onQuickFilterChanged;
-          if (typeof onQuickFilterChanged === "function") {
-            onQuickFilterChanged();
+          if (typeof host.onQuickFilterChanged === "function") {
+            host.onQuickFilterChanged();
           }
         }
       } else if (typeof onPick === "function") {
@@ -4925,8 +4246,11 @@
         e.preventDefault();
         input.value = "";
         syncStateUi();
-        applyClient();
-        navigate();
+        if (fragmentSearch) {
+          navigate();
+        } else {
+          applyClient();
+        }
       });
       syncStateUi();
       syncToolbarSearchChrome(input);
@@ -5048,12 +4372,36 @@
   };
 
   // src/grid-view/actions.ts
+  function cssAttr(value) {
+    return typeof CSS !== "undefined" && CSS.escape ? CSS.escape(value) : value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  }
+  function syncClearAllButtons() {
+    const url = new URL(window.location.href);
+    const urlActive = url.searchParams.has("q") || url.searchParams.has("filters") || url.searchParams.has("col_q");
+    document.querySelectorAll('[data-cm-grid-action="clearAllFilters"]').forEach((btn) => {
+      var _a, _b, _c, _d, _e;
+      const gridId = btn.getAttribute("data-cm-grid-id") || "";
+      const handle = (_b = (_a = window.GridView) == null ? void 0 : _a.byId) == null ? void 0 : _b.get(gridId);
+      if (handle && typeof handle.hasActiveFilters === "function") {
+        btn.classList.toggle("is-hidden", !handle.hasActiveFilters());
+        return;
+      }
+      const toolbar = btn.closest(".cm-toolbar-unified");
+      const searchInput = toolbar == null ? void 0 : toolbar.querySelector("[data-cm-toolbar-search]");
+      const searchActive = !!(searchInput == null ? void 0 : searchInput.value.trim());
+      const table = gridId ? document.querySelector('[data-grid-id="' + cssAttr(gridId) + '"]') : null;
+      const simpleActive = !!(table == null ? void 0 : table.querySelector(".cm-col-filter-btn.is-active"));
+      const model = (_e = (_d = (_c = handle == null ? void 0 : handle.gridApi) == null ? void 0 : _c.getFilterModel) == null ? void 0 : _d.call(_c)) != null ? _e : {};
+      const agActive = Object.keys(model).length > 0;
+      btn.classList.toggle("is-hidden", !(urlActive || searchActive || simpleActive || agActive));
+    });
+  }
   function handleToolbarSavedSearchClick(e) {
     var _a, _b;
     const target = eventTargetElement(e.target);
     if (!target) return;
     const gridBtn = target.closest(
-      '[data-cm-grid-action="saveSearch"], [data-cm-grid-action="toggleSavedSearches"], [data-cm-grid-action="clearSearch"], [data-cm-toolbar-search-clear][data-cm-grid-action="clearSearch"]'
+      '[data-cm-grid-action="saveSearch"], [data-cm-grid-action="toggleSavedSearches"], [data-cm-grid-action="clearSearch"], [data-cm-grid-action="clearAllFilters"], [data-cm-grid-action="reloadData"], [data-cm-toolbar-search-clear][data-cm-grid-action="clearSearch"]'
     );
     if (!gridBtn) return;
     e.preventDefault();
@@ -5063,7 +4411,14 @@
     const action = gridBtn.getAttribute("data-cm-grid-action");
     if (action === "saveSearch") ToolbarSearch.save(scopeId);
     else if (action === "toggleSavedSearches") ToolbarSearch.toggle(scopeId);
-    else if (action === "clearSearch") {
+    else if (action === "clearAllFilters") {
+      const clearGridId = gridBtn.getAttribute("data-cm-grid-id") || scopeId;
+      invokeGridAction(clearGridId, "clearAllFilters");
+      clearSimpleTableFiltersForGrid(clearGridId);
+      window.setTimeout(syncClearAllButtons, 0);
+    } else if (action === "reloadData") {
+      invokeGridAction(gridBtn.getAttribute("data-cm-grid-id") || scopeId, "reloadData");
+    } else if (action === "clearSearch") {
       const clearInput = asHtmlInput(
         (_b = gridBtn.closest("[data-cm-toolbar-search-root]")) == null ? void 0 : _b.querySelector("[data-cm-toolbar-search]")
       );
@@ -5071,13 +4426,20 @@
         clearInput.value = "";
         syncToolbarSearchChrome(clearInput);
       }
-      invokeGridAction(scopeId, "clearSearch");
+      const root = asHTMLElement(gridBtn.closest("[data-cm-toolbar-search-root]"));
+      const tableId = (root == null ? void 0 : root.dataset.cmTableGridId) || (root == null ? void 0 : root.dataset.cmPrefGridId) || scopeId;
+      invokeGridAction(tableId, "clearSearch");
+      window.setTimeout(syncClearAllButtons, 0);
     }
   }
   function bindDelegatedGridActions() {
     if (getGlobal()._cmGridActionsBound) return;
     getGlobal()._cmGridActionsBound = true;
     document.addEventListener("click", handleToolbarSavedSearchClick, true);
+    document.addEventListener("input", () => window.setTimeout(syncClearAllButtons, 0), true);
+    document.addEventListener("cm-filter-change", () => window.setTimeout(syncClearAllButtons, 0));
+    document.addEventListener("cm-grid-state-change", () => window.setTimeout(syncClearAllButtons, 0));
+    window.setTimeout(syncClearAllButtons, 0);
     document.addEventListener("click", (e) => {
       var _a;
       const target = eventTargetElement(e.target);
@@ -5134,6 +4496,106 @@
     }
     return null;
   }
+
+  // src/grid-view/format.ts
+  function num(value) {
+    if (value === null || value === void 0 || value === "") return null;
+    const parsed = Number(String(value).replace(/\s/g, "").replace(",", "."));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  function uiLocale() {
+    if (typeof document === "undefined" || !document.documentElement) return void 0;
+    return document.documentElement.lang || void 0;
+  }
+
+  // src/grid-view/kpi.ts
+  function formatKpiValue(value, fmt) {
+    var n = Number(value);
+    if (!Number.isFinite(n)) return String(value);
+    fmt = fmt || "number";
+    if (fmt === "currency") {
+      return n.toLocaleString(uiLocale(), { maximumFractionDigits: 0 });
+    }
+    if (fmt === "percent") {
+      return n.toFixed(1) + "%";
+    }
+    if (fmt === "number") {
+      if (Math.abs(n - Math.round(n)) < 1e-9) {
+        return Math.round(n).toLocaleString(uiLocale());
+      }
+      return n.toLocaleString(uiLocale(), {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+    return String(value);
+  }
+  function aggregateKpi(spec, rows) {
+    var _a, _b;
+    const agg = spec.aggregate || "count";
+    if (agg === "count") return rows.length;
+    const key = (_b = (_a = spec.columnKey) != null ? _a : spec.column_key) != null ? _b : spec.field;
+    if (!key) return 0;
+    const nums = [];
+    rows.forEach((row) => {
+      const parsed = num(row[key]);
+      if (parsed !== null) nums.push(parsed);
+    });
+    if (agg === "sum")
+      return nums.reduce(function(a, b) {
+        return a + b;
+      }, 0);
+    if (agg === "avg")
+      return nums.length ? nums.reduce(function(a, b) {
+        return a + b;
+      }, 0) / nums.length : 0;
+    if (agg === "min") return nums.length ? Math.min.apply(null, nums) : 0;
+    if (agg === "max") return nums.length ? Math.max.apply(null, nums) : 0;
+    return 0;
+  }
+  function resolveKpis(specs, rows) {
+    return (specs || []).map(function(spec) {
+      var raw = aggregateKpi(spec, rows);
+      return {
+        label: spec.label || "",
+        valueFmt: formatKpiValue(raw, spec.format),
+        rawValue: raw,
+        tone: spec.tone || "default",
+        icon: spec.icon || void 0
+      };
+    });
+  }
+  function kpiCardHtml(kpi) {
+    var icon = kpi.icon || "\u{1F4CA}";
+    var label = kpi.label || "";
+    var value = kpi.valueFmt || kpi.value_fmt || "";
+    return '<span class="cm-kpi-icon" aria-hidden="true">' + icon + '</span><div class="cm-kpi-body"><span class="cm-kpi-label">' + label + '</span><span class="cm-kpi-value">' + value + "</span></div>";
+  }
+  function initKpiStrip(root, kpis, columns) {
+    if (!root || !(kpis == null ? void 0 : kpis.length)) return;
+    root.innerHTML = "";
+    root.className = `cm-kpi-grid cm-kpi-cols-${columns || 4}`;
+    kpis.forEach((kpi) => {
+      const card = document.createElement("div");
+      card.className = `cm-kpi-card cm-kpi-tone-${kpi.tone || "default"}`;
+      card.innerHTML = kpiCardHtml(kpi);
+      root.appendChild(card);
+    });
+  }
+  function initAllKpi(scope) {
+    const root = scope || document;
+    root.querySelectorAll("[data-cm-kpi-config]").forEach((node) => {
+      if (!(node instanceof HTMLElement)) return;
+      if (node.dataset.cmKpiReady) return;
+      const kpis = JSON.parse(
+        node.dataset.cmKpiConfig || "[]"
+      );
+      const columns = parseInt(node.dataset.cmKpiColumns || "4", 10);
+      initKpiStrip(node, kpis, columns);
+      node.dataset.cmKpiReady = "1";
+    });
+  }
+  var Kpi = { initKpiStrip, initAllKpi, kpiCardHtml };
 
   // src/grid-view/grid-adapter.ts
   function staticRowsAdapter(rows) {
@@ -5235,6 +4697,191 @@
     bindGridFilteredCharts
   };
 
+  // src/grid-view/table-edit.ts
+  function csrfToken() {
+    const match = document.cookie.match(/csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+  function interpolateEndpoint(template, rowId) {
+    return template.replace(/\{id\}/g, rowId);
+  }
+  async function postCommitEndpoint(endpoint, rowId, field, newValue) {
+    const url = interpolateEndpoint(endpoint, rowId);
+    const body = {};
+    if (field.includes("department")) {
+      body.department_id = newValue ? Number(newValue) : null;
+    } else {
+      body[field] = newValue;
+    }
+    const res = await fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrfToken()
+      },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) return false;
+    try {
+      const data = await res.json();
+      return !data || data.status !== "error";
+    } catch (e) {
+      return res.ok;
+    }
+  }
+  function updateSelectView(cell, select, saved) {
+    var _a, _b;
+    const view = cell.querySelector(".cm-dept-view, .cm-cell-edit-view");
+    if (!view) return;
+    const emptyLabel = cell.getAttribute("data-cm-empty-label") || "\u2014";
+    if (!select.value) {
+      view.textContent = emptyLabel;
+      return;
+    }
+    const savedName = saved && typeof saved.department_name === "string" ? saved.department_name : "";
+    const optionText = ((_b = (_a = select.options[select.selectedIndex]) == null ? void 0 : _a.textContent) == null ? void 0 : _b.trim()) || "";
+    view.textContent = savedName || optionText;
+  }
+  function flashCell(cell) {
+    cell.classList.add("cm-dept-cell--saved", "cm-cell-edit--saved");
+    setTimeout(() => {
+      cell.classList.remove("cm-dept-cell--saved", "cm-cell-edit--saved");
+    }, 1500);
+  }
+  async function saveSelect(shell, config, select) {
+    const rowId = select.getAttribute("data-cm-row-id") || "";
+    const cell = select.closest("[data-cm-cell-edit]");
+    const field = (cell == null ? void 0 : cell.getAttribute("data-cm-field")) || "";
+    const prev = select.dataset.cmEditPrev || "";
+    const value = select.value;
+    if (value === prev) return true;
+    select.disabled = true;
+    let ok = false;
+    try {
+      if (config.commitCallback) {
+        ok = await invokeCommit(config.commitCallback, {
+          rowId,
+          gridId: shell.getAttribute("data-grid-id") || void 0,
+          columnId: field,
+          field,
+          oldValue: prev,
+          newValue: value
+        });
+      } else if (config.commitEndpoint) {
+        ok = await postCommitEndpoint(config.commitEndpoint, rowId, field, value);
+      }
+      if (!ok) {
+        select.value = prev;
+        window.alert("\u041D\u0435 \u0432\u0434\u0430\u043B\u043E\u0441\u044F \u0437\u0431\u0435\u0440\u0435\u0433\u0442\u0438 \u0437\u043C\u0456\u043D\u0438");
+        return false;
+      }
+      select.dataset.cmEditPrev = value;
+      if (cell) {
+        updateSelectView(cell, select);
+        flashCell(cell);
+      }
+      return true;
+    } catch (e) {
+      select.value = prev;
+      window.alert("\u041F\u043E\u043C\u0438\u043B\u043A\u0430 \u043C\u0435\u0440\u0435\u0436\u0456");
+      return false;
+    } finally {
+      select.disabled = false;
+    }
+  }
+  function findEditToolsSlot(shell, columnId) {
+    const th = shell.querySelector(`th[data-cm-col-key="${columnId}"]`);
+    return th ? th.querySelector("[data-cm-th-tools]") : null;
+  }
+  function ensureHeaderControls(shell, config) {
+    var _a;
+    if (!config.confirm || config.mode !== "row") return;
+    const firstCol = (_a = config.columns) == null ? void 0 : _a[0];
+    if (!firstCol) return;
+    const slot = findEditToolsSlot(shell, firstCol.id);
+    if (!slot || slot.querySelector(".cm-table-edit-tools")) return;
+    slot.removeAttribute("aria-hidden");
+    const tools = document.createElement("span");
+    tools.className = "cm-table-edit-tools cm-dept-header-tools";
+    tools.innerHTML = '<button type="button" class="cm-table-edit-toggle cm-dept-edit-toggle" title="\u0420\u0435\u0434\u0430\u0433\u0443\u0432\u0430\u0442\u0438" aria-label="\u0420\u0435\u0434\u0430\u0433\u0443\u0432\u0430\u0442\u0438"><svg class="cm-dept-pencil-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button><button type="button" class="cm-table-edit-done cm-dept-edit-done" hidden title="\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u0438" aria-label="\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u0438"><svg class="cm-dept-done-icon" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="1.5"/><path d="M8 12.5 10.5 15 16 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
+    slot.appendChild(tools);
+    const gv2 = getGlobal().GridView;
+    if (gv2 && typeof gv2.initButtonEllipsisTips === "function") {
+      gv2.initButtonEllipsisTips(tools);
+    }
+    const toggle = tools.querySelector(".cm-table-edit-toggle");
+    const done = tools.querySelector(".cm-table-edit-done");
+    const layout = shell.closest(".cm-page-table-layout, .cm-dashboard-page") || shell;
+    toggle == null ? void 0 : toggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      layout.classList.add("cm-table--row-edit", "cm-doctor-page--dept-edit");
+      shell.setAttribute("data-cm-inline-edit-active", "");
+      if (toggle) toggle.hidden = true;
+      if (done) done.hidden = false;
+    });
+    done == null ? void 0 : done.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const selects = shell.querySelectorAll(
+        "[data-cm-inline-edit]"
+      );
+      const pending = [];
+      selects.forEach((select) => {
+        if (select.value !== (select.dataset.cmEditPrev || "")) {
+          pending.push(saveSelect(shell, config, select));
+        }
+      });
+      const finish = () => {
+        layout.classList.remove("cm-table--row-edit", "cm-doctor-page--dept-edit");
+        shell.removeAttribute("data-cm-inline-edit-active");
+        if (done) done.hidden = true;
+        if (toggle) toggle.hidden = false;
+      };
+      if (!pending.length) {
+        finish();
+        return;
+      }
+      if (done) done.disabled = true;
+      Promise.all(pending).finally(() => {
+        if (done) done.disabled = false;
+        finish();
+      });
+    });
+  }
+  function bindSelectCells(shell, config) {
+    shell.querySelectorAll("[data-cm-inline-edit]").forEach((select) => {
+      if (!select.dataset.cmEditPrev) {
+        select.dataset.cmEditPrev = select.value;
+      }
+    });
+    if (shell.dataset.cmTableEditChangeBound) return;
+    shell.dataset.cmTableEditChangeBound = "1";
+    shell.addEventListener("change", (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLSelectElement)) return;
+      if (!target.matches("[data-cm-inline-edit]")) return;
+      if (!config.confirm) {
+        void saveSelect(shell, config, target);
+      }
+    });
+  }
+  function initTableEdit(scope = document) {
+    scope.querySelectorAll("[data-cm-table-edit]").forEach((shell) => {
+      var _a;
+      if (shell.dataset.cmTableEditBound) return;
+      let config;
+      try {
+        config = JSON.parse(shell.getAttribute("data-cm-table-edit") || "{}");
+      } catch (e) {
+        return;
+      }
+      if (!((_a = config.columns) == null ? void 0 : _a.length)) return;
+      shell.dataset.cmTableEditBound = "1";
+      bindSelectCells(shell, config);
+      ensureHeaderControls(shell, config);
+    });
+  }
+
   // src/grid-view/init.ts
   function init(opts) {
     var _a, _b, _c, _d;
@@ -5302,19 +4949,14 @@
   }
 
   // src/grid-view/ag-grid.ts
-  function resolveToolbarSearchInput(gridId) {
-    if (!gridId) return null;
-    const legacy = document.getElementById("ag-quick-filter-" + gridId);
-    if (legacy instanceof HTMLInputElement) return legacy;
-    const esc = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(gridId) : gridId.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-    const toolbarRoot = document.querySelector(
-      '[data-cm-toolbar-search-root][data-cm-table-grid-id="' + esc + '"]'
-    );
-    const toolbarSearch = toolbarRoot == null ? void 0 : toolbarRoot.querySelector("[data-cm-toolbar-search]");
-    if (toolbarSearch) return toolbarSearch;
-    const wrapper = document.querySelector('[data-grid-id="' + esc + '"]');
-    const localSearch = wrapper == null ? void 0 : wrapper.querySelector("[data-cm-search]");
-    return localSearch != null ? localSearch : null;
+  function isExtraParamsProvider(fn) {
+    return typeof fn === "function";
+  }
+  function isAgGridSortState(col) {
+    return typeof col === "object" && col !== null && Boolean(Reflect.get(col, "sort"));
+  }
+  function isColumnStateGetter(fn) {
+    return typeof fn === "function";
   }
   function getQuickSearchText(gridIdOrHandle) {
     var _a, _b;
@@ -5344,7 +4986,7 @@
     var handle = typeof gridIdOrHandle === "string" ? byId.get(gridIdOrHandle) : gridIdOrHandle;
     var extra = options.getExtraParams && options.getExtraParams() || {};
     var qf = getQuickSearchText(handle);
-    if (options.absorbUrlSearch !== false) {
+    if (options.absorbUrlSearch !== false && handle) {
       var absorbed = absorbUrlSearchQuery(handle, options);
       if (absorbed) qf = absorbed;
     }
@@ -5370,7 +5012,7 @@
       }
     }
     if (qf) params.set("q", qf);
-    if (handle && handle.gridApi && options.includeVisibleCols !== false) {
+    if (handle && handle.gridApi && typeof handle.gridApi.getAllDisplayedColumns === "function" && options.includeVisibleCols !== false) {
       var visibleCols = handle.gridApi.getAllDisplayedColumns().map(function(col) {
         return col.getColId();
       }).join(",");
@@ -5416,14 +5058,17 @@
     document.querySelectorAll('[data-cm-export-sync][data-cm-grid-id="' + esc + '"]').forEach(function(linkEl) {
       var extraFn = linkEl.getAttribute("data-cm-export-extra-fn");
       var linkOpts = Object.assign({}, options);
-      if (extraFn && typeof getGlobal()[extraFn] === "function" && !linkOpts.getExtraParams) {
-        linkOpts.getExtraParams = getGlobal()[extraFn];
+      if (extraFn) {
+        var provider = Reflect.get(getGlobal(), extraFn);
+        if (isExtraParamsProvider(provider) && !linkOpts.getExtraParams) {
+          linkOpts.getExtraParams = provider;
+        }
       }
       syncExportHref(linkEl, gridId, linkOpts);
     });
   }
   function syncExportHref(linkEl, gridIdOrHandle, options) {
-    if (!linkEl || !linkEl.href) return;
+    if (!(linkEl instanceof HTMLAnchorElement) || !linkEl.href) return;
     options = options || {};
     var target = new URL(linkEl.href, window.location.origin);
     var extra = options.getExtraParams && options.getExtraParams() || {};
@@ -5440,21 +5085,22 @@
     var colScope = linkEl;
     if (gridId) {
       var escGrid = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(gridId) : gridId.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-      colScope = document.querySelector('[data-grid-id="' + escGrid + '"]') || linkEl.closest(".cm-page-table-layout, .cm-dashboard-page, .cm-simple-wrapper, .cm-table-shell") || document;
+      colScope = document.querySelector('[data-grid-id="' + escGrid + '"]') || linkEl.closest(
+        ".cm-page-table-layout, .cm-dashboard-page, .cm-simple-wrapper, .cm-table-shell"
+      ) || document;
     }
     var colQ = serializeColumnFilters(colScope);
     if (colQ) target.searchParams.set("col_q", colQ);
     else target.searchParams.delete("col_q");
-    if (handle && handle.gridApi) {
+    if (handle && handle.gridApi && typeof handle.gridApi.getFilterModel === "function" && typeof handle.gridApi.getColumnState === "function" && typeof handle.gridApi.getAllDisplayedColumns === "function") {
       var filterModel = handle.gridApi.getFilterModel() || {};
       if (Object.keys(filterModel).length) {
         target.searchParams.set("filters", JSON.stringify(filterModel));
       } else {
         target.searchParams.delete("filters");
       }
-      var sortState = handle.gridApi.getColumnState().filter(function(col) {
-        return col.sort;
-      });
+      var getColumnState = handle.gridApi.getColumnState;
+      var sortState = isColumnStateGetter(getColumnState) ? getColumnState().filter(isAgGridSortState) : [];
       if (sortState.length) {
         target.searchParams.set(
           "sort",
@@ -5500,6 +5146,830 @@
     syncExportHref,
     syncExportLinks
   };
+
+  // src/runtime/content-actions.ts
+  function resolveContentBlock(targetId) {
+    var _a;
+    return (_a = document.getElementById(`block-${targetId}`)) != null ? _a : document.querySelector(`[data-block-id="${targetId}"]`);
+  }
+  function showContentBlock(targetId, autoHideMs) {
+    const block = resolveContentBlock(targetId);
+    if (!block) return;
+    block.classList.remove("hidden");
+    if (autoHideMs && autoHideMs > 0) {
+      window.setTimeout(() => block.classList.add("hidden"), autoHideMs);
+    }
+  }
+  function applyDismissStorage(scope) {
+    scope.querySelectorAll("[data-cm-content-dismissible]").forEach((el) => {
+      var _a;
+      const key = el.getAttribute("data-cm-dismiss-key");
+      if (key && sessionStorage.getItem(key) === "1") {
+        (_a = el.closest(".cm-block")) == null ? void 0 : _a.classList.add("hidden");
+      }
+    });
+  }
+  function initContentActions(scope) {
+    applyDismissStorage(scope);
+    scope.querySelectorAll("[data-cm-content-dismiss]").forEach((btn) => {
+      if (btn.dataset.cmContentDismissInit) return;
+      btn.dataset.cmContentDismissInit = "1";
+      btn.addEventListener("click", () => {
+        var _a;
+        const host = btn.closest("[data-cm-content-dismissible]");
+        const key = host == null ? void 0 : host.getAttribute("data-cm-dismiss-key");
+        if (key) sessionStorage.setItem(key, "1");
+        (_a = btn.closest(".cm-block")) == null ? void 0 : _a.classList.add("hidden");
+      });
+    });
+    scope.querySelectorAll('[data-cm-action="show_content"]').forEach((btn) => {
+      if (btn.dataset.cmShowContentInit) return;
+      btn.dataset.cmShowContentInit = "1";
+      btn.addEventListener("click", () => {
+        var _a;
+        const targetId = (_a = btn.getAttribute("data-cm-action-target")) != null ? _a : "";
+        if (!targetId) return;
+        const autoHideRaw = btn.getAttribute("data-cm-auto-hide-ms");
+        const autoHideMs = autoHideRaw ? parseInt(autoHideRaw, 10) : void 0;
+        showContentBlock(targetId, Number.isFinite(autoHideMs) ? autoHideMs : void 0);
+      });
+    });
+  }
+
+  // src/runtime/gallery.ts
+  function initGalleryBlocks(_scope = document) {
+  }
+
+  // src/runtime/renderers/builtins.ts
+  function escHtml(value) {
+    if (value === void 0 || value === null || value === "") return "";
+    const d = document.createElement("div");
+    d.textContent = String(value);
+    return d.innerHTML;
+  }
+  function moneyRenderer(params) {
+    var _a, _b, _c, _d;
+    const value = params.value;
+    if (value === void 0 || value === null || value === "") return "";
+    const field = ((_a = params.colDef) == null ? void 0 : _a.field) || "";
+    const rowCurr = (_b = params.data) == null ? void 0 : _b[`${field}_currency`];
+    const curr = typeof rowCurr === "string" && rowCurr || "UAH";
+    const symbols = { USD: "$", EUR: "\u20AC", UAH: "\u20B4", PLN: "z\u0142", GBP: "\xA3" };
+    const colors = { USD: "#10b981", EUR: "#3b82f6", UAH: "#eab308" };
+    const sym = symbols[curr] || curr;
+    const color = colors[curr] || "#9ca3af";
+    const numValue = Number(value);
+    const useDecimals = curr !== "UAH";
+    const displayValue = useDecimals ? numValue.toLocaleString("uk-UA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : Math.round(numValue).toLocaleString("uk-UA");
+    const cssClass = String(((_d = (_c = params.colDef) == null ? void 0 : _c.cellRendererParams) == null ? void 0 : _d.css_class) || "");
+    const inner = displayValue + ` <span style="color:${color};font-size:12px;margin-left:2px">${sym}</span>`;
+    return cssClass ? `<span class="${escHtml(cssClass)}">${inner}</span>` : inner;
+  }
+  function linkRenderer(params) {
+    var _a, _b, _c, _d, _e;
+    const field = ((_a = params.colDef) == null ? void 0 : _a.field) || "";
+    const extra = ((_b = params.colDef) == null ? void 0 : _b.cellRendererParams) || {};
+    const url = (_c = params.data) == null ? void 0 : _c[`${field}__url`];
+    const text = (_d = params.value) != null ? _d : "";
+    const action = extra.action ? String(extra.action) : "";
+    const recordKey = String(extra.record_key || "id");
+    const rowId = (_e = params.data) == null ? void 0 : _e[recordKey];
+    const rowAttr = rowId != null ? ` data-cm-row-id="${escHtml(rowId)}"` : "";
+    if (typeof url === "string" && url) {
+      const actionAttr = action ? ` data-cm-cell-action="${escHtml(action)}"` : "";
+      return `<a href="${escHtml(url)}" class="cm-grid-link cm-link"${actionAttr}${rowAttr} style="font-weight:500;color:#818cf8">${escHtml(text)}</a>`;
+    }
+    if (action) {
+      return `<span class="cm-grid-link cm-link" role="button" tabindex="0" data-cm-cell-action="${escHtml(action)}"${rowAttr} style="font-weight:500;cursor:pointer;color:#818cf8">${escHtml(text)}</span>`;
+    }
+    return escHtml(text);
+  }
+  function badgeRenderer(params) {
+    var _a, _b;
+    const value = params.value;
+    if (value === void 0 || value === null || value === "") return "";
+    const extra = ((_a = params.colDef) == null ? void 0 : _a.cellRendererParams) || {};
+    const badges = extra.badges || {};
+    const labels = extra.badge_labels || {};
+    const labelField = extra.label_field ? String(extra.label_field) : "";
+    const key = String(value);
+    const cls = badges[key] || "badge-slate";
+    let label = labels[key] || key;
+    if (labelField && ((_b = params.data) == null ? void 0 : _b[labelField]) != null) {
+      label = String(params.data[labelField]);
+    }
+    return `<span class="badge ${escHtml(cls)}">${escHtml(label)}</span>`;
+  }
+  function dateRenderer(params) {
+    const value = params.value;
+    if (!value) return "";
+    const date = new Date(String(value));
+    if (Number.isNaN(date.getTime())) return escHtml(value);
+    return escHtml(date.toLocaleDateString("uk-UA"));
+  }
+  function buttonRenderer(params) {
+    var _a, _b, _c, _d;
+    const extra = ((_a = params.colDef) == null ? void 0 : _a.cellRendererParams) || {};
+    const action = String(extra.action || "");
+    if (!action) return escHtml((_b = params.value) != null ? _b : "");
+    const label = String(extra.label || "") || (extra.label_from_field && params.data ? String(params.data[String(extra.label_from_field)] || "") : "") || String((_c = params.value) != null ? _c : "");
+    const btnClass = String(extra.button_class || "cm-record-detail-btn");
+    const recordKey = String(extra.record_key || "id");
+    const rowId = (_d = params.data) == null ? void 0 : _d[recordKey];
+    return `<button type="button" class="${escHtml(btnClass)}" data-cm-cell-action="${escHtml(action)}" data-cm-row-id="${escHtml(rowId != null ? rowId : "")}">${escHtml(label)}</button>`;
+  }
+  var _registered = false;
+  function initBuiltinRenderers() {
+    if (_registered) return;
+    _registered = true;
+    registerRenderer("money", moneyRenderer);
+    registerRenderer("link", linkRenderer);
+    registerRenderer("badge", badgeRenderer);
+    registerRenderer("date", dateRenderer);
+    registerRenderer("button", buttonRenderer);
+  }
+
+  // src/runtime/renderers/image.ts
+  function initImageRenderers(_scope = document) {
+  }
+
+  // src/runtime/asset-loader.ts
+  function manifest() {
+    var _a;
+    const w = getGlobal();
+    return (_a = w.__GridViewAssets) != null ? _a : {};
+  }
+  function loadStylesheet(href, lazy = true) {
+    if (!href) return;
+    if (document.querySelector(`link[href="${href}"]`)) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    if (lazy) {
+      link.dataset.cmAgGridAsset = "1";
+    }
+    document.head.appendChild(link);
+  }
+  function unloadAgGridStyles() {
+    document.querySelectorAll('link[data-cm-ag-grid-asset="1"], link[href*="ag-grid"]').forEach((node) => node.remove());
+  }
+  function loadScript(src, isReady) {
+    if (!src) return Promise.resolve();
+    if (isReady()) return Promise.resolve();
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      return new Promise((resolve) => {
+        const poll = window.setInterval(() => {
+          if (isReady()) {
+            window.clearInterval(poll);
+            resolve();
+          }
+        }, 50);
+        window.setTimeout(() => {
+          window.clearInterval(poll);
+          resolve();
+        }, 15e3);
+      });
+    }
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = src;
+      script.async = false;
+      script.onload = () => {
+        const poll = window.setInterval(() => {
+          if (isReady()) {
+            window.clearInterval(poll);
+            resolve();
+          }
+        }, 50);
+        window.setTimeout(() => {
+          window.clearInterval(poll);
+          resolve();
+        }, 15e3);
+      };
+      script.onerror = () => reject(new Error(`[GridView] Failed to load ${src}`));
+      document.head.appendChild(script);
+    });
+  }
+  var agGridLoadPromise = null;
+  function ensureAgGridAssetsLoaded() {
+    var _a;
+    const gv2 = getGlobal().GridView;
+    if ((_a = gv2 == null ? void 0 : gv2.AgGrid) == null ? void 0 : _a.Host) return Promise.resolve();
+    if (agGridLoadPromise) return agGridLoadPromise;
+    const cfg = manifest();
+    agGridLoadPromise = (async () => {
+      var _a2, _b, _c;
+      ((_a2 = cfg.agGridCss) != null ? _a2 : []).forEach((href) => loadStylesheet(href));
+      await loadScript((_b = cfg.agGridCdn) != null ? _b : "", () => typeof getGlobal().agGrid !== "undefined");
+      await loadScript((_c = cfg.agGridPlugin) != null ? _c : "", () => {
+        var _a3, _b2;
+        return !!((_b2 = (_a3 = getGlobal().GridView) == null ? void 0 : _a3.AgGrid) == null ? void 0 : _b2.Host);
+      });
+    })().catch((error) => {
+      agGridLoadPromise = null;
+      throw error;
+    });
+    return agGridLoadPromise;
+  }
+  var chartsLoadPromise = null;
+  function ensureChartsAssetsLoaded() {
+    var _a;
+    const g = getGlobal();
+    if (((_a = g.GridView) == null ? void 0 : _a._chartsApiReady) && typeof g.echarts !== "undefined") return Promise.resolve();
+    if (chartsLoadPromise) return chartsLoadPromise;
+    const cfg = manifest();
+    chartsLoadPromise = (async () => {
+      var _a2, _b;
+      await loadScript((_a2 = cfg.chartsCdn) != null ? _a2 : "", () => typeof getGlobal().echarts !== "undefined");
+      await loadScript(
+        (_b = cfg.chartsPlugin) != null ? _b : "",
+        () => {
+          var _a3;
+          return !!((_a3 = getGlobal().GridView) == null ? void 0 : _a3._chartsApiReady);
+        }
+      );
+    })().catch((error) => {
+      chartsLoadPromise = null;
+      throw error;
+    });
+    return chartsLoadPromise;
+  }
+  function installAssetLoader(gv2) {
+    var _a;
+    gv2.assets = (_a = gv2.assets) != null ? _a : {};
+    gv2.assets.ensureAgGrid = ensureAgGridAssetsLoaded;
+    gv2.assets.ensureCharts = ensureChartsAssetsLoaded;
+  }
+
+  // src/runtime/table-ag-grid.ts
+  var specFilterListeners = /* @__PURE__ */ new Set();
+  function resolvePresets(gridId, fromConfig) {
+    if (fromConfig && typeof fromConfig === "object") return fromConfig;
+    try {
+      const stored = localStorage.getItem(`agGridPresets_${gridId}`);
+      if (stored) return JSON.parse(stored);
+    } catch (e) {
+    }
+    return {};
+  }
+  function resolveSearches(gridId, fromConfig) {
+    if (Array.isArray(fromConfig)) return fromConfig;
+    if (fromConfig) {
+      try {
+        const parsed = JSON.parse(String(fromConfig));
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {
+      }
+    }
+    try {
+      const stored = localStorage.getItem(`cmSavedSearches_${gridId}`);
+      if (stored) return JSON.parse(stored);
+    } catch (e) {
+    }
+    return [];
+  }
+  function resolveAgColumnFilter(col) {
+    if (col.agFilter === "none") return false;
+    if (col.agFilter === "smart") return "customSetFilter";
+    return "customExprFilter";
+  }
+  function exprColumnFilterKind(col) {
+    return col.type === "number" || col.type === "currency" ? "numeric" : "text";
+  }
+  function resolveRendererId(col) {
+    if (col.renderer) return col.renderer;
+    if (col.type === "currency") return "money";
+    return "";
+  }
+  function wrapRegisteredRenderer(rendererId) {
+    return (params) => {
+      const regFn = getRegisteredRenderer(rendererId);
+      if (!regFn) return "";
+      return regFn(params);
+    };
+  }
+  function buildColumnDefsFromSpec(columns) {
+    return columns.map((col) => {
+      var _a;
+      const field = col.field || col.id;
+      const rendererId = resolveRendererId(col);
+      const agFilter = resolveAgColumnFilter(col);
+      const def = {
+        field,
+        colId: col.id,
+        headerName: col.label,
+        hide: (_a = col.hidden) != null ? _a : false,
+        filter: agFilter,
+        sortable: col.sortable !== false,
+        resizable: true,
+        enableCellTextSelection: true,
+        tooltipField: field
+      };
+      if (agFilter === "customExprFilter") def.columnFilter = exprColumnFilterKind(col);
+      if (col.pinned === "left" || col.pinned === "right") def.pinned = col.pinned;
+      if (col.menuGroup) def.menuGroup = col.menuGroup;
+      if (col.checkboxSelection) def.checkboxSelection = true;
+      if (col.editable) def.editable = true;
+      if (col.width) {
+        const width = Number.parseInt(col.width, 10);
+        if (!Number.isNaN(width)) def.width = width;
+      }
+      if (col.minWidth) {
+        const minWidth = Number.parseInt(col.minWidth, 10);
+        if (!Number.isNaN(minWidth)) def.minWidth = minWidth;
+      } else if (!col.width && (col.id === "name" || col.id === "original_name")) {
+        def.flex = 1;
+        def.minWidth = 200;
+      }
+      if (rendererId) def.cellRenderer = wrapRegisteredRenderer(rendererId);
+      if (col.extra && Object.keys(col.extra).length > 0) {
+        def.cellRendererParams = col.extra;
+        const cellClass = col.extra.cell_class;
+        if (typeof cellClass === "string" && cellClass) def.cellClass = cellClass;
+      }
+      return def;
+    });
+  }
+  function columnSourceReady(source, pageState) {
+    const deps = source.dependsOn || [];
+    if (!deps.length) return true;
+    return deps.every((dep) => {
+      const val = pageState[dep];
+      if (val == null || val === "") return false;
+      if (Array.isArray(val)) return val.length > 0 && !(val.length === 1 && val[0] === "");
+      return true;
+    });
+  }
+  async function fetchColumnSourceColumns(source, pageState) {
+    if (!columnSourceReady(source, pageState)) return [];
+    const url = new URL(source.endpoint, window.location.origin);
+    (source.dependsOn || []).forEach((dep) => {
+      const val = pageState[dep];
+      if (Array.isArray(val)) url.searchParams.set(dep, val.join(","));
+      else if (val != null && val !== "") url.searchParams.set(dep, String(val));
+    });
+    if (source.params) {
+      Object.entries(source.params).forEach(([key, val]) => {
+        if (val != null && val !== "") url.searchParams.set(key, String(val));
+      });
+    }
+    const response = await fetch(url.toString(), { method: source.method || "GET" });
+    if (!response.ok) throw new Error(`[GridView.AgGrid] column_source HTTP ${response.status}`);
+    const data = await response.json();
+    return data.columns || [];
+  }
+  function mergeColumnDefsAtAnchor(base, dynamic, anchor, merge) {
+    const dynamicIds = new Set(dynamic.map((col) => String(col.colId || col.field)));
+    let result = merge === "replace" ? base.filter((col) => !dynamicIds.has(String(col.colId || col.field))) : base.filter((col) => !dynamicIds.has(String(col.colId || col.field)));
+    if (!anchor) return [...result, ...dynamic];
+    const idx = result.findIndex((col) => String(col.colId || col.field) === anchor);
+    if (idx < 0) return [...result, ...dynamic];
+    return [...result.slice(0, idx + 1), ...dynamic, ...result.slice(idx + 1)];
+  }
+  function mergeSpecOnlyColumns(base, specColumns, anchor) {
+    if (!(specColumns == null ? void 0 : specColumns.length)) return base;
+    const existingIds = new Set(base.map((col) => String(col.colId || col.field)));
+    const extra = specColumns.filter((col) => !existingIds.has(col.id));
+    if (!extra.length) return base;
+    return mergeColumnDefsAtAnchor(base, buildColumnDefsFromSpec(extra), anchor, "append");
+  }
+  async function resolveColumnDefs(config, getPageState) {
+    var _a, _b;
+    const g = getGlobal();
+    let columnDefs = [];
+    if (config.columnsVar) {
+      const parts = config.columnsVar.split(".");
+      let obj = g;
+      for (const part of parts) {
+        obj = obj == null ? void 0 : obj[part];
+      }
+      if (Array.isArray(obj)) columnDefs = obj;
+    }
+    if (!columnDefs.length && ((_a = config.columns) == null ? void 0 : _a.length)) {
+      columnDefs = buildColumnDefsFromSpec(config.columns);
+    }
+    const pageState = getPageState();
+    const anchor = ((_b = config.columnSource) == null ? void 0 : _b.anchor) || "";
+    if (config.columnSource) {
+      const dynamicCols = await fetchColumnSourceColumns(config.columnSource, pageState);
+      columnDefs = mergeColumnDefsAtAnchor(
+        columnDefs,
+        buildColumnDefsFromSpec(dynamicCols),
+        anchor,
+        config.columnSource.merge || "append"
+      );
+    } else {
+      columnDefs = mergeSpecOnlyColumns(columnDefs, config.columns, anchor);
+    }
+    return columnDefs;
+  }
+  function bootFromSpecConfig(config) {
+    var _a;
+    const gv2 = getGlobal().GridView;
+    if (!gv2 || !config.gridId) return;
+    const gridId = config.gridId;
+    const containerId = config.containerId || `cm-ag-grid-container-${gridId}`;
+    const groupsOrder = config.groupsOrder || [];
+    const presets = resolvePresets(gridId, void 0);
+    const searches = resolveSearches(gridId, void 0);
+    const startUp = async () => {
+      var _a2, _b, _c, _d, _e;
+      await ensureAgGridAssetsLoaded();
+      const g = getGlobal();
+      const agModule = gv2.AgGrid;
+      const HostCtor = agModule == null ? void 0 : agModule.Host;
+      if (!HostCtor) {
+        console.error("[GridView.AgGrid] Host plugin unavailable after asset load");
+        return;
+      }
+      const registry = gv2.byId;
+      if (!registry) return;
+      function getPageState() {
+        if (config.filtersSelector) {
+          const root = document.querySelector(config.filtersSelector);
+          const bar = (root == null ? void 0 : root.querySelector("[data-cm-filter-bar]")) || root;
+          if (bar && gv2.FilterBar) {
+            return gv2.FilterBar.selectedFilterValues(bar);
+          }
+        }
+        const url = new URL(window.location.href);
+        const state = {};
+        (config.urlPageStateKeys || []).forEach((key) => {
+          const val = url.searchParams.get(key);
+          if (val) state[key] = val;
+        });
+        return state;
+      }
+      const columnDefs = await resolveColumnDefs(config, getPageState);
+      const optionsObj = {
+        columnDefs,
+        rowModelType: config.datasourceUrl ? "infinite" : "clientSide",
+        ...config.rowSelection ? { rowSelection: config.rowSelection } : {},
+        cacheBlockSize: (_a2 = config.cacheBlockSize) != null ? _a2 : 100,
+        maxBlocksInCache: 10,
+        rowBuffer: 20,
+        suppressPropertyNamesCheck: true,
+        enableCellTextSelection: true,
+        tooltipShowDelay: 500,
+        tooltipInteraction: true,
+        animateRows: false,
+        pagination: false,
+        // Keep the column-menu (filter) button always visible, matching the
+        // SimpleTable default where the filter control is not hover-only.
+        suppressMenuHide: true,
+        defaultColDef: {
+          sortable: true,
+          filter: true,
+          resizable: true,
+          floatingFilter: false,
+          // Always render the unsorted (⇅) indicator, matching SimpleTable's
+          // always-visible sort glyph next to the filter control.
+          unSortIcon: true,
+          tooltipValueGetter: (p) => p.value
+        },
+        localeText: g.AG_GRID_LOCALE_UK || {},
+        getRowId: (params) => {
+          var _a3;
+          const data = (_a3 = params.data) != null ? _a3 : {};
+          const id = data.id;
+          if (id != null && id !== "") return String(id);
+          return `cm-row-${Object.values(data).map(String).join("|")}`;
+        },
+        components: {
+          customTooltip: agModule == null ? void 0 : agModule.Tooltip,
+          customSetFilter: agModule == null ? void 0 : agModule.SmartFilter,
+          customExprFilter: agModule == null ? void 0 : agModule.ExprFilter
+        },
+        context: {
+          gridId,
+          storageScope: config.storageScope || gridId,
+          syncUrlState: (_b = config.syncUrlState) != null ? _b : true,
+          urlPageStateKeys: config.urlPageStateKeys || [],
+          getPageState,
+          dictionaryUrl: config.dictionaryUrl || ""
+        }
+      };
+      if (config.datasourceUrl && typeof (agModule == null ? void 0 : agModule.createInfiniteDatasource) === "function") {
+        const createDs = agModule.createInfiniteDatasource;
+        optionsObj.datasource = createDs({
+          url: config.datasourceUrl,
+          gridId,
+          getExtraParams: getPageState,
+          onLastRow: (count) => {
+            if (config.rowCountSelector) {
+              const el = document.querySelector(config.rowCountSelector);
+              if (el) el.textContent = String(count >= 0 ? count : 0);
+            }
+            if (config.xlsxExportSelector && typeof (agModule == null ? void 0 : agModule.syncExportHref) === "function") {
+              const exportEl = document.querySelector(config.xlsxExportSelector);
+              if (exportEl) {
+                agModule.syncExportHref(exportEl, gridId, { getExtraParams: getPageState, exportColumns: true });
+              }
+            }
+          }
+        });
+      }
+      let host = registry.get(gridId);
+      if (!host) {
+        host = new HostCtor(gridId, containerId, optionsObj, presets, searches, groupsOrder);
+      } else {
+        host.gridOptions = optionsObj;
+        host.savedColPresets = presets || {};
+        host.savedQuickSearches = searches || [];
+        if (host.gridApi) {
+          try {
+            (_d = (_c = host.gridApi).destroy) == null ? void 0 : _d.call(_c);
+          } catch (error) {
+            console.warn(
+              "[GridView.AgGrid] Clean destruction of old grid failed. Proceeding with DOM swap. Error:",
+              error
+            );
+          }
+          host.gridApi = null;
+        }
+      }
+      if (!host.gridApi) {
+        if (typeof getGlobal().agGrid !== "undefined") {
+          (_e = host.initGrid) == null ? void 0 : _e.call(host);
+        } else {
+          const poll = window.setInterval(() => {
+            var _a3;
+            if (typeof getGlobal().agGrid !== "undefined") {
+              window.clearInterval(poll);
+              (_a3 = host == null ? void 0 : host.initGrid) == null ? void 0 : _a3.call(host);
+            }
+          }, 50);
+          window.setTimeout(() => window.clearInterval(poll), 15e3);
+        }
+      }
+      if (!specFilterListeners.has(gridId)) {
+        specFilterListeners.add(gridId);
+        document.addEventListener("cm-filter-change", (e) => {
+          void (async () => {
+            var _a3, _b2, _c2, _d2, _e2;
+            const detail = e.detail;
+            const bar = detail == null ? void 0 : detail.bar;
+            if (!bar) return;
+            if (config.filtersSelector && !bar.closest(config.filtersSelector)) return;
+            const filterBar = bar.closest("[data-cm-filter-bar]");
+            const navigates = ((_a3 = filterBar == null ? void 0 : filterBar.dataset) == null ? void 0 : _a3.navigateOnChange) !== "0";
+            if (((_b2 = filterBar == null ? void 0 : filterBar.dataset) == null ? void 0 : _b2.autoApply) === "1" && navigates) return;
+            const current = registry.get(gridId);
+            if (!current) return;
+            if (config.columnSource && current.gridApi) {
+              try {
+                const nextDefs = await resolveColumnDefs(config, getPageState);
+                (_d2 = (_c2 = current.gridApi).setGridOption) == null ? void 0 : _d2.call(_c2, "columnDefs", nextDefs);
+              } catch (error) {
+                console.error("[GridView.AgGrid] column_source refresh failed:", error);
+              }
+            }
+            (_e2 = current.reloadData) == null ? void 0 : _e2.call(current);
+          })();
+        });
+      }
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", startUp);
+    } else {
+      startUp();
+    }
+    (_a = gv2.byId) == null ? void 0 : _a.registerBoot(gridId, startUp);
+  }
+  function queryRoot(root) {
+    if (root && typeof root === "object" && "querySelectorAll" in root) {
+      return root;
+    }
+    return document;
+  }
+  function bootAgGridSpecFromDocument(root = document) {
+    const scope = queryRoot(root);
+    scope.querySelectorAll("script.cm-ag-grid-spec-config").forEach((node) => {
+      const el = node;
+      if (el.dataset.cmAgBooted) return;
+      el.dataset.cmAgBooted = "1";
+      try {
+        const config = JSON.parse(node.textContent || "{}");
+        if (config.gridId) bootFromSpecConfig(config);
+      } catch (error) {
+        console.error("[GridView.AgGrid] Invalid spec config JSON:", error);
+      }
+    });
+  }
+
+  // src/runtime/boot.ts
+  var LAZY_SEL = ".cm-lazy-placeholder[data-endpoint]";
+  async function fetchAndReplace(placeholder, gv2) {
+    var _a;
+    if (placeholder.dataset.cmLazyLoading) return;
+    placeholder.dataset.cmLazyLoading = "1";
+    const endpoint = placeholder.dataset.endpoint;
+    const method = ((_a = placeholder.dataset.method) != null ? _a : "get").toLowerCase();
+    const timeoutMs = placeholder.dataset.timeout ? parseInt(placeholder.dataset.timeout, 10) : 3e4;
+    try {
+      const ctrl = new AbortController();
+      const timer = window.setTimeout(() => ctrl.abort(), timeoutMs);
+      const url = new URL(endpoint, window.location.href);
+      const pageParams = new URLSearchParams(window.location.search);
+      pageParams.forEach((value, key) => {
+        if (!url.searchParams.has(key)) {
+          url.searchParams.set(key, value);
+        }
+      });
+      const resp = await fetch(url.toString(), {
+        method,
+        signal: ctrl.signal,
+        credentials: "same-origin"
+      });
+      window.clearTimeout(timer);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const html = await resp.text();
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = html;
+      placeholder.replaceWith(wrapper);
+      bootScope(wrapper, gv2);
+      wrapper.replaceWith(...Array.from(wrapper.childNodes));
+    } catch (e) {
+      placeholder.classList.add("cm-lazy-error");
+      delete placeholder.dataset.cmLazyLoading;
+      delete placeholder.dataset.cmLazyInit;
+    }
+  }
+  function initLazyBlocks(scope, gv2) {
+    scope.querySelectorAll(LAZY_SEL).forEach((el) => {
+      var _a;
+      if (el.dataset.cmLazyInit) return;
+      el.dataset.cmLazyInit = "1";
+      const trigger = (_a = el.dataset.trigger) != null ? _a : "visible";
+      if (trigger === "load") {
+        void fetchAndReplace(el, gv2);
+      } else if (trigger === "visible") {
+        const obs = new IntersectionObserver((entries, o) => {
+          var _a2;
+          if ((_a2 = entries[0]) == null ? void 0 : _a2.isIntersecting) {
+            o.disconnect();
+            void fetchAndReplace(el, gv2);
+          }
+        });
+        obs.observe(el);
+      }
+    });
+  }
+  var CHART_BOOT_INTERVAL_MS = 50;
+  var MAX_CHART_BOOT_ATTEMPTS = 200;
+  function scopeElement(scope) {
+    if (scope && "querySelectorAll" in scope) return scope;
+    return document;
+  }
+  function hasWidgetMarkers(root) {
+    return !!(root.querySelector("[data-cm-table]") || root.querySelector("[data-cm-filter-bar]") || root.querySelector("[data-cm-chart-config]") || root.querySelector("[data-cm-kpi-root]") || root.querySelector("[data-cm-tab-group]") || root.querySelector('[data-cm-action="show_content"]') || root.querySelector("[data-cm-content-dismissible]") || root.querySelector("[data-cm-grid-view-spec]") || root.querySelector("[data-cm-grid-artifact-boot]") || root.querySelector("script.cm-ag-grid-spec-config") || root.querySelector(LAZY_SEL));
+  }
+  function bootAgGridInScope(root, gridView2) {
+    var _a;
+    if (!root.querySelector("script.cm-ag-grid-spec-config")) return;
+    const ensure = (_a = gridView2.assets) == null ? void 0 : _a.ensureAgGrid;
+    if (ensure) {
+      void ensure().then(() => bootAgGridSpecFromDocument(root));
+      return;
+    }
+    bootAgGridSpecFromDocument(root);
+  }
+  function bootChartsWhenReady(scope, gv2) {
+    if (!scope.querySelector("[data-cm-chart-config]")) return;
+    let attempts = 0;
+    const tryInit = () => {
+      var _a, _b;
+      const g = window;
+      const chartsReady = typeof g.echarts !== "undefined" && !!((_a = g.GridView) == null ? void 0 : _a._chartsApiReady) || !scope.querySelector("[data-cm-chart-config]");
+      if (gv2 && chartsReady) {
+        gv2.initAllCharts(scope);
+        return;
+      }
+      if (attempts === 0 && ((_b = gv2.assets) == null ? void 0 : _b.ensureCharts)) {
+        void gv2.assets.ensureCharts().then(() => {
+          attempts += 1;
+          tryInit();
+        });
+        return;
+      }
+      attempts += 1;
+      if (attempts >= MAX_CHART_BOOT_ATTEMPTS) return;
+      window.setTimeout(tryInit, CHART_BOOT_INTERVAL_MS);
+    };
+    tryInit();
+  }
+  function bootSingleArtifactRoot(root, gv2) {
+    if (root.dataset.cmGridViewSpecBooted) return;
+    root.dataset.cmGridViewSpecBooted = "1";
+    let attempts = 0;
+    const tryInit = () => {
+      const g = window;
+      if (gv2 && (typeof g.echarts !== "undefined" || !root.querySelector("[data-cm-chart-config]"))) {
+        gv2.init({ root });
+        return;
+      }
+      attempts += 1;
+      if (attempts >= MAX_CHART_BOOT_ATTEMPTS) return;
+      window.setTimeout(tryInit, CHART_BOOT_INTERVAL_MS);
+    };
+    tryInit();
+  }
+  function bootArtifactRoots(scope, gv2) {
+    scope.querySelectorAll("[data-cm-grid-artifact-boot]").forEach((root) => {
+      bootSingleArtifactRoot(root, gv2);
+    });
+  }
+  function bootSpecRoots(scope, gv2) {
+    scope.querySelectorAll("[data-cm-grid-view-spec]").forEach((specRoot) => {
+      const el = specRoot;
+      if (el.dataset.cmGridViewSpecBooted) return;
+      el.dataset.cmGridViewSpecBooted = "1";
+      bootScope(el, gv2);
+    });
+  }
+  function syncAgGridStyles() {
+    if (!document.querySelector("script.cm-ag-grid-spec-config")) {
+      unloadAgGridStyles();
+    }
+  }
+  function bootScope(scope, gv2) {
+    syncAgGridStyles();
+    const gridView2 = gv2 != null ? gv2 : window.GridView;
+    if (!gridView2) return;
+    const root = scopeElement(scope);
+    if (!("querySelector" in root)) return;
+    if (!hasWidgetMarkers(root)) return;
+    const safe = (name, fn) => {
+      try {
+        fn();
+      } catch (err) {
+        console.error("[GridView] boot step failed: " + name, err);
+      }
+    };
+    safe("initLazyBlocks", () => initLazyBlocks(root, gridView2));
+    safe("initAllSimpleTables", () => initAllSimpleTables(root));
+    safe("initTableEdit", () => initTableEdit(root));
+    safe("initFilterBars", () => initFilterBars(root));
+    safe("initButtonEllipsisTips", () => initButtonEllipsisTips(root));
+    safe("initTabGroups", () => initTabGroups(root));
+    safe("initContentActions", () => initContentActions(root));
+    safe("initGalleryBlocks", () => initGalleryBlocks(root));
+    safe("initImageRenderers", () => initImageRenderers(root));
+    safe("initAllKpi", () => gridView2.initAllKpi(root));
+    safe("bootChartsWhenReady", () => bootChartsWhenReady(root, gridView2));
+    safe("bootArtifactRoots", () => bootArtifactRoots(root, gridView2));
+    safe("bootSpecRoots", () => bootSpecRoots(root, gridView2));
+    safe("bootAgGridInScope", () => bootAgGridInScope(root, gridView2));
+  }
+  function boot(root, gv2) {
+    const gridView2 = gv2 != null ? gv2 : window.GridView;
+    if (!gridView2 || !root) {
+      bootScope(document, gv2);
+      return;
+    }
+    if (root === document || root instanceof Document) {
+      bootScope(root, gridView2);
+      return;
+    }
+    const el = root;
+    if (el.matches("[data-cm-grid-artifact-boot]")) {
+      const host = el;
+      delete host.dataset.cmGridViewSpecBooted;
+      bootSingleArtifactRoot(host, gridView2);
+      return;
+    }
+    if (el.matches("[data-cm-grid-view-spec]")) {
+      const host = el;
+      delete host.dataset.cmGridViewSpecBooted;
+      bootScope(host, gridView2);
+      return;
+    }
+    bootScope(el, gridView2);
+  }
+  var _htmxBound = false;
+  function installRuntimeBoot(gv2) {
+    initBuiltinRenderers();
+    if (_htmxBound || typeof document.body === "undefined") return;
+    _htmxBound = true;
+    document.body.addEventListener("htmx:afterSwap", (event) => {
+      var _a;
+      const detail = event.detail;
+      const target = detail == null ? void 0 : detail.target;
+      if (!target) return;
+      if ((_a = target.matches) == null ? void 0 : _a.call(target, "[data-cm-grid-artifact-boot]")) {
+        boot(target, gv2);
+        return;
+      }
+      bootScope(target, gv2);
+    });
+    document.body.addEventListener("htmx:oobAfterSwap", (event) => {
+      var _a, _b;
+      const oobTarget = (_a = event.target) != null ? _a : null;
+      const scope = (_b = oobTarget == null ? void 0 : oobTarget.parentElement) != null ? _b : oobTarget;
+      if (scope) bootScope(scope, gv2);
+    });
+  }
 
   // src/grid-view/create-grid-view.ts
   function mergePluginExports(base, prior) {
@@ -5576,6 +6046,10 @@
       if (fn != null && GridView[key] == null) {
         GridView[key] = fn;
       }
+    }
+    const priorInit = prior.initSimpleTableColumnSettings;
+    if (typeof priorInit === "function" && priorInit !== GridView.initSimpleTableColumnSettings) {
+      GridView.initSimpleTableColumnSettings = priorInit;
     }
     if (g.GridViewI18n) {
       i18n.initI18n(g.GridViewI18n);

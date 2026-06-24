@@ -5,7 +5,9 @@ export default tseslint.config(
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    ignores: ["node_modules/**"],
+    // Generated from the JSON schema — not hand-authored, so exempt from lint
+    // (still type-checked by tsc). Regenerate via `npm run gen:types`.
+    ignores: ["node_modules/**", "src/types/generated/**"],
   },
   {
     files: ["src/**/*.ts"],

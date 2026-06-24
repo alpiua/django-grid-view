@@ -1,12 +1,19 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "noImplicitAny": true
+    "noImplicitAny": true,
+    "noImplicitThis": true,
   },
   "include": [
     "src/globals.d.ts",
-    "src/grid-view/registry-api.ts",
-    "src/grid-view/table-edit.ts",
-    "src/runtime/table-edit.ts"
-  ]
+    "src/types/**/*.ts",
+    "src/grid-view/**/*.ts",
+    "src/runtime/**/*.ts",
+    "src/spec-boot.ts",
+    "src/column-settings.ts",
+    "src/column-settings/**/*.ts",
+    "src/ag-grid/**/*.ts",
+    "src/ag-grid*.ts",
+  ],
+  "exclude": ["node_modules"],
 }

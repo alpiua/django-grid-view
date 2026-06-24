@@ -25,6 +25,28 @@
     return gridApi.getGridOption("rowModelType") === "infinite";
   }
 
+  // src/grid-view/toolbar-search-input.ts
+  function cssEscapeId(id) {
+    return typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  }
+  function toolbarSearchScopeForTable(tableGridId) {
+    if (!tableGridId) return null;
+    const esc = cssEscapeId(tableGridId);
+    const boundRoot = document.querySelector(
+      '[data-cm-toolbar-search-root][data-cm-table-grid-id="' + esc + '"]'
+    );
+    if (boundRoot instanceof HTMLElement) {
+      return boundRoot.dataset.cmSearchScopeId || tableGridId;
+    }
+    const scopeRoot = document.querySelector(
+      '[data-cm-toolbar-search-root][data-cm-search-scope-id="' + esc + '"]'
+    );
+    if (scopeRoot instanceof HTMLElement) {
+      return scopeRoot.dataset.cmSearchScopeId || tableGridId;
+    }
+    return null;
+  }
+
   // src/ag-grid/host.ts
   function isColumnSettingsHandle(value) {
     if (!value || typeof value !== "object") return false;
@@ -254,7 +276,7 @@
       api.addEventListener("columnEverythingChanged", onColumnsChanged);
     }
     initGrid() {
-      var _a, _b;
+      var _a, _b, _c;
       const gridDiv = document.getElementById(this.containerId);
       if (!gridDiv) return;
       const applyTheme = () => {
@@ -299,6 +321,7 @@
       });
       this.gridApi.addEventListener("filterChanged", () => {
         this.saveGridState();
+        this.syncFilterChrome();
         const ctx = this._getContextHooks();
         if (typeof ctx.onFilterChanged === "function") {
           ctx.onFilterChanged(this);
@@ -310,13 +333,15 @@
           countEl.textContent = gridViewT("grid.records_label", "Records:") + " " + this.gridApi.getDisplayedRowCount();
         }
       });
-      (_b = (_a = window.GridView) == null ? void 0 : _a.ToolbarSearch) == null ? void 0 : _b.mount(this.gridId, this.savedQuickSearches);
+      const toolbarScopeId = (_a = toolbarSearchScopeForTable(this.gridId)) != null ? _a : this.gridId;
+      (_c = (_b = window.GridView) == null ? void 0 : _b.ToolbarSearch) == null ? void 0 : _c.mount(toolbarScopeId, this.savedQuickSearches);
       this._initColSettings();
       this.renderSavedPresets();
       this._bindStorageSync();
+      this.syncFilterChrome();
     }
     loadState(options = {}) {
-      var _a, _b, _c, _d;
+      var _a, _b, _c;
       const api = this.gridApi;
       if (!api) return;
       const stateStr = localStorage.getItem(this._storageKey());
@@ -334,22 +359,19 @@
       if (state.colState && hasColumns && !options.deferColumnState) {
         api.applyColumnState({ state: state.colState, applyOrder: true });
       }
-      const filterState = (_a = urlParams.filterState) != null ? _a : state.filterState;
+      const filterState = urlParams.filterState;
       if (filterState) {
         api.setFilterModel(filterState);
+      } else {
+        api.setFilterModel(null);
       }
-      const ctx = this._getContextHooks();
-      const restoreQuickFilter = ctx.restoreQuickFilter !== false;
-      const urlQ = (_b = urlParams.q) != null ? _b : new URLSearchParams(window.location.search).get("q");
+      const urlQ = (_a = urlParams.q) != null ? _a : new URLSearchParams(window.location.search).get("q");
       const qsInput = this._resolveSearchInput();
       if (urlQ) {
         writeSearchInputValue(qsInput, urlQ);
         this._searchText = urlQ;
-      } else if (restoreQuickFilter && state.quickFilter) {
-        writeSearchInputValue(qsInput, state.quickFilter);
-        this._searchText = state.quickFilter;
       }
-      const pageState = Object.keys(urlPageState).length ? { ...(_c = state.pageState) != null ? _c : {}, ...urlPageState } : (_d = state.pageState) != null ? _d : {};
+      const pageState = Object.keys(urlPageState).length ? { ...(_b = state.pageState) != null ? _b : {}, ...urlPageState } : (_c = state.pageState) != null ? _c : {};
       this._applyPageState(pageState, {
         fromUrl: Object.keys(urlPageState).length > 0,
         fromStorageEvent: !!options.fromStorageEvent
@@ -372,11 +394,11 @@
       const state = {
         colState: api.getColumnState(),
         filterState: api.getFilterModel(),
-        quickFilter: readSearchInputValue(qfEl),
         pageState: this._collectPageState()
       };
       localStorage.setItem(this._storageKey(), JSON.stringify(state));
       this.syncBrowserUrl();
+      document.dispatchEvent(new CustomEvent("cm-grid-state-change", { detail: { gridId: this.gridId } }));
     }
     _initColSettings() {
       var _a, _b;
@@ -460,7 +482,7 @@
       if (!api) return;
       const el = this._resolveSearchInput();
       this._searchText = readSearchInputTrimmed(el);
-      this.syncSearchToolbarUi();
+      this.syncFilterChrome();
       this.saveGridState();
       if (isInfiniteRowModel(api)) {
         api.purgeInfiniteCache();
@@ -525,14 +547,33 @@
       writeSearchInputValue(this._resolveSearchInput(), "");
       this._searchText = "";
       const url = new URL(window.location.href);
-      if (url.searchParams.has("q")) {
-        url.searchParams.delete("q");
-        window.history.replaceState({}, "", url);
-      }
-      this.saveGridState();
+      ["q", "filters", "col_q"].forEach((key) => url.searchParams.delete(key));
+      window.history.replaceState({}, "", url);
+      localStorage.removeItem(this._storageKey());
+      this.syncSearchToolbarUi();
+      document.dispatchEvent(new CustomEvent("cm-grid-state-change", { detail: { gridId: this.gridId } }));
       if (isInfiniteRowModel(api)) {
         api.purgeInfiniteCache();
       }
+    }
+    hasActiveFilters() {
+      var _a, _b;
+      const el = this._resolveSearchInput();
+      if (el && readSearchInputTrimmed(el)) return true;
+      if (this._searchText.trim()) return true;
+      const model = (_b = (_a = this.gridApi) == null ? void 0 : _a.getFilterModel()) != null ? _b : {};
+      if (Object.keys(model).length) return true;
+      const params = new URLSearchParams(window.location.search);
+      if (params.has("q") || params.has("filters")) return true;
+      return false;
+    }
+    syncFilterChrome() {
+      this.syncSearchToolbarUi();
+      const active = this.hasActiveFilters();
+      const esc = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(this.gridId) : this.gridId.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      document.querySelectorAll(
+        '[data-cm-grid-action="clearAllFilters"][data-cm-grid-id="' + esc + '"]'
+      ).forEach((btn) => btn.classList.toggle("is-hidden", !active));
     }
     applyUrlSearchFilter() {
       const queryQ = new URLSearchParams(window.location.search).get("q");
@@ -541,11 +582,11 @@
       }
     }
   };
-  function installAgGridHost(gv4) {
+  function installAgGridHost(gv5) {
     var _a;
-    gv4.AgGrid = (_a = gv4.AgGrid) != null ? _a : {};
-    if (typeof gv4.AgGrid.Host !== "undefined") return;
-    gv4.AgGrid.Host = AgGridHost;
+    gv5.AgGrid = (_a = gv5.AgGrid) != null ? _a : {};
+    if (typeof gv5.AgGrid.Host !== "undefined") return;
+    gv5.AgGrid.Host = AgGridHost;
   }
 
   // src/ag-grid-host.ts
@@ -564,10 +605,10 @@
       return this.eGui;
     }
   };
-  function installAgGridTooltip(gv4) {
+  function installAgGridTooltip(gv5) {
     var _a;
-    gv4.AgGrid = (_a = gv4.AgGrid) != null ? _a : {};
-    gv4.AgGrid.Tooltip = AgGridTooltip;
+    gv5.AgGrid = (_a = gv5.AgGrid) != null ? _a : {};
+    gv5.AgGrid.Tooltip = AgGridTooltip;
   }
 
   // src/ag-grid-tooltip.ts
@@ -751,6 +792,8 @@
     for (const op of NUMERIC_OPS) {
       if (t2.startsWith(op)) return t2.slice(op.length).trim().length > 0;
     }
+    if (t2.length > 1 && t2.charAt(0) === "^") return true;
+    if (t2.length > 1 && t2.charAt(t2.length - 1) === "$") return true;
     return t2.indexOf("%") >= 0;
   }
   function hasSmartSyntax(raw) {
@@ -775,6 +818,14 @@
     if (!q) return true;
     const hay = String(cellText != null ? cellText : "").trim();
     const hayFold = hay.toLowerCase();
+    if (q.length > 1 && q.charAt(0) === "^") {
+      const prefix = q.slice(1).trim().toLowerCase();
+      return !!prefix && hayFold.startsWith(prefix);
+    }
+    if (q.length > 1 && q.charAt(q.length - 1) === "$") {
+      const suffix = q.slice(0, -1).trim().toLowerCase();
+      return !!suffix && hayFold.endsWith(suffix);
+    }
     const bounds = parseRangeBounds(q);
     if (bounds !== null) {
       const numbers = extractNumericValues(hay);
@@ -819,6 +870,9 @@
     if (!t2) return true;
     const hay = String(haystack != null ? haystack : "");
     const quoted = (options == null ? void 0 : options.quoted) === true;
+    if (!quoted && t2.length > 1 && t2.charAt(0) === "!") {
+      return !matchQueryTerm(hay, t2.slice(1).trim(), options);
+    }
     if (termIsExpression(t2)) return matchColumnExpression(hay, t2);
     if (quoted || t2.indexOf(" ") >= 0) return literalContains(hay, t2);
     return spaceInsensitiveContains(hay, t2);
@@ -854,6 +908,19 @@
     "wildcard" /* Wildcard */
   ]);
   var TOOLBAR_TOKENS = /* @__PURE__ */ new Set([...ALL_EXPR, "column_scope" /* ColumnScope */]);
+  var COLUMN_FILTER_ALIASES = {
+    auto: "default",
+    standard: "default",
+    column_default: "default",
+    column_expr: "default",
+    column_text: "text",
+    column_numeric: "numeric",
+    column_nosearch: "nosearch",
+    set: "list",
+    expr: "default",
+    search: "default",
+    none: "nosearch"
+  };
   var PROFILE_ENABLED = {
     ["toolbar" /* Toolbar */]: TOOLBAR_TOKENS,
     ["default" /* Default */]: ALL_EXPR,
@@ -863,6 +930,25 @@
   };
   var EXPR_OPS = [">=", "<=", ">", "<", "="];
   function defaultSearchProfile() {
+    return "default" /* Default */;
+  }
+  function resolveColumnFilter(value) {
+    const text = String(value != null ? value : "").trim().toLowerCase();
+    if (!text) return "default";
+    const mapped = COLUMN_FILTER_ALIASES[text];
+    if (mapped) return mapped;
+    if (text === "default" || text === "text" || text === "numeric" || text === "nosearch" || text === "list") {
+      return text;
+    }
+    return "default";
+  }
+  function resolveSearchProfile(value) {
+    const cf = resolveColumnFilter(value);
+    if (cf === "list") return "default" /* Default */;
+    if (cf === "nosearch") return "nosearch" /* Nosearch */;
+    if (cf === "text") return "text" /* Text */;
+    if (cf === "numeric") return "numeric" /* Numeric */;
+    if (String(value != null ? value : "").trim().toLowerCase() === "toolbar") return "toolbar" /* Toolbar */;
     return "default" /* Default */;
   }
   function bindSearchProfileForToolbar() {
@@ -885,6 +971,9 @@
       }
     }
     if (t2.indexOf("%") >= 0) tokens.add("wildcard" /* Wildcard */);
+    if (t2.length > 1 && t2.charAt(0) === "^" || t2.length > 1 && t2.charAt(t2.length - 1) === "$" || t2.length > 1 && t2.charAt(0) === "!") {
+      tokens.add("wildcard" /* Wildcard */);
+    }
     if (!tokens.size) tokens.add("plain_text" /* PlainText */);
     return tokens;
   }
@@ -925,6 +1014,11 @@
       if (!allowed.has(token)) return false;
     }
     return true;
+  }
+  function columnFilterPlaceholderKey(profile) {
+    if (profile === "numeric" /* Numeric */) return "column_filter.placeholder_numeric";
+    if (profile === "text" /* Text */) return "column_filter.placeholder_text";
+    return "column_filter.placeholder";
   }
 
   // src/grid-view/search/match.ts
@@ -1072,6 +1166,9 @@
     const tv = String(val === null || val === void 0 ? "" : val).trim();
     return tv === "" || tv === "-" || tv === "\u2014" || tv === "\u2013" || tv === "[]";
   }
+  function isNumericZeroCell(val) {
+    return parseNumberForColumnFilter(val) === 0;
+  }
   function normalizeFilterMatch(match) {
     return match === "any_token" ? "any_token" : "exact";
   }
@@ -1095,8 +1192,9 @@
     const match = normalizeFilterMatch((_a = options == null ? void 0 : options.match) != null ? _a : "match" in model ? model.match : void 0);
     const tokens = resolveSetFilterTokens(cellText, match, options);
     if ("mode" in model) {
-      if (model.mode === "empty") return tokens.length === 0;
-      if (model.mode === "non_empty") return tokens.length > 0;
+      const isEmpty = tokens.length === 0 || (options == null ? void 0 : options.numeric) === true && isNumericZeroCell(cellText);
+      if (model.mode === "empty") return isEmpty;
+      if (model.mode === "non_empty") return !isEmpty;
     }
     const values = "values" in model ? model.values : void 0;
     if (Array.isArray(values)) {
@@ -1109,6 +1207,16 @@
       return tokens.length === 1 && selected.includes(tokens[0]);
     }
     return true;
+  }
+  function matchColumnFilterEntry(cellText, entry, options) {
+    if (typeof entry === "string") {
+      return matchColumnFilter(cellText, entry, { profile: options == null ? void 0 : options.profile });
+    }
+    return matchSetFilter(cellText, entry, {
+      tokens: options == null ? void 0 : options.tokens,
+      match: options == null ? void 0 : options.match,
+      numeric: (options == null ? void 0 : options.profile) === "numeric" /* Numeric */
+    });
   }
   function matchToolbarQuery(haystack, query, options) {
     return matchColumnFilter(haystack, query, {
@@ -1152,6 +1260,7 @@
     constructor(options) {
       this.selectedValues = /* @__PURE__ */ new Set();
       this.allValues = [];
+      this.valueCounts = /* @__PURE__ */ new Map();
       this.hasEmptyCells = false;
       this.emptyCount = 0;
       this.filterMode = "all";
@@ -1272,9 +1381,13 @@
         this.ingestRawValues(raw, emptyInValues > 0, emptyInValues);
         return;
       }
-      this.ingestRawValues(raw.values, raw.hasEmpty, raw.emptyCount);
+      this.ingestRawValues(raw.values, raw.hasEmpty, raw.emptyCount, raw.counts);
     }
-    ingestRawValues(rawValues, hasEmpty, emptyCount = 0) {
+    ingestRawValues(rawValues, hasEmpty, emptyCount = 0, counts) {
+      this.valueCounts.clear();
+      if (counts) {
+        for (const key in counts) this.valueCounts.set(String(key).trim(), counts[key]);
+      }
       this.hasEmptyCells = hasEmpty || rawValues.some(isEmptyCellValue);
       this.emptyCount = emptyCount || (this.hasEmptyCells ? 1 : 0);
       this.allValues = Array.from(
@@ -1375,7 +1488,9 @@
         const item = document.createElement("label");
         item.className = "cm-set-filter-item";
         item.htmlFor = id;
-        item.innerHTML = '<input type="checkbox" id="' + id + '"' + (isChecked ? " checked" : "") + '><span class="cm-set-filter-item-label">' + val + "</span>";
+        const count = this.valueCounts.get(val);
+        const countHtml = count === void 0 ? "" : '<span class="cm-set-filter-item-count">' + String(count) + "</span>";
+        item.innerHTML = '<input type="checkbox" id="' + id + '"' + (isChecked ? " checked" : "") + '><span class="cm-set-filter-item-label">' + val + "</span>" + countHtml;
         const checkbox = requiredElement(item, "input", HTMLInputElement);
         checkbox.addEventListener("mousedown", (e) => e.stopPropagation());
         checkbox.addEventListener("click", (e) => e.stopPropagation());
@@ -1419,6 +1534,8 @@
       return { values: Array.from(this.selectedValues), match };
     }
     setModel(model) {
+      this.searchDrivenFilter = false;
+      this.listSearchInput.value = "";
       if (!model) {
         this.filterMode = "all";
         this.selectAllNonEmptyValues();
@@ -1468,6 +1585,7 @@
           const qs = window.location.search;
           const sep = dictUrl.includes("?") ? "&" : "?";
           let fetchUrl = dictUrl + sep + "field=" + encodeURIComponent(this.field);
+          if (gridId) fetchUrl += "&grid=" + encodeURIComponent(gridId);
           if (qs.length > 1) {
             const urlParams = new URLSearchParams(qs);
             urlParams.delete("q");
@@ -1479,10 +1597,23 @@
           if (response.ok) {
             const data = await response.json();
             if (isDictionaryResponse(data)) {
-              data.values.forEach((value) => {
-                valuesSet.add(value === null || value === void 0 ? "" : String(value).trim());
+              const values = [];
+              const counts = {};
+              let hasCounts = false;
+              data.values.forEach((entry) => {
+                const parsed = readDictionaryEntry(entry);
+                values.push(parsed.value);
+                if (parsed.count !== void 0) {
+                  counts[parsed.value] = parsed.count;
+                  hasCounts = true;
+                }
               });
-              return Array.from(valuesSet);
+              return {
+                values,
+                hasEmpty: false,
+                emptyCount: 0,
+                counts: hasCounts ? counts : void 0
+              };
             }
           }
         } catch (err) {
@@ -1559,22 +1690,269 @@
     const payload = value;
     return Array.isArray(payload.values) && payload.values.length > 0;
   }
-  function installAgGridSmartFilter(gv4) {
+  function readDictionaryEntry(entry) {
+    if (entry && typeof entry === "object") {
+      const obj = entry;
+      const value = obj.value === null || obj.value === void 0 ? "" : String(obj.value).trim();
+      const count = typeof obj.count === "number" ? obj.count : void 0;
+      return { value, count };
+    }
+    return { value: entry === null || entry === void 0 ? "" : String(entry).trim() };
+  }
+  function installAgGridSmartFilter(gv5) {
     var _a;
-    gv4.AgGrid = (_a = gv4.AgGrid) != null ? _a : {};
-    gv4.AgGrid.SmartFilter = AgGridSmartFilter;
+    gv5.AgGrid = (_a = gv5.AgGrid) != null ? _a : {};
+    gv5.AgGrid.SmartFilter = AgGridSmartFilter;
   }
 
   // src/ag-grid-smart-filter.ts
   var gv3 = window.GridView = window.GridView || {};
+  if (window.GridViewI18n) {
+    i18n.initI18n(window.GridViewI18n);
+  }
   installAgGridSmartFilter(gv3);
+
+  // src/grid-view/expr-filter-panel.ts
+  function requiredInput(root, selector) {
+    const el = root.querySelector(selector);
+    if (el instanceof HTMLInputElement) return el;
+    throw new Error("ExprFilterPanel: missing " + selector);
+  }
+  var ExprFilterPanel = class {
+    constructor(options) {
+      this.mode = "all";
+      this.query = "";
+      this.debounceTimer = null;
+      var _a, _b;
+      this.fieldId = options.fieldId;
+      this.profile = (_a = options.profile) != null ? _a : "default" /* Default */;
+      this.match = (_b = options.match) != null ? _b : "exact";
+      this.onChange = options.onChange || (() => {
+      });
+      this.gui = document.createElement("div");
+      this.gui.className = "cm-set-filter-panel cm-expr-filter-panel";
+      this.gui.innerHTML = '<div class="cm-set-filter-modes">' + this._modeCheckbox("all", i18n.t("filter.select_all", "All"), true) + this._modeCheckbox("empty", i18n.t("filter.only_empty", "Empty"), false) + this._modeCheckbox("non_empty", i18n.t("filter.non_empty", "Non-empty"), false) + '</div><div class="cm-set-filter-search-row"><input type="search" class="cm-col-filter-input cm-expr-filter-input" autocomplete="off"></div>';
+      this.exprInput = requiredInput(this.gui, ".cm-expr-filter-input");
+      this.exprInput.placeholder = i18n.t(
+        columnFilterPlaceholderKey(this.profile),
+        i18n.t("column_filter.placeholder", "Search: >10, %name%")
+      );
+      this.modeCheckboxes = Array.from(
+        this.gui.querySelectorAll('input[type="checkbox"][data-cm-filter-mode]')
+      );
+      this.gui.addEventListener("mousedown", (e) => e.stopPropagation());
+      this.gui.addEventListener("click", (e) => e.stopPropagation());
+      this.exprInput.addEventListener("input", () => {
+        this.query = this.exprInput.value;
+        if (this.query.trim()) {
+          this.mode = "expr";
+          this._clearModeCheckboxes();
+        } else {
+          this.mode = "all";
+          this._syncAllChecked();
+        }
+        this._scheduleApply();
+      });
+      this.exprInput.addEventListener("keydown", (e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") {
+          e.preventDefault();
+          this._cancelTimer();
+          this.query = this.exprInput.value;
+          if (this.query.trim()) {
+            this.mode = "expr";
+            this._clearModeCheckboxes();
+          }
+          this.onChange();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          this.exprInput.value = "";
+          this.query = "";
+          this.mode = "all";
+          this._cancelTimer();
+          this.onChange();
+        }
+      });
+      this.modeCheckboxes.forEach((checkbox) => {
+        checkbox.addEventListener("mousedown", (e) => e.stopPropagation());
+        checkbox.addEventListener("click", (e) => e.stopPropagation());
+        checkbox.addEventListener("change", (e) => {
+          e.stopPropagation();
+          const target = e.target;
+          if (!(target instanceof HTMLInputElement)) return;
+          this._cancelTimer();
+          this.query = "";
+          this.exprInput.value = "";
+          if (target.checked && (target.value === "empty" || target.value === "non_empty")) {
+            this.mode = target.value;
+            this.modeCheckboxes.forEach((cb) => {
+              cb.checked = cb === target;
+            });
+          } else {
+            this.mode = "all";
+            this._syncAllChecked();
+          }
+          this.onChange();
+        });
+      });
+    }
+    _modeCheckbox(value, label, checked) {
+      return '<label class="cm-set-filter-mode"><input type="checkbox" data-cm-filter-mode="1" value="' + value + '"' + (checked ? " checked" : "") + "><span>" + label + "</span></label>";
+    }
+    _clearModeCheckboxes() {
+      this.modeCheckboxes.forEach((cb) => {
+        cb.checked = false;
+      });
+    }
+    /** Reflect "no filter" state — only the «Усі» checkbox is ticked. */
+    _syncAllChecked() {
+      this.modeCheckboxes.forEach((cb) => {
+        cb.checked = cb.value === "all";
+      });
+    }
+    _cancelTimer() {
+      if (this.debounceTimer) {
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = null;
+      }
+    }
+    _scheduleApply() {
+      this._cancelTimer();
+      this.debounceTimer = setTimeout(() => {
+        this.debounceTimer = null;
+        this.onChange();
+      }, 200);
+    }
+    getGui() {
+      return this.gui;
+    }
+    getModel() {
+      if (this.mode === "empty") return { mode: "empty", match: this.match };
+      if (this.mode === "non_empty") return { mode: "non_empty", match: this.match };
+      const q = this.query.trim();
+      return q ? q : null;
+    }
+    setModel(entry) {
+      this._clearModeCheckboxes();
+      if (!entry) {
+        this.mode = "all";
+        this.query = "";
+        this.exprInput.value = "";
+        this._syncAllChecked();
+      } else if (typeof entry === "string") {
+        this.mode = "expr";
+        this.query = entry;
+        this.exprInput.value = entry;
+      } else if ("mode" in entry && (entry.mode === "empty" || entry.mode === "non_empty")) {
+        const modeValue = entry.mode;
+        this.mode = modeValue;
+        this.query = "";
+        this.exprInput.value = "";
+        const cb = this.modeCheckboxes.find((c) => c.value === modeValue);
+        if (cb) cb.checked = true;
+      }
+    }
+    isFilterActive() {
+      if (this.mode === "empty" || this.mode === "non_empty") return true;
+      return !!this.query.trim();
+    }
+    focus() {
+      window.setTimeout(() => {
+        this.exprInput.focus();
+        this.exprInput.select();
+      }, 0);
+    }
+  };
+
+  // src/ag-grid/expr-filter.ts
+  var EXPR_FILTER_TYPE = "cm-expr";
+  function profileForColDef(colDef) {
+    if (colDef.columnFilter) return resolveSearchProfile(colDef.columnFilter);
+    if (colDef.type === "numericColumn") return "numeric" /* Numeric */;
+    return "text" /* Text */;
+  }
+  var AgGridExprFilter = class {
+    constructor() {
+      this.numeric = false;
+    }
+    init(params) {
+      this.params = params;
+      this.field = params.colDef.field;
+      this.filterMatch = normalizeFilterMatch(params.colDef.filterMatch);
+      const profile = profileForColDef(params.colDef);
+      this.numeric = profile === "numeric" /* Numeric */;
+      this.panel = new ExprFilterPanel({
+        fieldId: this.field,
+        profile,
+        match: this.filterMatch,
+        onChange: () => this.params.filterChangedCallback()
+      });
+      this.gui = this.panel.getGui();
+    }
+    afterGuiAttached() {
+      this.panel.focus();
+    }
+    getGui() {
+      return this.gui;
+    }
+    _cellValue(params) {
+      let val;
+      if (this.params.valueGetter) val = this.params.valueGetter(params);
+      if (val === void 0 && params.data) val = params.data[this.field];
+      return String(val === null || val === void 0 ? "" : val).trim();
+    }
+    doesFilterPass(params) {
+      if (!params.data) return false;
+      const entry = this.panel.getModel();
+      if (!entry) return true;
+      return matchColumnFilterEntry(this._cellValue(params), entry, {
+        match: this.filterMatch,
+        profile: this.numeric ? "numeric" /* Numeric */ : "text" /* Text */
+      });
+    }
+    isFilterActive() {
+      return this.panel.isFilterActive();
+    }
+    getModel() {
+      const entry = this.panel.getModel();
+      if (!entry) return null;
+      if (typeof entry === "string") {
+        return { filterType: EXPR_FILTER_TYPE, expr: entry, numeric: this.numeric };
+      }
+      if ("mode" in entry && (entry.mode === "empty" || entry.mode === "non_empty")) {
+        return { filterType: EXPR_FILTER_TYPE, mode: entry.mode, numeric: this.numeric };
+      }
+      return null;
+    }
+    setModel(model) {
+      if (!model) {
+        this.panel.setModel(null);
+        return;
+      }
+      if (model.mode === "empty" || model.mode === "non_empty") {
+        this.panel.setModel({ mode: model.mode, match: this.filterMatch });
+        return;
+      }
+      const entry = typeof model.expr === "string" && model.expr.trim() ? model.expr : null;
+      this.panel.setModel(entry);
+    }
+  };
+  function installAgGridExprFilter(gv5) {
+    var _a;
+    gv5.AgGrid = (_a = gv5.AgGrid) != null ? _a : {};
+    gv5.AgGrid.ExprFilter = AgGridExprFilter;
+  }
+
+  // src/ag-grid-expr-filter.ts
+  var gv4 = window.GridView = window.GridView || {};
+  installAgGridExprFilter(gv4);
 
   // src/ag-grid-advanced-search.ts
   (function() {
-    var gv4 = window.GridView = window.GridView || {};
-    gv4.AgGrid = gv4.AgGrid || {};
-    gv4.AgGrid.matchQuickFilter = matchAgGridQuickFilter;
-    gv4.AgGrid.createAdvancedSearch = function(inputSelector) {
+    var gv5 = window.GridView = window.GridView || {};
+    gv5.AgGrid = gv5.AgGrid || {};
+    gv5.AgGrid.matchQuickFilter = matchAgGridQuickFilter;
+    gv5.AgGrid.createAdvancedSearch = function(inputSelector) {
       if (inputSelector === void 0) inputSelector = "#ag-quick-filter";
       return function(_quickFilterParts, rowQuickFilterAggregateText) {
         const inputElement = document.querySelector(inputSelector);

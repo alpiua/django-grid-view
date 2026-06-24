@@ -162,7 +162,7 @@
     return resolveSimpleValueChart(spec, rows);
   }
   function resolveChartDataFromRuntime(config, rows) {
-    var _a, _b, _c, _d, _e, _f;
+    var _a, _b, _c, _d, _e;
     const bind = (_a = config.bind) != null ? _a : {};
     const spec = {
       id: (_b = config.id) != null ? _b : "chart",
@@ -185,7 +185,7 @@
         };
       })
     };
-    const dataRows = (_f = bind.rows) != null ? _f : rows;
+    const dataRows = bind.rows && bind.rows.length ? bind.rows : rows;
     return resolveChartData(spec, dataRows);
   }
 
@@ -267,17 +267,13 @@
       return item;
     });
     const total = data.reduce((sum, item) => sum + (item.value || 0), 0);
+    const overlay = (_a = resolved.overlay) != null ? _a : config.overlay;
     if (bind.pieVariant === "center-total") {
+      const overlayColor = overlay ? overlay.tone === "purple" ? "#9333ea" : overlay.tone === "red" ? "#ef4444" : overlay.tone === "green" ? "#10b981" : "#94a3b8" : "#e2e8f0";
+      const centerValue = overlay ? overlay.value : String(total);
+      const centerLabel = overlay ? overlay.title : "";
       return {
         backgroundColor: "transparent",
-        title: {
-          text: String(total),
-          subtext: "Total",
-          left: "center",
-          top: "center",
-          textStyle: { color: "#e2e8f0", fontSize: 22, fontWeight: "bold" },
-          subtextStyle: { color: "#64748b", fontSize: 10, fontWeight: "bold" }
-        },
         tooltip: {
           trigger: "item",
           backgroundColor: "rgba(30,41,59,.95)",
@@ -286,20 +282,35 @@
           confine: true,
           formatter: (params) => `${params.name}: ${params.value} (${params.percent.toFixed(1)}%)`
         },
+        graphic: [
+          ...centerLabel ? [{
+            type: "text",
+            left: "center",
+            top: "42%",
+            style: { text: centerLabel, fill: "#94a3b8", fontSize: 10, textAlign: "center" }
+          }] : [],
+          {
+            type: "text",
+            left: "center",
+            top: centerLabel ? "50%" : "center",
+            style: { text: centerValue, fill: overlayColor, fontSize: 19, fontWeight: "bold", textAlign: "center" }
+          }
+        ],
         series: [
           {
             type: "pie",
-            radius: ["45%", "75%"],
+            radius: ["53%", "88%"],
             center: ["50%", "50%"],
             data,
             label: {
               show: true,
               position: "inner",
-              formatter: "{c}",
+              formatter: "{d}%",
               color: "#ffffff",
               fontSize: 11,
               fontWeight: "bold"
             },
+            labelLine: { show: false },
             emphasis: { itemStyle: { shadowBlur: 6, shadowColor: "rgba(0,0,0,0.3)" } },
             animationType: "scale",
             animationEasing: "elasticOut"
@@ -307,7 +318,6 @@
         ]
       };
     }
-    const overlay = (_a = resolved.overlay) != null ? _a : config.overlay;
     const pieSeries = {
       type: "pie",
       radius: chartType === "donut" ? ["55%", "80%"] : "70%",
@@ -451,12 +461,12 @@ ${overlay.value}`,
     };
   }
   function buildEchartsOption(config, rows) {
-    var _a, _b, _c;
+    var _a, _b;
     const bind = (_a = config.bind) != null ? _a : {};
     const chartType = config.chartType;
     const theme = (_b = config.echartsTheme) != null ? _b : "dark";
     const isDark = theme === "dark";
-    const dataRows = (_c = bind.rows) != null ? _c : rows;
+    const dataRows = bind.rows && bind.rows.length ? bind.rows : rows;
     const resolved = resolveChartDataFromRuntime(config, dataRows);
     if (chartType === "pie" || chartType === "donut") {
       return buildPieOption(config, resolved, bind, chartType);
@@ -491,6 +501,7 @@ ${overlay.value}`,
   function refreshChartWrap(wrap, config, rows) {
     var _a;
     if (!wrap) return null;
+    if (!(wrap instanceof HTMLElement)) return null;
     const chartRoot = (_a = wrap.querySelector("[data-cm-chart-root]")) != null ? _a : wrap;
     const rowList = Array.isArray(rows) ? rows : [];
     wrap.dataset.cmChartRows = JSON.stringify(rowList);
@@ -554,6 +565,7 @@ ${overlay.value}`,
     gv.refreshChartWrap = api.refreshChartWrap.bind(api);
     gv.initAllCharts = api.initAllCharts.bind(api);
     gv.buildEchartsOption = api.buildEchartsOption.bind(api);
+    gv._chartsApiReady = true;
   }
   function installChartsApi(api) {
     chartsApi = api;

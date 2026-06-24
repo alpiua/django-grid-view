@@ -25,6 +25,10 @@
     {
       "id": "gridviewspec",
       "source": "styles/grid-view.css"
+    },
+    {
+      "id": "gridviewspec-ag-grid-theme",
+      "source": "styles/ag-grid-theme.css"
     }
   ]
 }
