@@ -57,6 +57,20 @@ repos:
         pass_filenames: false
         always_run: true
 
+      - id: frontend-conformance
+        name: frontend JS conformance (filter + KPI)
+        entry: bash -c 'npm run test:conformance --prefix frontend'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: frontend-chart-conformance
+        name: frontend chart conformance
+        entry: bash -c 'npm run test:chart-conformance --prefix frontend'
+        language: system
+        pass_filenames: false
+        always_run: true
+
       - id: pytest
         name: pytest
         entry: uv run pytest -q
