@@ -5606,6 +5606,15 @@
         columnDefs,
         rowModelType: config.datasourceUrl ? "infinite" : "clientSide",
         ...config.rowSelection ? { rowSelection: config.rowSelection } : {},
+        // fitColumns: fill the grid width and shrink columns to fit (no horizontal
+        // scroll) as columns are added or the viewport resizes.
+        ...config.fitColumns ? {
+          autoSizeStrategy: { type: "fitGridWidth" },
+          onGridSizeChanged: (p) => {
+            var _a3, _b2;
+            return (_b2 = (_a3 = p.api) == null ? void 0 : _a3.sizeColumnsToFit) == null ? void 0 : _b2.call(_a3);
+          }
+        } : {},
         cacheBlockSize: (_a2 = config.cacheBlockSize) != null ? _a2 : 100,
         maxBlocksInCache: 10,
         rowBuffer: 20,

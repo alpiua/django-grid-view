@@ -75,6 +75,8 @@ def ag_grid_spec_config(
         }
     if extra.get("row_selection"):
         config["rowSelection"] = extra["row_selection"]
+    if extra.get("fit_columns"):
+        config["fitColumns"] = True
     if searches:
         config["searches"] = list(searches)
     return config

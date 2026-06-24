@@ -207,6 +207,7 @@ interface AgGridSpecConfig {
   xlsxExportSelector?: string;
   cacheBlockSize?: number;
   rowSelection?: string;
+  fitColumns?: boolean;
 }
 
 function resolveAgColumnFilter(col: AgGridSpecColumn): boolean | string {
@@ -432,6 +433,15 @@ function bootFromSpecConfig(config: AgGridSpecConfig): void {
       columnDefs,
       rowModelType: config.datasourceUrl ? "infinite" : "clientSide",
       ...(config.rowSelection ? { rowSelection: config.rowSelection } : {}),
+      // fitColumns: fill the grid width and shrink columns to fit (no horizontal
+      // scroll) as columns are added or the viewport resizes.
+      ...(config.fitColumns
+        ? {
+            autoSizeStrategy: { type: "fitGridWidth" },
+            onGridSizeChanged: (p: { api?: { sizeColumnsToFit?: () => void } }) =>
+              p.api?.sizeColumnsToFit?.(),
+          }
+        : {}),
       cacheBlockSize: config.cacheBlockSize ?? 100,
       maxBlocksInCache: 10,
       rowBuffer: 20,
