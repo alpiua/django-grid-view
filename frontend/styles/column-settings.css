@@ -25,14 +25,14 @@
     z-index: 1;
     display: flex;
     flex-direction: column;
-    width: min(1500px, 95vw);
+    width: var(--cm-table-settings-dialog-width);
     max-width: 95vw;
-    height: 95vh;
-    max-height: 95vh;
+    height: var(--cm-table-settings-dialog-height);
+    max-height: var(--cm-table-settings-dialog-height);
     padding: 24px;
-    background: var(--cm-surface);
-    border: 1px solid var(--cm-border);
-    border-radius: 12px;
+    background: var(--cm-table-surface-bg);
+    border: 1px solid var(--cm-table-border-color);
+    border-radius: var(--cm-table-surface-radius);
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
     box-sizing: border-box;
     overflow: hidden;
@@ -44,11 +44,11 @@
     gap: 24px;
     margin-bottom: 16px;
     padding-bottom: 12px;
-    border-bottom: 1px solid var(--cm-border);
+    border-bottom: 1px solid var(--cm-table-border-color);
     flex-shrink: 0;
 }
 .cm-col-selector-title {
-    font-size: 13px;
+    font-size: calc(var(--cm-table-font-size) + 2px);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -58,7 +58,7 @@
 .cm-col-selector-hint {
     flex: 1;
     text-align: center;
-    font-size: 11px;
+    font-size: var(--cm-table-font-size);
     font-weight: 500;
     color: var(--cm-muted);
 }
@@ -85,7 +85,7 @@
     border: none;
     background: transparent;
     color: var(--cm-muted);
-    font-size: 24px;
+    font-size: var(--cm-table-icon-size);
     font-weight: 700;
     line-height: 1;
     cursor: pointer;
@@ -97,7 +97,7 @@
 .cm-col-selector-order {
     margin-bottom: 16px;
     padding-bottom: 16px;
-    border-bottom: 1px solid var(--cm-border);
+    border-bottom: 1px solid var(--cm-table-border-color);
     flex-shrink: 0;
 }
 .cm-col-order-list {
@@ -107,7 +107,7 @@
     min-height: 32px;
     padding: 8px;
     background: color-mix(in srgb, var(--cm-bg) 30%, transparent);
-    border: 1px solid color-mix(in srgb, var(--cm-border) 50%, transparent);
+    border: 1px solid color-mix(in srgb, var(--cm-table-border-color) 50%, transparent);
     border-radius: 8px;
 }
 .cm-col-selector-body {

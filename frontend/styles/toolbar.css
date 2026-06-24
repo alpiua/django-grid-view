@@ -1,5 +1,9 @@
 /* Toolbar shell, search, and nav controls. */
 
+.cm-toolbar-clear-all.is-hidden {
+    display: none !important;
+}
+
 .cm-toolbar-outside {
     background: transparent;
     border: none;
@@ -347,4 +351,3 @@
         max-width: 100%;
     }
 }
-

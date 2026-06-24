@@ -28,6 +28,10 @@
     background: var(--cm-accent-amber-bg, rgba(245, 158, 11, 0.15));
     color: var(--cm-accent-amber-fg, #fbbf24);
 }
+.badge-blue {
+    background: var(--cm-accent-blue-bg, rgba(59, 130, 246, 0.15));
+    color: var(--cm-accent-blue-fg, #60a5fa);
+}
 .badge-slate {
     background: rgba(100, 116, 139, 0.15);
     color: #94a3b8;

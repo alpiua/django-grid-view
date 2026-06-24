@@ -114,22 +114,36 @@
     box-shadow: var(--cm-table-shell-shadow, none);
     overflow: visible;
 }
-.cm-area-table-card > .cm-toolbar-unified {
+.cm-area-table-card > .cm-block-toolbar > .cm-toolbar-unified {
     position: relative;
     z-index: 20;
     flex-shrink: 0;
-    padding: var(--cm-toolbar-padding-y) 14px 0;
+    padding: 10px 12px;
+    gap: 12px;
     overflow: visible;
     border-bottom: none;
 }
-.cm-area-table-card > .cm-toolbar-unified .cm-multiselect,
-.cm-area-table-card > .cm-toolbar-unified [data-cm-filter-bar] {
+/* Align the table's edge cells with the toolbar gutter inside the card. */
+.cm-area-table-card > .cm-block-table .cm-table th:first-child,
+.cm-area-table-card > .cm-block-table .cm-table td:first-child {
+    padding-left: 12px;
+}
+.cm-area-table-card > .cm-block-table .cm-table th:last-child,
+.cm-area-table-card > .cm-block-table .cm-table td:last-child {
+    padding-right: 12px;
+}
+.cm-area-table-card > .cm-block-toolbar > .cm-toolbar-unified .cm-multiselect,
+.cm-area-table-card > .cm-block-toolbar > .cm-toolbar-unified [data-cm-filter-bar] {
     overflow: visible;
 }
-.cm-area-table-card > .cm-toolbar-unified .cm-multiselect-panel {
+.cm-area-table-card > .cm-block-toolbar > .cm-toolbar-unified .cm-multiselect-panel {
     z-index: 220;
 }
-.cm-area-table-card > .cm-table-shell {
+/* Toolbar block is a flex item that must not collapse or stretch the table. */
+.cm-area-table-card > .cm-block-toolbar {
+    flex-shrink: 0;
+}
+.cm-area-table-card > .cm-block-table .cm-table-shell {
     position: relative;
     z-index: 1;
     border: none;

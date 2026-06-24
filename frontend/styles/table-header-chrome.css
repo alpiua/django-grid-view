@@ -1,0 +1,144 @@
+/*
+ * Shared table header chrome — owned by GridViewSpec.
+ *
+ * One source of truth for header label typography, sort icons, filter icons,
+ * and header hover / active / sorted states. Both backends consume the same
+ * classes and tokens:
+ *   - SimpleTable: native <table> + .cm-sort-arrow / .cm-col-filter-icon
+ *   - AG Grid:     .ag-header* / .ag-icon* adapters (see ag-grid-theme.css)
+ *
+ * This file is imported by grid-view.css (gridviewspec.css), which loads on
+ * every page including AG Grid pages, so the tokens/classes here are available
+ * to the AG adapter as well.
+ *
+ * Rules moved here from: table.css, filters.css, ag-grid-theme.css.
+ */
+
+/* ---- Header label typography (SimpleTable thead chrome) ---- */
+.cm-table thead th {
+    color: var(--cm-muted);
+    font-size: var(--cm-table-header-font-size);
+    font-weight: var(--cm-table-header-font-weight);
+    text-transform: var(--cm-table-header-text-transform);
+    letter-spacing: var(--cm-table-header-letter-spacing);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    vertical-align: middle;
+    transition: color 0.15s;
+}
+.cm-table thead th:hover {
+    color: var(--cm-text);
+}
+
+.cm-th-label {
+    order: 1;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: var(--cm-table-icon-size);
+    padding: 0;
+}
+.cm-table thead th[data-cm-align="left"] .cm-th-label,
+.cm-layout-text-left .cm-table thead th .cm-th-label {
+    text-align: left;
+}
+
+/* ---- Sort icon (shared) ---- */
+.cm-sort-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--cm-th-icon-size, 20px);
+    height: var(--cm-th-icon-size, 20px);
+    padding: 0;
+    border: none;
+    border-radius: var(--cm-table-icon-radius);
+    background: transparent;
+    color: var(--cm-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 0.15s, opacity 0.15s, background 0.15s;
+}
+.cm-sort-trigger:hover {
+    background: var(--cm-table-icon-hover-bg);
+}
+
+/* SimpleTable sort glyph is rendered purely from tokens via CSS mask.
+   JS only toggles state classes on the th (.cm-th-sort-asc / .cm-th-sort-desc /
+   .cm-th-sorted); any leftover textContent in the span is hidden by font-size:0. */
+.cm-sort-arrow {
+    display: inline-block;
+    width: var(--cm-table-icon-inner-size);
+    height: var(--cm-table-icon-inner-size);
+    color: currentColor;
+    background: currentColor;
+    font-size: 0;
+    line-height: 0;
+    opacity: var(--cm-table-icon-idle-opacity);
+    -webkit-mask: var(--cm-table-sort-none-icon) center / contain no-repeat;
+    mask: var(--cm-table-sort-none-icon) center / contain no-repeat;
+    transition: opacity 0.15s, color 0.15s;
+}
+.cm-th-sort-asc .cm-sort-arrow {
+    -webkit-mask-image: var(--cm-table-sort-asc-icon);
+    mask-image: var(--cm-table-sort-asc-icon);
+    color: var(--cm-table-sort-active-color);
+}
+.cm-th-sort-desc .cm-sort-arrow {
+    -webkit-mask-image: var(--cm-table-sort-desc-icon);
+    mask-image: var(--cm-table-sort-desc-icon);
+    color: var(--cm-table-sort-active-color);
+}
+.cm-th-filterable:hover .cm-sort-arrow,
+.cm-th-filterable:focus-within .cm-sort-arrow,
+.cm-th-filterable.cm-th-sorted .cm-sort-arrow,
+.cm-sort-trigger:hover .cm-sort-arrow {
+    opacity: var(--cm-table-icon-hover-opacity);
+}
+
+/* Per-column control lock hook. Hosts set --cm-th-controls-* on a th
+   (via the stable th[data-cm-col-key] attribute) so the value inherits to the
+   controls below — hiding/disabling that column's sort + filter controls without
+   reaching into control internals. Defaults are no-ops. */
+.cm-sort-trigger,
+.cm-col-filter-btn,
+.cm-col-filter-clear {
+    visibility: var(--cm-th-controls-visibility, visible);
+    pointer-events: var(--cm-th-controls-pointer-events, auto);
+}
+
+/* ---- Filter icon (shared, SimpleTable) ----
+   Mirrors .cm-sort-arrow: same inner size + idle/hover/active opacity, so the
+   sort and filter glyphs read at identical size/weight (and match the AG icons). */
+.cm-col-filter-icon {
+    display: inline-block;
+    width: var(--cm-table-icon-inner-size);
+    height: var(--cm-table-icon-inner-size);
+    color: currentColor;
+    background: currentColor;
+    opacity: var(--cm-table-icon-idle-opacity);
+    -webkit-mask: var(--cm-table-filter-icon) center / contain no-repeat;
+    mask: var(--cm-table-filter-icon) center / contain no-repeat;
+    transition: opacity 0.15s, color 0.15s;
+}
+/* Hide any inline child SVG fallback baked into the button markup. */
+.cm-col-filter-icon > * {
+    display: none;
+}
+.cm-th-filterable:hover .cm-col-filter-icon,
+.cm-th-filterable:focus-within .cm-col-filter-icon,
+.cm-col-filter-btn:hover .cm-col-filter-icon,
+.cm-col-filter-btn.is-open .cm-col-filter-icon {
+    opacity: var(--cm-table-icon-hover-opacity);
+}
+.cm-col-filter-btn.is-active .cm-col-filter-icon {
+    -webkit-mask: var(--cm-table-filter-active-icon) center / contain no-repeat;
+    mask: var(--cm-table-filter-active-icon) center / contain no-repeat;
+    color: var(--cm-table-icon-active-color);
+    opacity: var(--cm-table-icon-active-opacity);
+}

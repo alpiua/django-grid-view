@@ -1,7 +1,9 @@
 /** grid-view-spec styles — rebuild with `npm run build --prefix frontend`. */
 @import "./tokens.css";
 @import "./layout.css";
+@import "./table-surface.css";
 @import "./header.css";
+@import "./table-header-chrome.css";
 @import "./toolbar.css";
 @import "./actions.css";
 @import "./filters.css";
@@ -15,4 +17,3 @@
 @import "./column-settings.css";
 @import "./custom-block.css";
 @import "./lazy.css";
-/* ag-grid-smart-filter.css ships as a separate manifest bundle for AG-Grid pages only. */

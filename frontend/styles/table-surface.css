@@ -1,0 +1,26 @@
+/* Shared table surface for every GridViewTable backend. */
+
+.cm-table-surface {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    width: 100%;
+    background: var(--cm-table-surface-bg);
+    border: 1px solid var(--cm-table-surface-border);
+    border-radius: var(--cm-table-surface-radius);
+    box-shadow: var(--cm-table-surface-shadow);
+    overflow: hidden;
+    font-family: var(--cm-table-font-family);
+    font-size: var(--cm-table-font-size);
+    line-height: var(--cm-table-line-height);
+}
+
+.cm-area-table-card > .cm-table-surface {
+    position: relative;
+    z-index: 1;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    border-top: 1px solid var(--cm-table-border-color);
+    overflow: hidden;
+}

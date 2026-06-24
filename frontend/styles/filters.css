@@ -87,6 +87,26 @@
 .cm-multiselect-option input {
     accent-color: var(--cm-primary);
 }
+/* Facet count chip + zero-count (disabled) option */
+.cm-multiselect-option__label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cm-multiselect-option__count {
+    flex: 0 0 auto;
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--cm-muted, var(--cm-text));
+    opacity: 0.7;
+}
+.cm-multiselect-option--disabled {
+    opacity: var(--cm-facet-disabled-opacity, 0.4);
+    cursor: not-allowed;
+    pointer-events: none;
+}
 
 /* Filter bar (package partial) */
 .cm-filter-bar {
@@ -216,25 +236,10 @@
     gap: 0;
     width: 100%;
     max-width: 100%;
-    min-height: var(--cm-th-icon-size);
+    min-height: var(--cm-table-icon-size);
     vertical-align: middle;
 }
-.cm-th-label {
-    order: 2;
-    flex: 1 1 auto;
-    min-width: 0;
-    max-width: 100%;
-    text-align: center;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    line-height: var(--cm-th-icon-size);
-    padding: 0;
-}
-.cm-table thead th[data-cm-align="left"] .cm-th-label,
-.cm-layout-text-left .cm-table thead th .cm-th-label {
-    text-align: left;
-}
+/* .cm-th-label typography lives in table-header-chrome.css (shared). */
 .cm-table thead th.cm-th-filterable:has(.cm-th-label--truncated:hover) {
     overflow: visible;
     z-index: 30;
@@ -245,19 +250,23 @@
 .cm-th-rail {
     display: inline-flex;
     align-items: center;
-    gap: var(--cm-th-icon-gap);
+    gap: var(--cm-th-icon-gap, 0px);
     box-sizing: border-box;
     min-width: 0;
 }
+/* Sort sits AFTER the label (order 2), mirroring AG-Grid's header layout
+   (label → sort indicator → filter/menu). Right rail (filter) stays last.
+   Always visible by default (like the filter control), so the unsorted ⇅ glyph
+   shows next to the filter icon; the header-tools slot inside stays hover-gated. */
 .cm-th-rail--left {
-    order: 1;
-    flex: 0 0 0;
-    width: 0;
-    max-width: 0;
-    overflow: hidden;
-    opacity: 0;
-    pointer-events: none;
-    justify-content: flex-end;
+    order: 2;
+    flex: 0 0 auto;
+    width: auto;
+    max-width: none;
+    overflow: visible;
+    opacity: 1;
+    pointer-events: auto;
+    justify-content: flex-start;
 }
 .cm-th-rail--right {
     order: 3;
@@ -311,9 +320,9 @@
     overflow: visible;
 }
 .cm-th-icon-slot {
-    flex: 0 0 var(--cm-th-icon-size);
-    width: var(--cm-th-icon-size);
-    height: var(--cm-th-icon-size);
+    flex: 0 0 var(--cm-table-icon-size);
+    width: var(--cm-table-icon-size);
+    height: var(--cm-table-icon-size);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -321,6 +330,20 @@
 .cm-th-icon-slot--filter {
     gap: 2px;
     justify-content: center;
+}
+/* Filter + sort slots share the same visibility model. Defaults keep both
+   always visible (matching AG-Grid: suppressMenuHide + unSortIcon); override the
+   --cm-th-filter-slot-* / --cm-th-sort-slot-* tokens to collapse to hover-only.
+   The header-tools slot has no sort/filter content, so it stays hover-gated. */
+.cm-th-filterable .cm-th-icon-slot--filter {
+    flex: var(--cm-th-filter-slot-flex, 0 0 0);
+    width: var(--cm-th-filter-slot-width, 0px);
+    overflow: var(--cm-th-filter-slot-overflow, hidden);
+}
+.cm-th-filterable .cm-th-icon-slot:has(.cm-sort-trigger) {
+    flex: var(--cm-th-sort-slot-flex, 0 0 0);
+    width: var(--cm-th-sort-slot-width, 0px);
+    overflow: var(--cm-th-sort-slot-overflow, hidden);
 }
 .cm-th-header-tools:empty {
     display: none;
@@ -358,8 +381,8 @@
     gap: 0;
     padding: 2px 4px;
     border-radius: 6px;
-    border: 1px solid color-mix(in srgb, var(--cm-text) 18%, var(--cm-border));
-    background: var(--cm-surface, var(--cm-table-shell-bg, #1e293b));
+    border: 1px solid color-mix(in srgb, var(--cm-text) 18%, var(--cm-table-border-color));
+    background: var(--cm-table-surface-bg);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
     white-space: nowrap;
 }
@@ -377,21 +400,24 @@
     flex: 0 0 auto;
     justify-content: center;
 }
+/* Matches .cm-sort-trigger (table-header-chrome.css): same 20px box, radius and
+   hover background so both header action controls are identical in size + feel. */
 .cm-col-filter-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 16px;
-    height: 16px;
+    width: var(--cm-th-icon-size, 20px);
+    height: var(--cm-th-icon-size, 20px);
     padding: 0;
-    border: 1px solid transparent;
-    border-radius: 4px;
+    border: none;
+    border-radius: var(--cm-table-icon-radius);
     background: transparent;
     color: var(--cm-muted);
     cursor: pointer;
-    flex: 0 0 16px;
-    transition: color .15s, border-color .15s, background .15s, opacity .15s;
+    flex: 0 0 var(--cm-th-icon-size, 20px);
+    transition: color .15s, background .15s, opacity .15s;
 }
+/* .cm-col-filter-icon mask rendering lives in table-header-chrome.css (shared). */
 .cm-col-filter-clear {
     display: none;
     align-items: center;
@@ -413,9 +439,9 @@
 }
 .cm-col-filter-clear.is-visible {
     display: inline-flex;
-    width: 16px;
-    height: 16px;
-    flex: 0 0 16px;
+    width: var(--cm-table-icon-inner-size);
+    height: var(--cm-table-icon-inner-size);
+    flex: 0 0 var(--cm-table-icon-inner-size);
     opacity: 1;
     pointer-events: auto;
 }
@@ -426,12 +452,10 @@
 .cm-col-filter-btn:hover,
 .cm-col-filter-btn.is-open {
     color: var(--cm-text);
-    border-color: transparent;
-    background: transparent;
+    background: var(--cm-table-icon-hover-bg);
 }
 .cm-col-filter-btn.is-active {
-    color: var(--cm-accent-green-fg, #34d399);
-    border-color: transparent;
+    color: var(--cm-table-icon-active-color);
     background: transparent;
 }
 .cm-col-resize-handle {
@@ -496,16 +520,25 @@ body.cm-col-resize-active .cm-table thead th.cm-th-filterable {
 }
 /* Set filter panel — shared SimpleTable portal + AG-Grid SmartFilter */
 .cm-col-filter-portal.is-set {
-    width: 300px;
-    min-width: 300px;
-    max-width: min(300px, calc(100vw - 16px));
+    width: var(--cm-table-filter-panel-width);
+    min-width: var(--cm-table-filter-panel-width);
+    max-width: min(var(--cm-table-filter-panel-width), calc(100vw - 16px));
+    padding: 10px;
 }
 
 .cm-set-filter-panel {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    max-height: 380px;
+    max-height: var(--cm-table-filter-panel-max-height);
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    color: var(--cm-text);
 }
 
 .cm-set-filter-modes {
@@ -515,7 +548,7 @@ body.cm-col-resize-active .cm-table thead th.cm-th-filterable {
     justify-content: space-between;
     gap: 0.5rem;
     padding-bottom: 6px;
-    border-bottom: 1px solid var(--cm-border);
+    border-bottom: 1px solid var(--cm-table-border-color);
 }
 
 .cm-set-filter-mode {
@@ -525,7 +558,7 @@ body.cm-col-resize-active .cm-table thead th.cm-th-filterable {
     cursor: pointer;
     white-space: nowrap;
     user-select: none;
-    font-size: 0.72rem;
+    font-size: var(--cm-table-font-size);
     color: var(--cm-text);
 }
 
@@ -534,7 +567,7 @@ body.cm-col-resize-active .cm-table thead th.cm-th-filterable {
     margin: 0;
     width: 14px;
     height: 14px;
-    accent-color: var(--cm-accent-green-fg, #34d399);
+    accent-color: var(--cm-table-icon-active-color);
     cursor: pointer;
 }
 
@@ -555,7 +588,7 @@ body.cm-col-resize-active .cm-table thead th.cm-th-filterable {
 .cm-set-filter-value-count {
     flex: 0 0 4.5ch;
     margin-left: auto;
-    font-size: 0.68rem;
+    font-size: calc(var(--cm-table-font-size) - 1px);
     color: var(--cm-muted);
     text-align: right;
     font-variant-numeric: tabular-nums;
@@ -577,13 +610,13 @@ body.cm-col-resize-active .cm-table thead th.cm-th-filterable {
     padding: 4px 2px;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 0.72rem;
+    font-size: var(--cm-table-font-size);
     line-height: 1.35;
     color: var(--cm-text);
 }
 
 .cm-set-filter-item:hover {
-    background: var(--cm-hover);
+    background: var(--cm-table-row-hover-bg);
 }
 
 .cm-set-filter-item input[type="checkbox"] {
@@ -591,7 +624,7 @@ body.cm-col-resize-active .cm-table thead th.cm-th-filterable {
     margin: 2px 0 0;
     width: 14px;
     height: 14px;
-    accent-color: var(--cm-accent-green-fg, #34d399);
+    accent-color: var(--cm-table-icon-active-color);
     cursor: pointer;
 }
 
@@ -600,14 +633,23 @@ body.cm-col-resize-active .cm-table thead th.cm-th-filterable {
     word-break: break-word;
 }
 
+.cm-set-filter-item-count {
+    flex: 0 0 auto;
+    margin-left: 6px;
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--cm-muted, var(--cm-text));
+    opacity: 0.7;
+}
+
 .cm-set-filter-separator {
-    border-top: 1px solid color-mix(in srgb, var(--cm-border) 70%, transparent);
+    border-top: 1px solid color-mix(in srgb, var(--cm-table-border-color) 70%, transparent);
     margin: 4px 2px;
 }
 
 .cm-set-filter-message {
     padding: 8px 2px;
-    font-size: 0.68rem;
+    font-size: calc(var(--cm-table-font-size) - 1px);
     font-style: italic;
     text-align: center;
     color: var(--cm-muted);

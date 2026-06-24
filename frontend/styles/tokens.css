@@ -8,5 +8,68 @@
     --cm-block-gap: 8px;
     /* Content block width — scales with viewport (see media queries below) */
     --cm-page-layout-width: 920px;
-}
 
+    --cm-table-font-family: inherit;
+    --cm-table-font-size: 0.6875rem;
+    --cm-table-line-height: 1.35;
+    --cm-table-header-font-size: var(--cm-table-font-size);
+    --cm-table-header-font-weight: 600;
+    --cm-table-header-text-transform: uppercase;
+    --cm-table-header-letter-spacing: 0.05em;
+
+    --cm-table-row-height: 28px;
+    --cm-table-header-height: 32px;
+    --cm-table-cell-padding-x: 12px;
+    --cm-table-cell-padding-y: 8px;
+
+    --cm-table-surface-bg: var(--cm-table-shell-bg, var(--cm-surface));
+    --cm-table-surface-border: var(--cm-table-shell-border, var(--cm-border));
+    --cm-table-surface-radius: 12px;
+    --cm-table-surface-shadow: var(--cm-table-shell-shadow, none);
+    --cm-table-header-bg: var(--cm-table-head-bg, var(--cm-bg));
+    /* Color of the divider rendered under the header when the table has section
+       rows (tr.cm-row-section). Hosts override this token, not the selector. */
+    --cm-table-header-divider: var(--cm-table-border-color);
+    --cm-table-row-hover-bg: var(--cm-hover);
+    --cm-table-row-stripe-bg: var(--cm-stripe-bg, rgba(255, 255, 255, 0.03));
+    --cm-table-border-color: var(--cm-border);
+
+    --cm-table-icon-size: 20px;
+    --cm-table-icon-inner-size: 12px;
+    --cm-table-icon-radius: 4px;
+    --cm-table-icon-idle-opacity: 0.55;
+    --cm-table-icon-hover-opacity: 0.95;
+    --cm-table-icon-active-opacity: 1;
+    --cm-table-icon-hover-bg: var(--cm-hover);
+    --cm-table-icon-active-color: var(--cm-accent-green-fg, var(--cm-primary));
+    --cm-table-filter-icon: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M5 7h14'/%3E%3Cpath d='M8 12h8'/%3E%3Cpath d='M10.5 17h3'/%3E%3C/g%3E%3C/svg%3E");
+    --cm-table-filter-active-icon: var(--cm-table-filter-icon);
+    /* Sort icons — SVG-as-mask data URLs (color comes from currentColor). */
+    --cm-table-sort-none-icon: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 9l4-4 4 4'/%3E%3Cpath d='M8 15l4 4 4-4'/%3E%3C/g%3E%3C/svg%3E");
+    --cm-table-sort-asc-icon: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 6l6 9H6z' fill='black'/%3E%3C/svg%3E");
+    --cm-table-sort-desc-icon: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 18l-6-9h12z' fill='black'/%3E%3C/svg%3E");
+    --cm-table-sort-active-color: var(--cm-table-icon-active-color);
+
+    /* Header control affordance hooks (host-overridable).
+       Lock a column's interactive controls by setting --cm-th-controls-* on a th
+       (target the stable th[data-cm-col-key]); the value inherits to the controls.
+       Collapse the filter control to hover-only by overriding --cm-th-filter-slot-*
+       (flex: 0 0 0; width: 0px; overflow: hidden). Default keeps it always visible,
+       matching AG-Grid's always-shown header menu button (suppressMenuHide). */
+    --cm-th-controls-visibility: visible;
+    --cm-th-controls-pointer-events: auto;
+    --cm-th-filter-slot-flex: 0 0 auto;
+    --cm-th-filter-slot-width: auto;
+    --cm-th-filter-slot-overflow: visible;
+    --cm-th-sort-slot-flex: 0 0 auto;
+    --cm-th-sort-slot-width: auto;
+    --cm-th-sort-slot-overflow: visible;
+
+    --cm-table-filter-panel-width: 300px;
+    --cm-table-filter-panel-max-height: 380px;
+    --cm-table-filter-panel-radius: 6px;
+    --cm-table-filter-input-height: 28px;
+
+    --cm-table-settings-dialog-width: min(1500px, 95vw);
+    --cm-table-settings-dialog-height: 95vh;
+}
