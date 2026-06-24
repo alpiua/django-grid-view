@@ -30,3 +30,42 @@ def test_rich_spec_roundtrips_all_fields() -> None:
     """Rich fixture covering every block type survives round-trip unchanged."""
     spec = rich_spec()
     assert _roundtrip(spec) == spec
+
+
+def test_set_filter_model_match_contract_aligns_with_typescript() -> None:
+    """SetFilterModel.match must use the same values Python and TS share.
+
+    The TS mirror (``frontend/src/grid-view/search/filter-engine.ts``) declares
+    ``FilterMatch = "exact" | "any_token"``. Python ``types/filters_v2`` and
+    ``schema/grid-view-spec.v2.json`` must accept exactly the same set so a
+    set-filter model produced by the browser round-trips through the Python
+    wire decoder without being silently dropped to ``""``.
+    """
+    from typing import get_args
+
+    from grid_view_spec.types.filters_v2 import (
+        FILTER_MATCH_VALUES,
+        FilterMatch,
+        decode_filter_value,
+        is_set_filter_model,
+    )
+
+    # The shared cross-language contract.
+    assert FILTER_MATCH_VALUES == frozenset({"exact", "any_token"})
+    assert get_args(FilterMatch) == ("exact", "any_token")
+    assert is_set_filter_model({"mode": "empty", "match": "any_token"})
+    assert is_set_filter_model({"mode": "non_empty", "match": "exact"})
+    assert is_set_filter_model({"values": ["a", "b"], "match": "any_token"})
+
+    # Legacy values from the old Python-only FilterMatch are rejected so the
+    # wire contract cannot drift back to a Python-exclusive vocabulary.
+    assert not is_set_filter_model({"mode": "empty", "match": "contains"})
+    assert not is_set_filter_model({"values": ["a"], "match": "starts_with"})
+    assert not is_set_filter_model({"values": ["a"], "match": "ends_with"})
+
+    # decode_filter_value preserves a valid TS-shaped model unchanged.
+    model: dict[str, object] = {"mode": "empty", "match": "any_token"}
+    assert decode_filter_value(model) == model
+    # An invalid match value falls through to the scalar branch and never
+    # silently produces a half-decoded model.
+    assert decode_filter_value({"mode": "empty", "match": "contains"}) == ""

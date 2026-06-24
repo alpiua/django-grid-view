@@ -19,7 +19,7 @@ def test_ag_grid_spec_config_emits_column_source() -> None:
         datasource=GridViewDataSource(endpoint="/api/"),
         column_source=GridViewColumnSource(
             endpoint="/api/columns/",
-            depends_on=("dealer",),
+            depends_on=("region",),
             anchor="sku",
             merge="append",
         ),
@@ -47,7 +47,7 @@ def test_ag_grid_spec_config_emits_column_source() -> None:
     assert config["columnSource"] == {
         "endpoint": "/api/columns/",
         "method": "get",
-        "dependsOn": ["dealer"],
+        "dependsOn": ["region"],
         "params": {},
         "anchor": "sku",
         "merge": "append",

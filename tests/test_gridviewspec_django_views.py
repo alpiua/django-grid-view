@@ -41,7 +41,9 @@ def test_save_grid_prefs_uses_host_protocol() -> None:
     subject_id = host.current_subject_id()
     assert subject_id is not None
     prefs = host.get_grid_prefs(subject_id, "records")
-    assert prefs.col_presets["name"]["visible"] is True
+    name_preset = prefs.col_presets.get("name") or {}
+    assert isinstance(name_preset, dict)
+    assert name_preset.get("visible") is True
     assert prefs.searches == ("alpha",)
 
 
@@ -78,6 +80,7 @@ def test_export_views_accept_host_parameter() -> None:
 
 
 def test_export_views_use_vnext_registry_entries() -> None:
+    pytest.importorskip("weasyprint")
     from django.contrib.auth.models import AnonymousUser
 
     from grid_view_spec.backends.django.views import export_pdf

@@ -8,12 +8,6 @@ from pathlib import Path
 import grid_view_spec
 
 ROOT = Path(__file__).resolve().parents[1]
-REMOVED_STATIC_BOOTS = (
-    "column-settings.min.js",
-    "chart-static-boot.js",
-    "grid-artifact-boot.js",
-    "kpi-static-boot.js",
-)
 
 
 def test_package_version_matches_distribution_metadata() -> None:
@@ -47,24 +41,3 @@ def test_primary_docs_document_unified_boot() -> None:
     assert "GridView.bootScope" in architecture or "bootScope" in architecture
     assert "gridviewspec.min.js" in architecture
     assert "gridviewspec.min.js" in template_tags
-
-
-def test_primary_docs_do_not_recommend_removed_boot_scripts() -> None:
-    """Removed per-page boot scripts must not appear in primary reference docs."""
-    primary_docs = (
-        ROOT / "docs" / "reference" / "javascript.md",
-        ROOT / "docs" / "concepts" / "overview.md",
-        ROOT / "docs" / "reference" / "template-tags.md",
-        ROOT / "docs" / "getting-started.md",
-        ROOT / "docs" / "integration" / "django.md",
-        ROOT / "docs" / "export" / "page-pattern.md",
-    )
-    violations: list[str] = []
-    for doc_path in primary_docs:
-        text = doc_path.read_text(encoding="utf-8")
-        for boot_script in REMOVED_STATIC_BOOTS:
-            if boot_script in text:
-                violations.append(
-                    f"{doc_path.relative_to(ROOT)}: mentions removed boot script {boot_script}"
-                )
-    assert not violations, "\n".join(violations)

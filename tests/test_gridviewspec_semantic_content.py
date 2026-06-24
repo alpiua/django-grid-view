@@ -14,7 +14,7 @@ from grid_view_spec.types.table_v2 import GridViewTable
 from grid_view_spec.validate import validate_spec
 
 
-def test_normalize_semantic_tone_legacy_aliases() -> None:
+def test_normalize_semantic_tone_wire_aliases() -> None:
     assert normalize_semantic_tone("error") == "danger"
     assert normalize_semantic_tone("warn") == "warning"
     assert normalize_semantic_tone("info") == "info"

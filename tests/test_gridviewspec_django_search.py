@@ -50,7 +50,7 @@ def test_apply_queryset_search_forwards_term_q() -> None:
     assert "custom_field__icontains" in str(qs.filters[0])
 
 
-def test_apply_simple_queryset_search_keeps_legacy_and_terms() -> None:
+def test_apply_simple_queryset_search_and_terms() -> None:
     qs = _RecordingQuerySet()
     apply_simple_queryset_search(qs, "alpha beta", fields=("name", "code"))
     assert len(qs.filters) == 1

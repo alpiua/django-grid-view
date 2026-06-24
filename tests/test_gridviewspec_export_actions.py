@@ -31,10 +31,17 @@ def _actions_spec(*actions: GridViewExportAction | GridViewLinkAction) -> GridVi
     )
 
 
+def _first_export_action(spec: GridViewSpec) -> GridViewExportAction:
+    block = spec.blocks[0]
+    assert isinstance(block, GridViewActions)
+    action = block.items[0]
+    assert isinstance(action, GridViewExportAction)
+    return action
+
+
 def test_export_builder_key_prefers_params_then_spec_id() -> None:
     spec = _actions_spec(GridViewExportAction(id="x", label="X", format="xlsx", target="records"))
-    action = spec.blocks[0].items[0]
-    assert isinstance(action, GridViewExportAction)
+    action = _first_export_action(spec)
     assert export_builder_key(action, spec) == "page_export"
 
     with_builder = GridViewExportAction(
@@ -68,10 +75,11 @@ def test_export_action_href_uses_host_routes_and_filter_state() -> None:
         ),
     )
     host = InMemoryHost(filter_state={"q": "Alpha", "period": "2024-01"})
-    pdf = spec.blocks[0].items[0]
-    xlsx = spec.blocks[0].items[1]
-    assert isinstance(pdf, GridViewExportAction)
-    assert isinstance(xlsx, GridViewExportAction)
+    pdf = _first_export_action(spec)
+    block = spec.blocks[0]
+    assert isinstance(block, GridViewActions)
+    xlsx_action = block.items[1]
+    assert isinstance(xlsx_action, GridViewExportAction)
 
     pdf_href = export_action_href(
         pdf,
@@ -80,7 +88,7 @@ def test_export_action_href_uses_host_routes_and_filter_state() -> None:
         filter_state=host.filter_state_from_request(spec),
     )
     xlsx_href = export_action_href(
-        xlsx,
+        xlsx_action,
         host=host,
         spec=spec,
         filter_state=host.filter_state_from_request(spec),
@@ -107,8 +115,7 @@ def test_export_action_href_respects_endpoint_and_include_state() -> None:
         )
     )
     host = InMemoryHost(filter_state={"q": "hidden"})
-    action = spec.blocks[0].items[0]
-    assert isinstance(action, GridViewExportAction)
+    action = _first_export_action(spec)
     href = export_action_href(
         action,
         host=host,
@@ -130,8 +137,7 @@ def test_export_action_href_endpoint_includes_builder_from_params() -> None:
         )
     )
     host = InMemoryHost(filter_state={"q": "Alpha", "period": "2026-03"})
-    action = spec.blocks[0].items[0]
-    assert isinstance(action, GridViewExportAction)
+    action = _first_export_action(spec)
     href = export_action_href(
         action,
         host=host,
@@ -186,8 +192,7 @@ def test_django_host_export_action_resolves_default_urlconf() -> None:
     )
     request = RequestFactory().get("/page/?q=Alpha")
     host = DjangoGridViewHost(request)
-    action = spec.blocks[0].items[0]
-    assert isinstance(action, GridViewExportAction)
+    action = _first_export_action(spec)
     href = export_action_href(
         action,
         host=host,
@@ -204,8 +209,7 @@ def test_export_action_href_unknown_format_returns_empty() -> None:
         GridViewExportAction(id="csv", label="CSV", format="csv"),
     )
     host = InMemoryHost()
-    action = spec.blocks[0].items[0]
-    assert isinstance(action, GridViewExportAction)
+    action = _first_export_action(spec)
     href = export_action_href(
         action,
         host=host,

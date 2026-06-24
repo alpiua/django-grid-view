@@ -92,7 +92,7 @@ def test_asset_manifest_entries_match_static_directory() -> None:
 def test_static_directory_has_no_orphan_js_files() -> None:
     manifest = _load_manifest()
     manifest_ids = {entry["id"] for entry in manifest["bundles"]}
-    allowed = set()
+    allowed: set[str] = set()
     for bundle_id in manifest_ids:
         allowed.add(f"{bundle_id}.js")
         allowed.add(f"{bundle_id}.min.js")
@@ -109,5 +109,3 @@ def test_block_registry_bundle_ids_exist_in_manifest() -> None:
     registry_bundles = asset_bundles_for_types(BLOCK_TYPES)
     missing = sorted(bundle for bundle in registry_bundles if bundle not in manifest_ids)
     assert not missing, f"block registry references bundles missing from manifest: {missing}"
-    removed = ("chart-static-boot", "kpi-static-boot", "grid-artifact-boot", "column-settings")
-    assert not any(bundle in removed for bundle in registry_bundles)

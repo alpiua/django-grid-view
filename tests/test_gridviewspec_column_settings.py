@@ -34,7 +34,7 @@ def test_column_filter_wire_maps_vnext_set_to_list() -> None:
             settings=GridViewTableSettings(),
         )
     )
-    assert meta[0]["columnFilter"] == "list"
+    assert meta[0].get("columnFilter") == "list"
 
 
 def test_rendered_table_set_filter_wires_list_kind() -> None:
@@ -73,9 +73,9 @@ def test_table_column_settings_meta_flat_columns() -> None:
         settings=GridViewTableSettings(),
     )
     meta = table_column_settings_meta(table)
-    assert meta[0]["colId"] == "a"
-    assert meta[1]["hide"] is True
-    assert meta[1]["menuGroup"] == "Stats"
+    assert meta[0].get("colId") == "a"
+    assert meta[1].get("hide") is True
+    assert meta[1].get("menuGroup") == "Stats"
 
 
 def test_table_column_settings_meta_emits_group_units() -> None:
@@ -93,10 +93,10 @@ def test_table_column_settings_meta_emits_group_units() -> None:
         settings=GridViewTableSettings(),
     )
     meta = table_column_settings_meta(table)
-    assert meta[0]["colId"] == "name"
-    assert meta[1]["isGroup"] is True
-    assert meta[1]["colId"] == "group:grp"
-    assert meta[1]["columnKeys"] == ["x", "y"]
+    assert meta[0].get("colId") == "name"
+    assert meta[1].get("isGroup") is True
+    assert meta[1].get("colId") == "group:grp"
+    assert meta[1].get("columnKeys") == ["x", "y"]
 
 
 def test_rendered_ag_grid_table_wires_column_settings_panel() -> None:
@@ -106,16 +106,16 @@ def test_rendered_ag_grid_table_wires_column_settings_panel() -> None:
         id="ag_settings_page",
         blocks=(
             GridViewTable(
-                id="nszu",
+                id="records",
                 backend="ag_grid",
                 datasource=GridViewDataSource(endpoint="/api/rows"),
                 settings=GridViewTableSettings(),
             ),
         ),
-        layout=GridViewLayout(root=GridViewArea(id="root", blocks=("nszu",))),
+        layout=GridViewLayout(root=GridViewArea(id="root", blocks=("records",))),
     )
     html = render_grid_view_spec(spec, (), host=InMemoryHost(), backend="html")
-    assert 'id="col-selector-panel-nszu"' in html
+    assert 'id="col-selector-panel-records"' in html
     assert "cm-col-selector-panel" in html
 
 

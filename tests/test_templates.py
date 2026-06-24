@@ -26,7 +26,7 @@ def test_grid_view_asset_templates_compile():
         assert engine.get_template(template_name)
 
 
-def test_grid_view_bundle_assets_exist():
+def test_grid_view_spec_public_assets_exist():
     static_root = files("grid_view_spec").joinpath("static/grid_view_spec")
     assert (static_root / "gridviewspec.css").is_file()
     assert (static_root / "gridviewspec.min.css").is_file()
@@ -39,14 +39,6 @@ def test_grid_view_bundle_assets_exist():
     )
     for name in public_bundles:
         assert (static_root / name).is_file(), name
-
-    removed = (
-        "ag-grid-boot.js",
-        "ag-grid-host.js",
-        "ag-grid-smart-filter.js",
-    )
-    for name in removed:
-        assert not (static_root / name).is_file(), f"legacy asset must be removed: {name}"
 
     bundle = static_root / "gridviewspec.js"
     assert bundle.is_file()

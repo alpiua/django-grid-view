@@ -16,20 +16,11 @@ def anon_request() -> HttpRequest:
     return request
 
 
-def test_grid_view_styles_included_once(anon_request: HttpRequest) -> None:
+def test_grid_view_spec_assets_css_included_once(anon_request: HttpRequest) -> None:
     html = Template(
         "{% load grid_view_spec %}"
         "{% grid_view_spec_assets part='css' %}"
         "{% grid_view_spec_assets part='css' %}"
-    ).render(RequestContext(anon_request))
-
-    assert html.count("gridviewspec.min.css") == 1
-
-
-def test_grid_view_spec_assets_css_alias(anon_request: HttpRequest) -> None:
-    html = Template(
-        "{% load grid_view_spec %}"
-        "{% grid_view_spec_assets part='css' %}{% grid_view_spec_assets part='css' %}"
     ).render(RequestContext(anon_request))
 
     assert html.count("gridviewspec.min.css") == 1

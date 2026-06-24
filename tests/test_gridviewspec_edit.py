@@ -15,6 +15,7 @@ from __future__ import annotations
 from grid_view_spec.hosts.memory import InMemoryHost
 from grid_view_spec.render import render_grid_view_spec
 from grid_view_spec.render.table_edit import table_edit_config_json
+from grid_view_spec.types.json import JsonValue
 from grid_view_spec.types.layout import GridViewArea, GridViewLayout
 from grid_view_spec.types.spec import GridViewSpec
 from grid_view_spec.types.table_v2 import GridViewColumn, GridViewTable, GridViewTableEdit
@@ -30,7 +31,7 @@ def _spec(*blocks: GridViewTable) -> GridViewSpec:
     )
 
 
-def _editable_column(col_id: str = "department", **extra_kw) -> GridViewColumn:
+def _editable_column(col_id: str = "department", **extra_kw: JsonValue) -> GridViewColumn:
     return GridViewColumn(
         id=col_id,
         label="Відділення",

@@ -97,7 +97,55 @@ def test_minimal_spec_renders_html() -> None:
     assert isinstance(html, str)
     assert 'class="cm-grid-view-spec"' in html
     assert 'data-spec-id="page_records"' in html
+    assert "cm-table-surface" in html
+    assert 'data-cm-table-backend="simple"' in html
     assert "Records" in html
+
+
+def _toolbar_spec_with_table(toolbar: GridViewToolbar) -> GridViewSpec:
+    """Helper: spec with the given toolbar wired to a simple table."""
+    table = GridViewTable(id="tbl_target", columns=(GridViewColumn(id="c1", label="C", field="c"),))
+    return GridViewSpec(
+        id="page_toolbar_test",
+        blocks=(toolbar, table),
+        layout=GridViewLayout(root=GridViewArea(id="root", blocks=(toolbar.id, table.id))),
+    )
+
+
+def test_toolbar_clear_all_true_with_target_renders_button() -> None:
+    """clear_all=True (default) + target set → clear-all button present in HTML."""
+    toolbar = GridViewToolbar(id="tb1", clear_all=True, target="tbl_target")
+    html = render_grid_view_spec(
+        _toolbar_spec_with_table(toolbar), (), host=InMemoryHost(), backend="html"
+    )
+    assert 'data-cm-grid-action="clearAllFilters"' in html
+
+
+def test_toolbar_clear_all_false_suppresses_button() -> None:
+    """clear_all=False → clear-all button must NOT appear in HTML."""
+    toolbar = GridViewToolbar(id="tb1", clear_all=False, target="tbl_target")
+    html = render_grid_view_spec(
+        _toolbar_spec_with_table(toolbar), (), host=InMemoryHost(), backend="html"
+    )
+    assert 'data-cm-grid-action="clearAllFilters"' not in html
+
+
+def test_toolbar_clear_all_true_without_target_suppresses_button() -> None:
+    """clear_all=True but no target → template condition requires both, button absent."""
+    toolbar = GridViewToolbar(id="tb1", clear_all=True, target=None)
+    spec = GridViewSpec(
+        id="page_toolbar_notarget",
+        blocks=(toolbar,),
+        layout=GridViewLayout(root=GridViewArea(id="root", blocks=(toolbar.id,))),
+    )
+    html = render_grid_view_spec(spec, (), host=InMemoryHost(), backend="html")
+    assert 'data-cm-grid-action="clearAllFilters"' not in html
+
+
+def test_table_backend_attribute_present() -> None:
+    """Table blocks must carry data-cm-table-backend attribute (regression guard)."""
+    html = render_grid_view_spec(minimal_valid_spec(), (), host=InMemoryHost(), backend="html")
+    assert 'data-cm-table-backend="simple"' in html
 
 
 @pytest.mark.parametrize(

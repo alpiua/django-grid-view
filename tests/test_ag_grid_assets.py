@@ -71,6 +71,10 @@ def test_blocks_require_ag_grid_helper() -> None:
 
 def test_spec_html_does_not_emit_ag_grid_bundle_scripts() -> None:
     html = render_grid_view_spec_html(_ag_grid_spec())
+    assert "cm-table-surface" in html
+    assert "cm-ag-grid-shell" in html
+    assert "cm-ag-grid-root" in html
+    assert 'data-cm-table-backend="ag_grid"' in html
     assert "gridviewspec-ag-grid.min.js" not in html
     assert "gridviewspec-ag-grid-cdn.min.js" not in html
 
@@ -185,8 +189,12 @@ def test_grid_view_spec_assets_css_includes_ag_grid_when_flagged() -> None:
     ).render(Context({"request": request}))
     assert "ag-grid.css" in html
     assert "ag-theme-quartz.css" in html
+    assert "gridviewspec-ag-grid-theme.min.css" in html
     assert "data-cm-ag-grid-asset" in html
     assert "gridviewspec.min.css" in html
+    assert html.index("gridviewspec.min.css") < html.index("ag-grid.css")
+    assert html.index("ag-grid.css") < html.index("ag-theme-quartz.css")
+    assert html.index("ag-theme-quartz.css") < html.index("gridviewspec-ag-grid-theme.min.css")
 
 
 def test_grid_view_spec_assets_css_omits_ag_grid_without_flag() -> None:

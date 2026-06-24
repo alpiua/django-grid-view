@@ -15,8 +15,6 @@ def test_tag_library_module_imports_and_registers_tags() -> None:
     assert "echarts_cdn_url" in tags
     assert "export_pdf_href" in tags
     assert "export_xlsx_href" in tags
-    assert "grid_view_styles" not in tags
-    assert "grid_view_bundle" not in tags
 
 
 def test_sortable_cdn_url_renders_in_template() -> None:

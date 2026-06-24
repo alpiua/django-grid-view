@@ -7,6 +7,24 @@ from django.utils.translation import gettext
 
 from grid_view_spec.backends.django.i18n import JS_I18N_KEYS, get_js_i18n_catalog
 
+# msgids resolved through host.translate() in templates/exports, not the JS catalog.
+SERVER_ONLY_KEYS = (
+    "pagination.label",
+    "pagination.prev",
+    "pagination.next",
+    "pagination.pages",
+    "pagination.page",
+    "pagination.of_total",
+    "pagination.per_page",
+    "column_filter.open",
+    "column_filter.clear",
+    "filter_bar.filters_label",
+    "search.load_saved",
+    "export.meta.search",
+    "export.meta.filters",
+    "export.meta.filter_part",
+)
+
 
 class GridViewI18nTests(SimpleTestCase):
     @override_settings(LANGUAGE_CODE="uk")
@@ -57,3 +75,31 @@ class GridViewI18nTests(SimpleTestCase):
         for key in expected:
             self.assertIn(key, JS_I18N_KEYS)
             self.assertNotEqual(gettext(key), key)
+
+    def test_every_catalog_key_translated_in_all_locales(self) -> None:
+        """Every JS catalog msgid must resolve (≠ raw key) in en and uk."""
+        for lang in ("en", "uk"):
+            with override_settings(LANGUAGE_CODE=lang):
+                catalog = get_js_i18n_catalog()
+                untranslated = sorted(k for k in JS_I18N_KEYS if catalog[k] == k)
+                self.assertEqual(untranslated, [], msg=f"[{lang}] untranslated: {untranslated}")
+
+    def test_toolbar_clear_all_filters_key_in_catalog(self) -> None:
+        """toolbar.clear_all_filters must be in JS_I18N_KEYS and translated in en + uk."""
+        self.assertIn("toolbar.clear_all_filters", JS_I18N_KEYS)
+        for lang in ("en", "uk"):
+            with override_settings(LANGUAGE_CODE=lang):
+                catalog = get_js_i18n_catalog()
+                self.assertIn("toolbar.clear_all_filters", catalog)
+                self.assertNotEqual(
+                    catalog["toolbar.clear_all_filters"],
+                    "toolbar.clear_all_filters",
+                    msg=f"[{lang}] toolbar.clear_all_filters is untranslated (equals its msgid)",
+                )
+
+    def test_server_only_msgids_translated_in_all_locales(self) -> None:
+        """msgids used via host.translate in templates/exports (not in the JS catalog)."""
+        for lang in ("en", "uk"):
+            with override_settings(LANGUAGE_CODE=lang):
+                untranslated = sorted(k for k in SERVER_ONLY_KEYS if gettext(k) == k)
+                self.assertEqual(untranslated, [], msg=f"[{lang}] untranslated: {untranslated}")

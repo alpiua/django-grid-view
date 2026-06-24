@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from grid_view_spec.hosts.memory import InMemoryHost
 from grid_view_spec.render import build_render_context
+from grid_view_spec.types.chart_server import KpiAggregate
 from grid_view_spec.types.content import GridViewChart, GridViewCharts, GridViewKpi, KpiSpec
 from grid_view_spec.types.layout import GridViewArea, GridViewLayout
 from grid_view_spec.types.spec import GridViewSpec
@@ -75,7 +76,7 @@ def test_kpi_values_aggregate_bound_rows() -> None:
                 items=(
                     KpiSpec(
                         label="Sum",
-                        aggregate="sum",
+                        aggregate=KpiAggregate.SUM,
                         column_key="amount",
                     ),
                 ),
@@ -87,7 +88,7 @@ def test_kpi_values_aggregate_bound_rows() -> None:
     ctx = build_render_context(spec, rows, host=InMemoryHost())
     kpi = ctx.blocks["totals"]
     kpi_values = kpi.extra.get("kpi_values")
-    assert kpi_values == (35,)
+    assert kpi_values == ("35",)
 
 
 def test_charts_data_uses_bound_rows() -> None:

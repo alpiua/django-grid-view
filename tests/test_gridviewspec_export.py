@@ -9,7 +9,7 @@ from grid_view_spec.export.columns import (
     resolve_export_column_ids,
     resolve_export_table,
 )
-from grid_view_spec.export.context import ExportRequestContext
+from grid_view_spec.export.context import ExportContextLike, ExportRequestContext
 from grid_view_spec.export.meta import build_export_meta_lines
 from grid_view_spec.export.payload import build_export_payload
 from grid_view_spec.export.pipeline import render_pdf_html, render_xlsx_report
@@ -26,6 +26,7 @@ from grid_view_spec.export.registry import (
 from grid_view_spec.hosts.memory import InMemoryHost
 from grid_view_spec.types.filters_v2 import GridViewFilter, GridViewFilters, GridViewFilterState
 from grid_view_spec.types.header import GridViewHeader
+from grid_view_spec.types.host import GridViewHost
 from grid_view_spec.types.layout import GridViewArea, GridViewLayout
 from grid_view_spec.types.spec import GridViewSpec
 from grid_view_spec.types.table_v2 import (
@@ -131,7 +132,7 @@ def test_django_export_context_delegates_export_context_like() -> None:
     assert django_ctx.subtitle == "Sub"
 
     protocol_members = {
-        name for name, value in inspect.getmembers(ExportContextLike) if not name.startswith("_")
+        name for name, _value in inspect.getmembers(ExportContextLike) if not name.startswith("_")
     }
     for member in protocol_members:
         assert hasattr(django_ctx, member), f"DjangoExportContext missing {member!r}"
@@ -160,7 +161,7 @@ def test_spec_pdf_pipeline_renders_table_rows() -> None:
     host = InMemoryHost()
     ctx = _filtered_export_ctx()
 
-    def builder(host: object, export_ctx: ExportRequestContext) -> GridViewExportJob:
+    def builder(host: GridViewHost, export_ctx: ExportContextLike) -> GridViewExportJob:
         _ = host
         _ = export_ctx
         return GridViewExportJob(spec=spec, rows=_sample_rows(), table_id="records")
@@ -181,7 +182,7 @@ def test_spec_xlsx_pipeline_renders_filtered_rows() -> None:
     host = _translation_host()
     ctx = _filtered_export_ctx()
 
-    def builder(host: object, export_ctx: ExportRequestContext) -> GridViewExportJob:
+    def builder(host: GridViewHost, export_ctx: ExportContextLike) -> GridViewExportJob:
         _ = host
         _ = export_ctx
         return GridViewExportJob(spec=spec, rows=_sample_rows(), table_id="records")
@@ -202,7 +203,7 @@ def test_spec_xlsx_pipeline_replays_filter_meta_lines() -> None:
     host = _translation_host()
     ctx = _filtered_export_ctx()
 
-    def builder(host: object, export_ctx: ExportRequestContext) -> GridViewExportJob:
+    def builder(host: GridViewHost, export_ctx: ExportContextLike) -> GridViewExportJob:
         _ = host
         _ = export_ctx
         return GridViewExportJob(spec=spec, rows=_sample_rows(), table_id="records")
@@ -212,7 +213,7 @@ def test_spec_xlsx_pipeline_replays_filter_meta_lines() -> None:
     report, payload = render_xlsx_report(host, ctx, get_xlsx_export("demo"))
     assert any("Alpha" in line for line in payload.meta_lines)
     assert any("Period" in line for line in payload.meta_lines)
-    title_text = " ".join(cell for row in report.sheets[0].title_rows for cell in row)
+    title_text = " ".join(str(cell) for row in report.sheets[0].title_rows for cell in row)
     assert "Period" in title_text
     clear_xlsx_exports()
 
@@ -262,7 +263,7 @@ def test_render_xlsx_report_requires_resolved_simple_table() -> None:
     host = InMemoryHost()
     ctx = ExportRequestContext(table_id="missing")
 
-    def builder(host: object, export_ctx: ExportRequestContext) -> GridViewExportJob:
+    def builder(host: GridViewHost, export_ctx: ExportContextLike) -> GridViewExportJob:
         _ = host
         _ = export_ctx
         return GridViewExportJob(spec=spec, rows=(), table_id="missing")

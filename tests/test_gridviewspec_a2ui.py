@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TypeGuard
+
 from grid_view_spec.backends.json.wire import render_context_to_wire
 from grid_view_spec.hosts.memory import InMemoryHost
 from grid_view_spec.render.a2ui import (
@@ -14,8 +16,27 @@ from grid_view_spec.render.spec_renderer import build_render_context, render_gri
 from grid_view_spec.types.a2ui import A2UIIntent, A2UIPatch, A2UIPatchOp
 from grid_view_spec.types.content import GridViewContent, GridViewTemplate
 from grid_view_spec.types.result import GridViewPolicy
+from grid_view_spec.types.wire import WireValue
 from grid_view_spec.validate import spec_to_wire
 from tests.gridviewspec_fixtures import minimal_valid_spec
+
+
+def _is_wire_dict(value: object) -> TypeGuard[dict[str, WireValue]]:
+    return isinstance(value, dict)
+
+
+def _is_wire_list(value: object) -> TypeGuard[list[WireValue]]:
+    return isinstance(value, list)
+
+
+def _wire_dict(value: object) -> dict[str, WireValue]:
+    assert _is_wire_dict(value), f"expected wire dict, got {type(value)!r}"
+    return value
+
+
+def _wire_list(value: object) -> list[WireValue]:
+    assert _is_wire_list(value), f"expected wire list, got {type(value)!r}"
+    return value
 
 
 def test_to_a2ui_catalog_uses_block_registry() -> None:
@@ -82,8 +103,9 @@ def test_render_grid_view_spec_json_backend() -> None:
     host = InMemoryHost()
     payload = render_grid_view_spec(spec, (), host=host, backend="json")
     assert isinstance(payload, dict)
-    assert "spec" in payload
-    assert payload["spec"]["id"] == spec.id
+    spec_wire = payload["spec"]
+    assert isinstance(spec_wire, dict)
+    assert spec_wire["id"] == spec.id
 
 
 def test_json_wire_rows_match_single_render_context_pass() -> None:
@@ -96,10 +118,10 @@ def test_json_wire_rows_match_single_render_context_pass() -> None:
     assert isinstance(json_ctx, type(ctx))
     assert wire["spec"] == spec_to_wire(spec)
     resolved = ctx.blocks["records_table"]
-    wire_rows = wire["blocks"]["records_table"]["rows"]
+    wire_rows = _wire_list(_wire_dict(_wire_dict(wire["blocks"])["records_table"])["rows"])
     assert wire_rows == [{"name": "Alpha"}, {"name": "Beta"}]
     assert tuple(dict(row) for row in resolved.rows) == rows
     assert json_ctx.blocks["records_table"].rows == resolved.rows
-    assert wire["blocks"]["records_table"]["rows"] == [
+    assert _wire_list(_wire_dict(_wire_dict(wire["blocks"])["records_table"])["rows"]) == [
         dict(row) for row in json_ctx.blocks["records_table"].rows
     ]
