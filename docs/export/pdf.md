@@ -38,7 +38,7 @@ from grid_view_spec.export.registry import GridViewExportJob, register_pdf_expor
 
 def register_exports():
     def builder(host, ctx):
-        page = load_orders_page(ctx)  # DjangoExportContext
+        page = load_orders_page(ctx.request)  # DjangoExportContext request
         return GridViewExportJob(
             spec=page.spec,
             rows=page.rows,

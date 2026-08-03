@@ -72,6 +72,30 @@
     }
   },
   {
+    "id": "donut_group_by_uses_group_key",
+    "spec": {
+      "id": "status-mix",
+      "chart_type": "donut",
+      "label_key": "product",
+      "value_key": "qty",
+      "group_by": "status"
+    },
+    "rows": [
+      {"status": "shipped", "product": "Mouse", "qty": 5},
+      {"status": "pending", "product": "Hub", "qty": 2},
+      {"status": "shipped", "product": "Keyboard", "qty": 3}
+    ],
+    "expect": {
+      "chartType": "donut",
+      "categories": [],
+      "series": [],
+      "slices": [
+        {"label": "shipped", "value": 8.0, "color": "#22c55e"},
+        {"label": "pending", "value": 2.0, "color": "#f59e0b"}
+      ]
+    }
+  },
+  {
     "id": "pie_filter_zero_values",
     "spec": {
       "id": "mix",

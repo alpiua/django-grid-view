@@ -6,7 +6,7 @@ import { collectColumnFiltersObject, serializeColumnFilters, matchColumnFilter }
 import { initColumnFilters, navigateWithTableFilters } from "./column-filters";
 import { Charts } from "./charts";
 import { Kpi } from "./kpi";
-import { initAllSimpleTables, applyFiltersInScope } from "./simple-table";
+import { applyClientFilterState, initAllSimpleTables, applyFiltersInScope } from "./simple-table";
 import { initButtonEllipsisTips } from "./table-cell-ui";
 import { asHTMLElement, asHtmlInput, isRecord } from "./dom-guards";
 import { resolveToolbarSearchInputForCtx } from "./toolbar-search-input";
@@ -32,6 +32,11 @@ const MS_VALUE_CHECKBOX =
   'input[type="checkbox"]:checked:not([data-ui-only])';
 const MS_COUNTABLE =
   'input[type="checkbox"]:not([data-period-all]):not([data-select-all]):not([data-ui-only]):not([data-exclusive-solo])';
+// Leave enough time for a deliberate sequence of checkbox clicks before a
+// faceted fragment swap replaces this widget's DOM.
+const MULTISELECT_CHANGE_DEBOUNCE_MS = 650;
+const multiselectChangeTimers = new WeakMap<HTMLElement, number>();
+let multiselectPanelToRestore: { barId: string; filterId: string } | null = null;
 
 export function setMultiselectTriggerLabel(root: Element, text: string): void {
   const trigger = root.querySelector(".cm-multiselect-trigger");
@@ -336,13 +341,11 @@ export function initMultiSelectWidget(rootEl: Element): void {
   root.dataset.cmMsBound = "1";
   const panel = root.querySelector(".cm-multiselect-panel");
   const trigger = root.querySelector(".cm-multiselect-trigger");
-  const flushPendingAutoApply = () => {
-    if (root._cmPendingAutoApply) {
-      root._cmPendingAutoApply = false;
-      root.dispatchEvent(new CustomEvent("cm-filter-change", { bubbles: true }));
-    }
+  const filterBar = asHTMLElement(root.closest("[data-cm-filter-bar]"));
+  const restoreKey = {
+    barId: filterBar?.id || "",
+    filterId: root.dataset.filterId || "",
   };
-  root._cmFlushPendingAutoApply = flushPendingAutoApply;
   const regularCheckboxes = () =>
     Array.from(root.querySelectorAll<HTMLInputElement>(MS_COUNTABLE));
   const selectAllCheckbox = () =>
@@ -363,21 +366,10 @@ export function initMultiSelectWidget(rootEl: Element): void {
     e.stopPropagation();
     const isOpen = panel?.classList.contains("is-open");
     const open = !isOpen;
-    if (isOpen) flushPendingAutoApply();
     document.querySelectorAll(".cm-multiselect-panel.is-open").forEach((p) => p.classList.remove("is-open"));
     if (open) panel?.classList.add("is-open");
   });
   panel?.addEventListener("click", (e) => e.stopPropagation());
-  const applyBtn = asHTMLElement(panel?.querySelector("[data-cm-multiselect-apply]"));
-  if (applyBtn && !applyBtn.dataset.cmBound) {
-    applyBtn.dataset.cmBound = "1";
-    applyBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      root.dispatchEvent(new CustomEvent("cm-filter-change", { bubbles: true }));
-      panel?.classList.remove("is-open");
-    });
-  }
   root.querySelectorAll('input[type="checkbox"]').forEach((cbEl) => {
     if (!(cbEl instanceof HTMLInputElement)) return;
     const cb = cbEl;
@@ -386,9 +378,6 @@ export function initMultiSelectWidget(rootEl: Element): void {
         root.querySelectorAll('input[type="checkbox"]').forEach((otherEl) => {
           if (otherEl instanceof HTMLInputElement && otherEl !== cb) otherEl.checked = false;
         });
-        if (panel?.classList.contains("is-open")) {
-          panel.classList.remove("is-open");
-        }
       }
       if (
         (cb.dataset.selectAll === "1" || cb.dataset.exclusiveSolo === "1") &&
@@ -417,23 +406,35 @@ export function initMultiSelectWidget(rootEl: Element): void {
       }
       if (cb.dataset.selectAll !== "1") syncSelectAllState();
       updateLabel();
-      if (asHTMLElement(root.closest("[data-cm-filter-bar]"))?.dataset.autoApply === "1") {
-        root._cmPendingAutoApply = true;
+      if (root.dataset.cmSingleselect === "1") {
+        root.dispatchEvent(new CustomEvent("cm-filter-change", { bubbles: true }));
+        panel?.classList.remove("is-open");
+        return;
       }
+      const pendingTimer = multiselectChangeTimers.get(root);
+      if (pendingTimer) window.clearTimeout(pendingTimer);
+      multiselectPanelToRestore = restoreKey;
+      const timer = window.setTimeout(() => {
+        multiselectChangeTimers.delete(root);
+        root.dispatchEvent(new CustomEvent("cm-filter-change", { bubbles: true }));
+      }, MULTISELECT_CHANGE_DEBOUNCE_MS);
+      multiselectChangeTimers.set(root, timer);
     });
   });
   syncSelectAllState();
   updateLabel();
   root._cmUpdateLabel = updateLabel;
+  if (
+    multiselectPanelToRestore &&
+    multiselectPanelToRestore.barId === restoreKey.barId &&
+    multiselectPanelToRestore.filterId === restoreKey.filterId
+  ) {
+    panel?.classList.add("is-open");
+    multiselectPanelToRestore = null;
+  }
   if (!window.__cmMultiSelectCloseBound) {
     window.__cmMultiSelectCloseBound = true;
     document.addEventListener("click", () => {
-      document.querySelectorAll("[data-cm-multiselect]").forEach((widgetEl) => {
-        const widget = asHTMLElement(widgetEl);
-        if (widget && typeof widget._cmFlushPendingAutoApply === "function") {
-          widget._cmFlushPendingAutoApply();
-        }
-      });
       document.querySelectorAll(".cm-multiselect-panel.is-open").forEach((p) => p.classList.remove("is-open"));
     });
   }
@@ -453,6 +454,23 @@ export function bindFilterBar(barEl: Element, opts?: FilterBarOptions) {
   const onChange = () => {
     const state = selectedFilterValues(bar);
     state.page = "1";
+    const clientParams = new Set(
+      Array.from(bar.querySelectorAll<HTMLElement>('[data-filter-scope="client"]')).map(
+        (filter) => filter.dataset.filterParam || filter.dataset.filterId || "",
+      ),
+    );
+    const clientState: FilterState = {};
+    Object.entries(state).forEach(([param, value]) => {
+      if (clientParams.has(param)) clientState[param] = value;
+    });
+      const target = asHTMLElement(bar.closest(".cm-filters, .cm-toolbar-unified"))?.dataset.target;
+    if (target && clientParams.size) {
+      const escaped =
+        typeof CSS !== "undefined" && CSS.escape
+          ? CSS.escape(target)
+          : target.replace(/\\/g, "\\\\").replace(/\"/g, '\\\"');
+      applyClientFilterState(document.querySelector("#cm-table-" + escaped), clientState);
+    }
     // When we won't navigate, sync the URL BEFORE notifying listeners: AG-Grid
     // datasources rebuild their query params from window.location (see
     // host.ts::_pageStateFromUrl), so the URL must already reflect the new state
@@ -462,6 +480,7 @@ export function bindFilterBar(barEl: Element, opts?: FilterBarOptions) {
       window.history.replaceState({}, "", nextUrl);
     }
     document.dispatchEvent(new CustomEvent("cm-filter-change", { detail: { state, bar } }));
+    if (target && !navigateOnChange) invokeGridAction(target, "reloadData");
     if (typeof options.onChange === "function") options.onChange(state);
     else if (navigateOnChange) {
       navigateFilterState(state, bar, bar);
@@ -980,4 +999,3 @@ export const FilterBar = {
   serializeColumnFilters,
   matchColumnFilter
 };
-

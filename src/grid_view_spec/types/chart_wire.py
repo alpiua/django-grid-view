@@ -38,6 +38,7 @@ class ChartBindDict(TypedDict, total=False):
 
 class ChartRuntimeDict(TypedDict, total=False):
     id: str
+    title: str
     chartType: str
     height: int
     dataSource: str

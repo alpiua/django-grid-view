@@ -80,13 +80,14 @@ function loadScript(src: string, isReady: () => boolean): Promise<void> {
 let agGridLoadPromise: Promise<void> | null = null;
 
 export function ensureAgGridAssetsLoaded(): Promise<void> {
+  const cfg = manifest();
+  (cfg.agGridCss ?? []).forEach((href) => loadStylesheet(href));
+
   const gv = getGlobal().GridView;
   if (gv?.AgGrid?.Host) return Promise.resolve();
   if (agGridLoadPromise) return agGridLoadPromise;
 
-  const cfg = manifest();
   agGridLoadPromise = (async () => {
-    (cfg.agGridCss ?? []).forEach((href) => loadStylesheet(href));
     await loadScript(cfg.agGridCdn ?? "", () => typeof getGlobal().agGrid !== "undefined");
     await loadScript(cfg.agGridPlugin ?? "", () => !!getGlobal().GridView?.AgGrid?.Host);
   })().catch((error) => {

@@ -16,6 +16,7 @@ import { initBuiltinRenderers } from "./renderers/builtins";
 import { initImageRenderers } from "./renderers/image";
 import { unloadAgGridStyles } from "./asset-loader";
 import { bootAgGridSpecFromDocument } from "./table-ag-grid";
+import { bindDelegatedGridActions } from "../grid-view/actions";
 import type { GridViewPublic } from "../grid-view/types";
 
 type BootScope = Document | Element | null | undefined;
@@ -216,6 +217,7 @@ export function bootScope(scope: BootScope, gv?: GridViewPublic): void {
   safe("initButtonEllipsisTips", () => initButtonEllipsisTips(root));
   safe("initTabGroups", () => initTabGroups(root));
   safe("initContentActions", () => initContentActions(root));
+  safe("bindDelegatedGridActions", () => bindDelegatedGridActions());
   safe("initGalleryBlocks", () => initGalleryBlocks(root));
   safe("initImageRenderers", () => initImageRenderers(root));
   safe("initAllKpi", () => gridView.initAllKpi(root));

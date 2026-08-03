@@ -10,19 +10,14 @@
 | Sortable CDN | Host base — column drag reorder |
 | AG Grid CDN + host plugins | AG-Grid pages only |
 
-AG Grid and the main bundle must load **outside** HTMX-swapped fragments, or re-run boot after swap.
+AG Grid and the main bundle must load **outside** HTMX-swapped fragments. The
+runtime installs its own `htmx:afterSwap` listener and boots the swapped scope.
 
 ## Boot after HTMX swap
 
-```javascript
-document.body.addEventListener("htmx:afterSwap", function (evt) {
-  if (window.GridView && GridView.bootScope) {
-    GridView.bootScope(evt.detail.target);
-  }
-});
-```
-
-`bootScope(root)` runs `initAllSimpleTables`, `initTableEdit`, filter bar, KPI, and spec roots inside `root`.
+No host listener is required for normal swaps. Call `GridView.bootScope(root)`
+only after a host performs a non-HTMX DOM mutation. It runs simple tables,
+table editing, filter bars, KPI, and spec roots inside `root`.
 
 ## Lazy blocks
 

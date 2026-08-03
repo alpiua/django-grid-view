@@ -1,29 +1,17 @@
-"""Map simple-table row dicts to chart bind payloads."""
+"""Map simple-table rows to their generic chart-bind payloads."""
 
 from __future__ import annotations
 
 from grid_view_spec.types.json import RowDict
-from grid_view_spec.types.numbers import coerce_float
 
 __all__ = ["chart_rows_from_table_data", "table_row_chart_payload"]
 
 
 def table_row_chart_payload(row: RowDict) -> RowDict | None:
-    """Build one chart row from a table data row, or ``None`` if not chart-shaped."""
+    """Return one visible data row for a chart sharing this table's row slice."""
     if row.get("__section__"):
         return None
-    name = row.get("name")
-    if name in (None, ""):
-        return None
-    if "revenue" not in row and "tariff" not in row:
-        return None
-    return {
-        "name": str(name),
-        "revenue": coerce_float(row.get("revenue", row.get("tariff"))),
-        "expenses": coerce_float(row.get("expenses")),
-        "rejected_tariff": coerce_float(row.get("rejected_tariff")),
-        "profitability": coerce_float(row.get("profitability")),
-    }
+    return {key: value for key, value in row.items() if not key.startswith("__")}
 
 
 def chart_rows_from_table_data(rows: list[RowDict] | tuple[RowDict, ...]) -> list[RowDict]:

@@ -167,7 +167,7 @@
     flex-direction: column;
 }
 .cm-area-table-card > .cm-block-table {
-    flex: 1 1 0;
+    flex: 1 1 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -177,7 +177,7 @@
 /* AG Grid host: flex chain needs explicit height on the grid root div */
 .cm-ag-grid-shell {
     flex: 1 1 0;
-    min-height: 0;
+    min-height: 32rem;
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -255,5 +255,3 @@
     min-width: 0;
     -webkit-overflow-scrolling: touch;
 }
-
-

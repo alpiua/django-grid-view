@@ -95,9 +95,11 @@
     </div>
     {% endif %}
     {% if block.clear_all and block.target %}
+    {% set has_server_filter_state = filters_block and filters_block.state and filters_block.state.values %}
     <button
       type="button"
-      class="cm-toolbar-btn cm-toolbar-clear-all is-hidden"
+      class="cm-toolbar-btn cm-toolbar-clear-all{% if not has_server_filter_state %} is-hidden{% endif %}"
+      {% if has_server_filter_state %}data-cm-server-filter-state="1"{% endif %}
       data-cm-grid-action="clearAllFilters"
       data-cm-grid-id="{{ block.target | e }}"
       title="{{ host.translate('toolbar.clear_all_filters') | default('Очистити всі фільтри і пошук') | e }}"

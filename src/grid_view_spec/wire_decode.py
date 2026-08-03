@@ -895,7 +895,7 @@ def decode_block(raw: Mapping[str, object]) -> GridViewBlock:
                     id=wire_str(item.get("id")),
                     title=wire_str(item.get("title")),
                     tone=wire_literal(item.get("tone"), GRIDVIEW_KPI_TONES, "default"),
-                    items=tuple(wire_str(v) for v in _objects(item.get("items"))),
+                    items=wire_str_tuple(item.get("items")),
                     count=_card_group_count(item.get("count", 0)),
                     empty_message=wire_str(item.get("empty_message", "—")),
                 )

@@ -97,6 +97,9 @@ function buildPieOption(
   });
   const total = data.reduce((sum, item) => sum + (item.value || 0), 0);
   const overlay = resolved.overlay ?? config.overlay;
+  const title = config.title
+    ? { text: config.title, left: 12, top: 8, textStyle: { color: "#94a3b8", fontSize: 12, fontWeight: "600" } }
+    : undefined;
   if (bind.pieVariant === "center-total") {
     const overlayColor = overlay
       ? (overlay.tone === "purple" ? "#9333ea" : overlay.tone === "red" ? "#ef4444" : overlay.tone === "green" ? "#10b981" : "#94a3b8")
@@ -105,6 +108,7 @@ function buildPieOption(
     const centerLabel = overlay ? overlay.title : "";
     return {
       backgroundColor: "transparent",
+      title,
       tooltip: {
         trigger: "item",
         backgroundColor: "rgba(30,41,59,.95)",
@@ -192,6 +196,7 @@ ${overlay.value}`,
   }
   return {
     backgroundColor: "transparent",
+    title,
     tooltip: {
       trigger: "item",
       formatter: "{b}: <b>{c}</b> ({d}%)",
@@ -221,6 +226,7 @@ function axisValueFormatter(
 }
 
 function buildBarOptionFromResolved(
+  config: ChartRuntimeDict,
   resolved: ResolvedChartData,
   bind: ChartBindDict,
   chartType: string | undefined,
@@ -232,6 +238,10 @@ function buildBarOptionFromResolved(
   const horizontal = bind.orientation === "horizontal";
   const stacked = bind.stacked === true;
   const categories = resolved.categories;
+  const title = config.title
+    ? { text: config.title, left: 12, top: 8, textStyle: { color: isDark ? "#e2e8f0" : "#172033", fontSize: 12, fontWeight: "600" } }
+    : undefined;
+  const titleOffset = config.title ? 24 : 0;
   const valueAxisLabel = {
     formatter: axisValueFormatter(bind.yAxisFormat, bind.yAxisSymbol),
     color: isDark ? "#94a3b8" : "#64748b",
@@ -282,9 +292,10 @@ function buildBarOptionFromResolved(
   if (horizontal) {
     return {
       backgroundColor: "transparent",
+      title,
       tooltip,
-      legend: { top: 0, textStyle: { color: isDark ? "#94a3b8" : "#64748b", fontSize: 11 } },
-      grid: { left: 10, right: 30, top: 30, bottom: 5, containLabel: true },
+      legend: { top: titleOffset, textStyle: { color: isDark ? "#94a3b8" : "#64748b", fontSize: 11 } },
+      grid: { left: 10, right: 30, top: 30 + titleOffset, bottom: 5, containLabel: true },
       xAxis: {
         type: "value",
         axisLabel: valueAxisLabel,
@@ -307,9 +318,10 @@ function buildBarOptionFromResolved(
   }
   return {
     backgroundColor: "transparent",
+    title,
     tooltip,
-    legend: { top: 8, textStyle: { color: isDark ? "#94a3b8" : "#64748b", fontSize: 11 } },
-    grid: { left: "2%", right: "2%", top: 36, bottom: "15%", containLabel: true },
+    legend: { top: 8 + titleOffset, textStyle: { color: isDark ? "#94a3b8" : "#64748b", fontSize: 11 } },
+    grid: { left: "2%", right: "2%", top: 36 + titleOffset, bottom: "15%", containLabel: true },
     xAxis: {
       type: "category",
       data: categories,
@@ -346,7 +358,7 @@ export function buildEchartsOption(config: ChartRuntimeDict, rows: RowDict[]) {
   if (chartType === "pie" || chartType === "donut") {
     return buildPieOption(config, resolved, bind, chartType);
   }
-  return buildBarOptionFromResolved(resolved, bind, chartType, isDark, dataRows);
+  return buildBarOptionFromResolved(config, resolved, bind, chartType, isDark, dataRows);
 }
 
 export function initChart(root: Element, config: ChartRuntimeDict, rows: RowDict[]) {

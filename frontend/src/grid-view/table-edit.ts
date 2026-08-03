@@ -125,34 +125,17 @@ async function saveSelect(
   }
 }
 
-function findEditToolsSlot(shell: HTMLElement, columnId: string): Element | null {
-  const th = shell.querySelector(`th[data-cm-col-key="${columnId}"]`);
-  return th ? th.querySelector("[data-cm-th-tools]") : null;
-}
-
 function ensureHeaderControls(shell: HTMLElement, config: TableEditConfig) {
   if (!config.confirm || config.mode !== "row") return;
-  const firstCol = config.columns?.[0];
-  if (!firstCol) return;
-  const slot = findEditToolsSlot(shell, firstCol.id);
-  if (!slot || slot.querySelector(".cm-table-edit-tools")) return;
-  slot.removeAttribute("aria-hidden");
-  const tools = document.createElement("span");
-  tools.className = "cm-table-edit-tools cm-dept-header-tools";
+  if (!config.columns?.length || shell.querySelector(".cm-table-edit-tools")) return;
+  const tools = document.createElement("div");
+  tools.className = "cm-table-edit-tools cm-table-edit-toolbar";
   tools.innerHTML =
     '<button type="button" class="cm-table-edit-toggle cm-dept-edit-toggle" ' +
-    'title="Редагувати" aria-label="Редагувати">' +
-    '<svg class="cm-dept-pencil-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" ' +
-    'stroke="currentColor" stroke-width="2" aria-hidden="true">' +
-    '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>' +
+    'title="Edit" aria-label="Edit">Edit</button>' +
     '<button type="button" class="cm-table-edit-done cm-dept-edit-done" hidden ' +
-    'title="Завершити" aria-label="Завершити">' +
-    '<svg class="cm-dept-done-icon" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true">' +
-    '<circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity="0.15" ' +
-    'stroke="currentColor" stroke-width="1.5"/>' +
-    '<path d="M8 12.5 10.5 15 16 9" fill="none" stroke="currentColor" ' +
-    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
-  slot.appendChild(tools);
+    'title="Done" aria-label="Done">Done</button>';
+  shell.prepend(tools);
   const gv = getGlobal().GridView;
   if (gv && typeof gv.initButtonEllipsisTips === "function") {
     gv.initButtonEllipsisTips(tools);

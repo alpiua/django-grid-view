@@ -90,6 +90,26 @@ function resolvePieOrDonut(
   const labelKey = spec.label_key ?? "label";
   const valueKey = spec.value_key ?? "value";
   const slices: ChartSliceDict[] = [];
+  if (spec.group_by) {
+    const totals = new Map<string, number>();
+    for (const row of rows) {
+      const parsed = parseNumber(row[valueKey]);
+      const value = parsed === null ? 0 : parsed;
+      if (value <= 0) continue;
+      const label = String(row[spec.group_by] ?? "");
+      totals.set(label, (totals.get(label) ?? 0) + value);
+    }
+    for (const [label, value] of totals.entries()) {
+      slices.push({ label, value, color: paletteColor(slices.length) });
+    }
+    return {
+      chartType: spec.chart_type,
+      categories: [],
+      series: [],
+      slices,
+      overlay: spec.overlay ?? null,
+    };
+  }
   let sliceIndex = 0;
   for (const row of rows) {
     const parsed = parseNumber(row[valueKey]);

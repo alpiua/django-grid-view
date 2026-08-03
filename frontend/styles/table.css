@@ -512,3 +512,23 @@
 .dark .cm-val-red      { color: #f87171; }
 .dark .cm-val-positive { color: #c084fc; }
 .dark .cm-val-negative { color: #fb923c; }
+/* Explicit row-edit controls belong above the table, not in a hidden header rail. */
+.cm-table-edit-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    gap: .5rem;
+    padding: .5rem;
+    border: 1px solid var(--cm-border);
+    border-bottom: 0;
+    border-radius: var(--cm-table-surface-radius) var(--cm-table-surface-radius) 0 0;
+    background: var(--cm-table-head-bg);
+}
+.cm-table-edit-toolbar button {
+    border: 1px solid var(--cm-border);
+    border-radius: .4rem;
+    padding: .35rem .7rem;
+    color: var(--cm-text);
+    background: var(--cm-surface);
+    cursor: pointer;
+    font-weight: 650;
+}

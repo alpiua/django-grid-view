@@ -11,12 +11,14 @@ export function createAgGridColumnAdapter(
   columnMeta: Record<string, Partial<ColumnMetaInput>> | null | undefined
 ): ColumnAdapter {
   const meta = columnMeta || {};
+  let initialState = gridApi.getColumnState ? gridApi.getColumnState() : [];
   return {
     hasGroupedHeaders() {
       return false;
     },
     getDescriptors(): ColumnDescriptor[] {
       if (!gridApi || !gridApi.getColumns) return [];
+      if (!initialState.length && gridApi.getColumnState) initialState = gridApi.getColumnState();
       return gridApi.getColumns().map((col) => {
         const colDef = col.getColDef();
         const colId = colDef.field || col.getColId();
@@ -52,7 +54,9 @@ export function createAgGridColumnAdapter(
       gridApi.applyColumnState({ state, applyOrder: !!applyOrder });
     },
     resetColumnState(): void {
-      gridApi.resetColumnState();
+      if (initialState.length) {
+        gridApi.applyColumnState({ state: initialState, applyOrder: true });
+      }
     },
     getDisplayedColumnIds(): string[] {
       if (!gridApi.getAllDisplayedColumns) return [];

@@ -34,6 +34,19 @@ type RowGroup = {
   rows: HTMLTableRowElement[];
 };
 
+type ClientFilterState = Record<string, string | string[]>;
+
+function isClientFilterState(value: unknown): value is ClientFilterState {
+  return (
+    isRecord(value) &&
+    Object.values(value).every(
+      (item) =>
+        typeof item === "string" ||
+        (Array.isArray(item) && item.every((entry) => typeof entry === "string")),
+    )
+  );
+}
+
 function isRowDict(value: unknown): value is RowDict {
   if (!isRecord(value)) return false;
   return Object.values(value).every(
@@ -121,6 +134,17 @@ export function applyTableFilters(tableEl: Element | null | undefined): void {
   const wrapper = simpleTableWrapper(table);
   if (!wrapper) return;
   new SimpleTable(wrapper, table).applyAllFilters();
+}
+
+/** Apply values from a client-scoped filter bar to matching table column keys. */
+export function applyClientFilterState(
+  tableEl: Element | null | undefined,
+  state: Record<string, string | string[]>,
+): void {
+  const table = resolveDataTable(tableEl);
+  if (!table) return;
+  table.dataset.cmClientFilters = JSON.stringify(state);
+  ensureSimpleTableForTable(table)?.applyAllFilters();
 }
 
 export function applyFiltersInScope(
@@ -240,7 +264,12 @@ export class SimpleTable {
         this._sort(th);
       });
     });
-    const inp = asHTMLElement(this.w.querySelector("[data-cm-search]"));
+    const inp = asHTMLElement(
+      this.w.querySelector("[data-cm-search]") ||
+        this.w
+          .closest(".cm-page-table-layout, .cm-dashboard-page, .cm-grid-view-spec")
+          ?.querySelector("[data-cm-toolbar-search]"),
+    );
     if (inp && !inp.dataset.cmBound) {
       inp.dataset.cmBound = "1";
       inp.addEventListener("input", () => {
@@ -619,7 +648,7 @@ export class SimpleTable {
     const toolbarSearch =
       layout.querySelector("[data-cm-toolbar-search]") ||
       layout
-        .closest(".cm-page-table-layout, .cm-dashboard-page")
+        .closest(".cm-page-table-layout, .cm-dashboard-page, .cm-grid-view-spec")
         ?.querySelector("[data-cm-toolbar-search]") ||
       null;
     const localSearch = layout.querySelector("[data-cm-search]");
@@ -638,6 +667,17 @@ export class SimpleTable {
     const colFilters = collectColumnFiltersFromTable(this.table);
     const colKeys = Object.keys(colFilters);
     const hasColFilters = colKeys.length > 0;
+    let clientFilters: ClientFilterState = {};
+    try {
+      const parsed: unknown = JSON.parse(this.table.dataset.cmClientFilters || "{}");
+      if (isClientFilterState(parsed)) clientFilters = parsed;
+    } catch {
+      clientFilters = {};
+    }
+    const clientFilterKeys = Object.keys(clientFilters).filter((key) => {
+      const value = clientFilters[key];
+      return Array.isArray(value) ? value.length > 0 : value !== "";
+    });
     const searchColumns = collectSearchColumnsFromTable(this.table);
     let shown = 0;
     this.tbody.querySelectorAll(".cm-row").forEach((rowEl) => {
@@ -678,6 +718,19 @@ export class SimpleTable {
           cells: rowCells.length ? rowCells : collectRowCellValuesFromDom(row),
           cellsByKey,
           columns: searchColumns,
+        });
+      }
+      if (match && clientFilterKeys.length) {
+        match = clientFilterKeys.every((key) => {
+          const esc =
+            typeof CSS !== "undefined" && CSS.escape
+              ? CSS.escape(key)
+              : key.replace(/\\/g, "\\\\").replace(/\"/g, '\\\"');
+          const cell = row.querySelector<HTMLElement>('td[data-cm-col-key="' + esc + '"]');
+          const cellValue = cell?.dataset.cmExportRaw ?? cell?.textContent?.trim() ?? "";
+          const selected = clientFilters[key];
+          const values = Array.isArray(selected) ? selected : [selected];
+          return values.includes(cellValue);
         });
       }
       if (match) {

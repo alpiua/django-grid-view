@@ -9,7 +9,7 @@ from grid_view_spec.types.json import RowDict
 from grid_view_spec.types.spec import GridViewSpec
 from grid_view_spec.types.table_v2 import GridViewTable
 from grid_view_spec.types.toolbar import GridViewSearch, GridViewToolbar
-from grid_view_spec.validate.refs import collect_layout_block_ids, search_bind_target
+from grid_view_spec.validate.refs import iter_area_block_ids, search_bind_target
 
 
 def query_from_filter_state(filter_state: Mapping[str, object]) -> dict[str, str]:
@@ -92,14 +92,18 @@ def display_rows_for_bind(
     index: Mapping[str, object],
 ) -> tuple[RowDict, ...]:
     """Rows after client-side toolbar filters for KPI/chart binding."""
-    layout_ids = collect_layout_block_ids(spec)
-    for block_id in layout_ids:
+    # Layout position determines the primary data table. A set loses that order
+    # and can bind KPI/chart blocks to an unrelated static table nondeterministically.
+    for block_id in iter_area_block_ids(spec.layout.root):
         block = index.get(block_id)
         if not isinstance(block, GridViewTable) or block.backend != "simple":
             continue
         backend = search_backend_for_table(spec, block_id, index=index)
         if backend == "server":
-            continue
+            # The host has already produced this request's row slice. Do not
+            # fall through to another static table and accidentally bind KPI
+            # blocks to that table's unrelated rows.
+            return tuple(page_rows)
         return table_rows_for_render(
             block,
             page_rows,

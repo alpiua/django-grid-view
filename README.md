@@ -88,7 +88,7 @@ from grid_view_spec.export.registry import GridViewExportJob
 
 def register_exports():
     def builder(host, ctx):
-        page = load_orders_page(ctx)  # same loader as HTML view
+        page = load_orders_page(ctx.request)  # same loader as HTML view
         return GridViewExportJob(spec=page.spec, rows=page.rows, table_id="orders_table")
 
     register_pdf_export("orders", builder)

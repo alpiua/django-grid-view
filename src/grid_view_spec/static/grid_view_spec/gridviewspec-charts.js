@@ -56,10 +56,30 @@
     return result;
   }
   function resolvePieOrDonut(spec, rows) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e, _f, _g;
     const labelKey = (_a = spec.label_key) != null ? _a : "label";
     const valueKey = (_b = spec.value_key) != null ? _b : "value";
     const slices = [];
+    if (spec.group_by) {
+      const totals = /* @__PURE__ */ new Map();
+      for (const row of rows) {
+        const parsed = parseNumber(row[valueKey]);
+        const value = parsed === null ? 0 : parsed;
+        if (value <= 0) continue;
+        const label = String((_c = row[spec.group_by]) != null ? _c : "");
+        totals.set(label, ((_d = totals.get(label)) != null ? _d : 0) + value);
+      }
+      for (const [label, value] of totals.entries()) {
+        slices.push({ label, value, color: paletteColor(slices.length) });
+      }
+      return {
+        chartType: spec.chart_type,
+        categories: [],
+        series: [],
+        slices,
+        overlay: (_e = spec.overlay) != null ? _e : null
+      };
+    }
     let sliceIndex = 0;
     for (const row of rows) {
       const parsed = parseNumber(row[valueKey]);
@@ -67,7 +87,7 @@
       if (value <= 0) continue;
       const rawColor = row.color;
       const color = typeof rawColor === "string" && rawColor ? rawColor : paletteColor(sliceIndex);
-      slices.push({ label: String((_c = row[labelKey]) != null ? _c : ""), value, color });
+      slices.push({ label: String((_f = row[labelKey]) != null ? _f : ""), value, color });
       sliceIndex += 1;
     }
     return {
@@ -75,7 +95,7 @@
       categories: [],
       series: [],
       slices,
-      overlay: (_d = spec.overlay) != null ? _d : null
+      overlay: (_g = spec.overlay) != null ? _g : null
     };
   }
   function resolveSeriesChart(spec, rows) {
@@ -268,12 +288,14 @@
     });
     const total = data.reduce((sum, item) => sum + (item.value || 0), 0);
     const overlay = (_a = resolved.overlay) != null ? _a : config.overlay;
+    const title = config.title ? { text: config.title, left: 12, top: 8, textStyle: { color: "#94a3b8", fontSize: 12, fontWeight: "600" } } : void 0;
     if (bind.pieVariant === "center-total") {
       const overlayColor = overlay ? overlay.tone === "purple" ? "#9333ea" : overlay.tone === "red" ? "#ef4444" : overlay.tone === "green" ? "#10b981" : "#94a3b8" : "#e2e8f0";
       const centerValue = overlay ? overlay.value : String(total);
       const centerLabel = overlay ? overlay.title : "";
       return {
         backgroundColor: "transparent",
+        title,
         tooltip: {
           trigger: "item",
           backgroundColor: "rgba(30,41,59,.95)",
@@ -343,6 +365,7 @@ ${overlay.value}`,
     }
     return {
       backgroundColor: "transparent",
+      title,
       tooltip: {
         trigger: "item",
         formatter: "{b}: <b>{c}</b> ({d}%)",
@@ -366,13 +389,15 @@ ${overlay.value}`,
     }
     return localized;
   }
-  function buildBarOptionFromResolved(resolved, bind, chartType, isDark, dataRows) {
+  function buildBarOptionFromResolved(config, resolved, bind, chartType, isDark, dataRows) {
     var _a;
     const seriesDefs = (_a = bind.series) != null ? _a : [];
     const defaultType = chartType === "line" ? "line" : "bar";
     const horizontal = bind.orientation === "horizontal";
     const stacked = bind.stacked === true;
     const categories = resolved.categories;
+    const title = config.title ? { text: config.title, left: 12, top: 8, textStyle: { color: isDark ? "#e2e8f0" : "#172033", fontSize: 12, fontWeight: "600" } } : void 0;
+    const titleOffset = config.title ? 24 : 0;
     const valueAxisLabel = {
       formatter: axisValueFormatter(bind.yAxisFormat, bind.yAxisSymbol),
       color: isDark ? "#94a3b8" : "#64748b",
@@ -411,9 +436,10 @@ ${overlay.value}`,
     if (horizontal) {
       return {
         backgroundColor: "transparent",
+        title,
         tooltip,
-        legend: { top: 0, textStyle: { color: isDark ? "#94a3b8" : "#64748b", fontSize: 11 } },
-        grid: { left: 10, right: 30, top: 30, bottom: 5, containLabel: true },
+        legend: { top: titleOffset, textStyle: { color: isDark ? "#94a3b8" : "#64748b", fontSize: 11 } },
+        grid: { left: 10, right: 30, top: 30 + titleOffset, bottom: 5, containLabel: true },
         xAxis: {
           type: "value",
           axisLabel: valueAxisLabel,
@@ -436,9 +462,10 @@ ${overlay.value}`,
     }
     return {
       backgroundColor: "transparent",
+      title,
       tooltip,
-      legend: { top: 8, textStyle: { color: isDark ? "#94a3b8" : "#64748b", fontSize: 11 } },
-      grid: { left: "2%", right: "2%", top: 36, bottom: "15%", containLabel: true },
+      legend: { top: 8 + titleOffset, textStyle: { color: isDark ? "#94a3b8" : "#64748b", fontSize: 11 } },
+      grid: { left: "2%", right: "2%", top: 36 + titleOffset, bottom: "15%", containLabel: true },
       xAxis: {
         type: "category",
         data: categories,
@@ -471,7 +498,7 @@ ${overlay.value}`,
     if (chartType === "pie" || chartType === "donut") {
       return buildPieOption(config, resolved, bind, chartType);
     }
-    return buildBarOptionFromResolved(resolved, bind, chartType, isDark, dataRows);
+    return buildBarOptionFromResolved(config, resolved, bind, chartType, isDark, dataRows);
   }
   function initChart(root, config, rows) {
     var _a;

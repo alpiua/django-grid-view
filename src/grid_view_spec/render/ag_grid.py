@@ -43,7 +43,9 @@ def ag_grid_spec_config(
                 "sortable": col.sortable,
                 "pinned": col.pinned or "",
                 "menuGroup": col.menu_group,
-                "agFilter": col.extra.get("ag_filter", ""),
+                "agFilter": col.extra.get(
+                    "ag_filter", "smart" if col.filter and col.filter.type == "set" else ""
+                ),
                 "checkboxSelection": bool(col.extra.get("checkbox_selection")),
                 "extra": dict(col.extra),
             }

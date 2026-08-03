@@ -89,6 +89,7 @@ class ChartRuntimeConfig:
     height: int
     data_source: str
     bind: ChartBindDict
+    title: str | None = None
     overlay: ChartOverlay | None = None
     echarts_theme: str = "dark"
 
@@ -101,6 +102,8 @@ class ChartRuntimeConfig:
             bind=self.bind,
             echartsTheme=self.echarts_theme,
         )
+        if self.title is not None:
+            payload["title"] = self.title
         if self.overlay is not None:
             payload["overlay"] = self.overlay.to_dict()
         return payload

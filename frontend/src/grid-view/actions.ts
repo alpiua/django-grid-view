@@ -2,7 +2,12 @@ import { getGlobal } from "./dom-utils";
 import { invokeGridAction } from "./registry";
 import { invokeAction } from "./registry-api";
 import { asHtmlInput, asHTMLElement, eventTargetElement } from "./dom-guards";
-import { ToolbarSearch, syncToolbarSearchChrome } from "./filter-bar";
+import {
+  navigateFilterState,
+  selectedFilterValues,
+  ToolbarSearch,
+  syncToolbarSearchChrome,
+} from "./filter-bar";
 import { clearSimpleTableFiltersForGrid } from "./simple-table";
 
 function cssAttr(value: string): string {
@@ -15,22 +20,28 @@ function syncClearAllButtons(): void {
   const url = new URL(window.location.href);
   const urlActive = url.searchParams.has("q") || url.searchParams.has("filters") || url.searchParams.has("col_q");
   document.querySelectorAll<HTMLElement>('[data-cm-grid-action="clearAllFilters"]').forEach((btn) => {
-    const gridId = btn.getAttribute("data-cm-grid-id") || "";
-    const handle = window.GridView?.byId?.get(gridId);
-    // Prefer the backend's own active-filter contract when available; older
-    // adapters that predate hasActiveFilters() fall back to inline detection.
-    if (handle && typeof handle.hasActiveFilters === "function") {
-      btn.classList.toggle("is-hidden", !handle.hasActiveFilters());
+    if (btn.dataset.cmServerFilterState === "1") {
+      btn.classList.remove("is-hidden");
       return;
     }
+    const gridId = btn.getAttribute("data-cm-grid-id") || "";
+    const handle = window.GridView?.byId?.get(gridId);
     const toolbar = btn.closest(".cm-toolbar-unified");
     const searchInput = toolbar?.querySelector<HTMLInputElement>("[data-cm-toolbar-search]");
     const searchActive = !!searchInput?.value.trim();
+    const toolbarFilterActive = !!toolbar?.querySelector(
+      '[data-cm-multiselect] input[type="checkbox"]:checked'
+    );
     const table = gridId ? document.querySelector<HTMLElement>('[data-grid-id="' + cssAttr(gridId) + '"]') : null;
     const simpleActive = !!table?.querySelector(".cm-col-filter-btn.is-active");
     const model = handle?.gridApi?.getFilterModel?.() ?? {};
     const agActive = Object.keys(model).length > 0;
-    btn.classList.toggle("is-hidden", !(urlActive || searchActive || simpleActive || agActive));
+    const handleActive =
+      handle && typeof handle.hasActiveFilters === "function" ? handle.hasActiveFilters() : false;
+    btn.classList.toggle(
+      "is-hidden",
+      !(handleActive || urlActive || searchActive || toolbarFilterActive || simpleActive || agActive)
+    );
   });
 }
 
@@ -54,6 +65,18 @@ export function handleToolbarSavedSearchClick(e: Event): void {
   else if (action === "toggleSavedSearches") ToolbarSearch.toggle(scopeId);
   else if (action === "clearAllFilters") {
     const clearGridId = gridBtn.getAttribute("data-cm-grid-id") || scopeId;
+    const toolbar = gridBtn.closest(".cm-toolbar-unified");
+    const filterBar = toolbar?.querySelector<HTMLElement>("[data-cm-filter-bar]");
+    if (filterBar) {
+      filterBar.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((input) => {
+        input.checked = false;
+      });
+      filterBar.querySelectorAll<HTMLInputElement>("[data-cm-search]").forEach((input) => {
+        input.value = "";
+      });
+      navigateFilterState(selectedFilterValues(filterBar), gridBtn, filterBar);
+      return;
+    }
     // AG-Grid host (registered in byId) handles its own clear; simple tables are
     // not in byId (the column-settings host shadows them) so clear via the DOM.
     invokeGridAction(clearGridId, "clearAllFilters");
@@ -80,7 +103,10 @@ export function handleToolbarSavedSearchClick(e: Event): void {
 }
 
 export function bindDelegatedGridActions(): void {
-  if (getGlobal()._cmGridActionsBound) return;
+  if (getGlobal()._cmGridActionsBound) {
+    window.setTimeout(syncClearAllButtons, 0);
+    return;
+  }
   getGlobal()._cmGridActionsBound = true;
   document.addEventListener("click", handleToolbarSavedSearchClick, true);
   document.addEventListener("input", () => window.setTimeout(syncClearAllButtons, 0), true);

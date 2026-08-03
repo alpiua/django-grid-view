@@ -571,6 +571,10 @@ function bootFromSpecConfig(config: AgGridSpecConfig): void {
             }
           }
           current.reloadData?.();
+          const syncExportLinks = agModule?.syncExportLinks as
+            | ((id: string, options: Record<string, unknown>) => void)
+            | undefined;
+          syncExportLinks?.(gridId, { getExtraParams: getPageState, exportColumns: true });
         })();
       });
     }

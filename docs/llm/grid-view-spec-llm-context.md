@@ -1956,7 +1956,7 @@ Column settings UI uses the same msgids as the modal. Export column order/visibi
 
 # Changelog
 
-## Unreleased
+## 2.0.1 — 2026-08-03
 
 ### Added
 

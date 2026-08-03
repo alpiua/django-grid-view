@@ -37,6 +37,7 @@ export interface ChartBindDict {
 
 export interface ChartRuntimeDict {
   id?: string;
+  title?: string;
   chartType?: string;
   height?: number;
   dataSource?: string;

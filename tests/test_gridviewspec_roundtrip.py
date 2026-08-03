@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+from grid_view_spec.types.content import GridViewCardGroups
 from grid_view_spec.types.spec import GridViewSpec
 from grid_view_spec.types.wire import is_wire_mapping
 from grid_view_spec.validate import spec_to_wire
@@ -30,6 +31,28 @@ def test_rich_spec_roundtrips_all_fields() -> None:
     """Rich fixture covering every block type survives round-trip unchanged."""
     spec = rich_spec()
     assert _roundtrip(spec) == spec
+
+
+def test_card_group_items_decode_from_wire_string_lists() -> None:
+    """A wire schema preserves card-group labels supplied as JSON strings."""
+    spec = decode_spec(
+        {
+            "id": "wire_card_groups",
+            "blocks": [
+                {
+                    "id": "signals",
+                    "type": "card_groups",
+                    "groups": [
+                        {"id": "runtime", "title": "Signals", "items": ["Validated", "Interactive"]}
+                    ],
+                }
+            ],
+            "layout": {"root": {"id": "root", "blocks": ["signals"]}},
+        }
+    )
+    block = spec.blocks[0]
+    assert isinstance(block, GridViewCardGroups)
+    assert block.groups[0].items == ("Validated", "Interactive")
 
 
 def test_set_filter_model_match_contract_aligns_with_typescript() -> None:

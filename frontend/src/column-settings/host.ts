@@ -94,8 +94,6 @@ export class ColumnSettingsHost implements ColumnSettingsHandle {
         };
       });
       this.adapter.applyColumnState(layoutState, true);
-    } else {
-      this.adapter.resetColumnState();
     }
   }
 
@@ -412,7 +410,12 @@ export class ColumnSettingsHost implements ColumnSettingsHandle {
       .forEach((link) => {
         if (!(link instanceof HTMLAnchorElement) || !link.href) return;
         if (syncFn) {
-          syncFn(link, gridId);
+          try {
+            syncFn(link, gridId);
+          } catch {
+            // The AG Grid column API is not ready during its first grid event.
+            // A later filter/change or the export click repeats this sync.
+          }
           return;
         }
         const ids = adapter.getDisplayedColumnIds().join(",");

@@ -1,3 +1,21 @@
-<div class="cm-overlay cm-overlay-{{ block.presentation | e }} cm-overlay-{{ block.size | e }}" hidden>
-  {% if block.content %}<div class="cm-overlay-body">{{ block.content | e }}</div>{% endif %}
+{% set content_resolved = ctx.blocks.get(block.content) if block.content else none %}
+{% set content_block = content_resolved.block if content_resolved else none %}
+<div
+  id="cm-overlay-{{ block.id | e }}"
+  class="cm-overlay cm-overlay-{{ block.presentation | e }} cm-overlay-{{ block.size | e }}"
+  data-cm-overlay
+  data-cm-close-on-backdrop="{{ '1' if block.close_on_backdrop else '0' }}"
+  data-cm-close-on-escape="{{ '1' if block.close_on_escape else '0' }}"
+  hidden
+>
+  <div class="cm-overlay-dialog" role="dialog" aria-modal="true" aria-label="Overlay">
+    <button type="button" class="cm-overlay-close" data-cm-overlay-close aria-label="Close">&times;</button>
+    <div class="cm-overlay-body">
+      {% if content_block and content_block.mode == 'file' and content_block.template %}
+      {{ host.render_host_template(content_block.template, content_block.context) | safe }}
+      {% elif content_block and content_block.mode == 'raw' %}
+      {{ content_block.html | safe }}
+      {% endif %}
+    </div>
+  </div>
 </div>

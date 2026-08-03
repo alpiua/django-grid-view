@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from grid_view_spec.hosts.memory import InMemoryHost
 from grid_view_spec.render import build_render_context
 from grid_view_spec.types.chart_server import KpiAggregate
@@ -91,6 +93,44 @@ def test_kpi_values_aggregate_bound_rows() -> None:
     assert kpi_values == ("35",)
 
 
+def test_kpi_uses_host_rows_when_a_server_table_precedes_a_static_table() -> None:
+    spec = GridViewSpec(
+        id="analytics_page",
+        blocks=(
+            GridViewToolbar(
+                id="toolbar",
+                search=GridViewSearch(bind="worklist", backend="server"),
+                target="worklist",
+            ),
+            GridViewTable(
+                id="worklist",
+                columns=(GridViewColumn(id="amount", label="Amount", field="amount"),),
+            ),
+            GridViewKpi(
+                id="totals",
+                items=(
+                    KpiSpec(label="Revenue", aggregate=KpiAggregate.SUM, column_key="amount"),
+                    KpiSpec(label="Orders", aggregate=KpiAggregate.COUNT, column_key="amount"),
+                ),
+            ),
+            GridViewTable(
+                id="stock",
+                rows=({"category": "Accessories", "stock": 42},),
+                columns=(GridViewColumn(id="stock", label="Stock", field="stock"),),
+            ),
+        ),
+        layout=GridViewLayout(
+            root=GridViewArea(id="root", blocks=("toolbar", "worklist", "totals", "stock")),
+        ),
+    )
+    ctx = build_render_context(
+        spec,
+        ({"amount": 10}, {"amount": 25}),
+        host=InMemoryHost(filter_state={"q": "current host result"}),
+    )
+    assert ctx.blocks["totals"].extra["kpi_values"] == ("35", "2")
+
+
 def test_charts_data_uses_bound_rows() -> None:
     spec = GridViewSpec(
         id="charts_page",
@@ -137,6 +177,39 @@ def test_charts_data_uses_bound_rows() -> None:
     assert '"chartType"' in str(payload.get("config_json"))
     assert isinstance(payload.get("rows_json"), str)
     assert "Alpha" in str(payload.get("rows_json"))
+
+
+def test_chart_bound_table_rows_keep_the_chart_fields_used_by_the_spec() -> None:
+    spec = GridViewSpec(
+        id="orders_chart",
+        blocks=(
+            GridViewTable(
+                id="orders",
+                columns=(
+                    GridViewColumn(id="status", label="Status", field="status"),
+                    GridViewColumn(id="qty", label="Units", field="qty"),
+                ),
+            ),
+            GridViewCharts(
+                id="status_chart",
+                charts=(
+                    GridViewChart(
+                        id="status_mix",
+                        type="donut",
+                        options={"label_key": "status", "value_key": "qty", "group_by": "status"},
+                    ),
+                ),
+            ),
+        ),
+        layout=GridViewLayout(root=GridViewArea(id="root", blocks=("orders", "status_chart"))),
+    )
+    ctx = build_render_context(
+        spec,
+        ({"status": "shipped", "qty": 12},),
+        host=InMemoryHost(),
+    )
+    bound_row = ctx.blocks["orders"].rows[0]
+    assert json.loads(str(bound_row["__chart_row_json__"])) == {"status": "shipped", "qty": 12}
 
 
 def test_rich_spec_asset_plan_covers_block_types() -> None:

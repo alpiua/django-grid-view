@@ -40,6 +40,7 @@ def build_chart_runtime(spec: ChartSpec, rows: Sequence[RowDict]) -> ChartRuntim
         height=spec.height,
         data_source=spec.data_source.value,
         bind=bind,
+        title=spec.title,
         overlay=spec.overlay,
     )
     return runtime
@@ -70,6 +71,30 @@ def _resolve_pie_or_donut(
     label_key = spec.label_key or "label"
     value_key = spec.value_key or "value"
     slices: list[ChartSliceDict] = []
+    if spec.group_by:
+        totals: dict[str, float] = {}
+        for row in rows:
+            parsed = parse_number(row.get(value_key))
+            value = 0.0 if parsed is None else parsed
+            if value <= 0:
+                continue
+            label = str(row.get(spec.group_by, ""))
+            totals[label] = totals.get(label, 0.0) + value
+        for slice_index, (label, value) in enumerate(totals.items()):
+            slices.append(
+                ChartSliceDict(
+                    label=label,
+                    value=value,
+                    color=ChartPaletteColor.cycle(slice_index).value,
+                )
+            )
+        return ResolvedChartData(
+            chartType=spec.chart_type.value,
+            categories=[],
+            series=[],
+            slices=slices,
+            overlay=overlay,
+        )
     slice_index = 0
     for row in rows:
         parsed = parse_number(row.get(value_key))
@@ -186,6 +211,8 @@ def _build_bind(spec: ChartSpec, rows: Sequence[RowDict]) -> ChartBindDict:
             valueKey=spec.value_key or "value",
             rows=row_list,
         )
+        if spec.group_by:
+            bind["groupBy"] = spec.group_by
         if spec.pie_variant:
             bind["pieVariant"] = spec.pie_variant
         return bind

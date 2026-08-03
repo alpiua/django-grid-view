@@ -1917,6 +1917,11 @@
   };
 
   // src/grid-view/simple-table.ts
+  function isClientFilterState(value) {
+    return isRecord(value) && Object.values(value).every(
+      (item) => typeof item === "string" || Array.isArray(item) && item.every((entry) => typeof entry === "string")
+    );
+  }
   function isRowDict(value) {
     if (!isRecord(value)) return false;
     return Object.values(value).every(
@@ -1978,6 +1983,13 @@
     const wrapper = simpleTableWrapper(table);
     if (!wrapper) return;
     new SimpleTable(wrapper, table).applyAllFilters();
+  }
+  function applyClientFilterState(tableEl, state) {
+    var _a;
+    const table = resolveDataTable(tableEl);
+    if (!table) return;
+    table.dataset.cmClientFilters = JSON.stringify(state);
+    (_a = ensureSimpleTableForTable(table)) == null ? void 0 : _a.applyAllFilters();
   }
   function applyFiltersInScope(scope) {
     const root = scope && "querySelectorAll" in scope ? scope : document;
@@ -2054,6 +2066,7 @@
       });
     }
     bind() {
+      var _a;
       this.w.querySelectorAll("[data-cm-sort]").forEach((thEl) => {
         const th = asHTMLElement(thEl);
         if (!th) return;
@@ -2070,7 +2083,9 @@
           this._sort(th);
         });
       });
-      const inp = asHTMLElement(this.w.querySelector("[data-cm-search]"));
+      const inp = asHTMLElement(
+        this.w.querySelector("[data-cm-search]") || ((_a = this.w.closest(".cm-page-table-layout, .cm-dashboard-page, .cm-grid-view-spec")) == null ? void 0 : _a.querySelector("[data-cm-toolbar-search]"))
+      );
       if (inp && !inp.dataset.cmBound) {
         inp.dataset.cmBound = "1";
         inp.addEventListener("input", () => {
@@ -2362,7 +2377,7 @@
       const tbody = table.querySelector("tbody");
       if (!tbody) return;
       this.tbody = tbody;
-      const toolbarSearch = layout.querySelector("[data-cm-toolbar-search]") || ((_a = layout.closest(".cm-page-table-layout, .cm-dashboard-page")) == null ? void 0 : _a.querySelector("[data-cm-toolbar-search]")) || null;
+      const toolbarSearch = layout.querySelector("[data-cm-toolbar-search]") || ((_a = layout.closest(".cm-page-table-layout, .cm-dashboard-page, .cm-grid-view-spec")) == null ? void 0 : _a.querySelector("[data-cm-toolbar-search]")) || null;
       const localSearch = layout.querySelector("[data-cm-search]");
       const shell = this.table.closest(".cm-table-shell");
       const hasServerPagination = !!(shell == null ? void 0 : shell.querySelector(
@@ -2375,6 +2390,17 @@
       const colFilters = collectColumnFiltersFromTable(this.table);
       const colKeys = Object.keys(colFilters);
       const hasColFilters = colKeys.length > 0;
+      let clientFilters = {};
+      try {
+        const parsed = JSON.parse(this.table.dataset.cmClientFilters || "{}");
+        if (isClientFilterState(parsed)) clientFilters = parsed;
+      } catch (e) {
+        clientFilters = {};
+      }
+      const clientFilterKeys = Object.keys(clientFilters).filter((key) => {
+        const value = clientFilters[key];
+        return Array.isArray(value) ? value.length > 0 : value !== "";
+      });
       const searchColumns = collectSearchColumnsFromTable(this.table);
       let shown = 0;
       this.tbody.querySelectorAll(".cm-row").forEach((rowEl) => {
@@ -2412,6 +2438,17 @@
             cells: rowCells.length ? rowCells : collectRowCellValuesFromDom(row),
             cellsByKey,
             columns: searchColumns
+          });
+        }
+        if (match && clientFilterKeys.length) {
+          match = clientFilterKeys.every((key) => {
+            var _a2, _b2, _c;
+            const esc = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(key) : key.replace(/\\/g, "\\\\").replace(/\"/g, '\\"');
+            const cell = row.querySelector('td[data-cm-col-key="' + esc + '"]');
+            const cellValue = (_c = (_b2 = cell == null ? void 0 : cell.dataset.cmExportRaw) != null ? _b2 : (_a2 = cell == null ? void 0 : cell.textContent) == null ? void 0 : _a2.trim()) != null ? _c : "";
+            const selected = clientFilters[key];
+            const values = Array.isArray(selected) ? selected : [selected];
+            return values.includes(cellValue);
           });
         }
         if (match) {
@@ -3548,6 +3585,9 @@
   // src/grid-view/filter-bar.ts
   var MS_VALUE_CHECKBOX = 'input[type="checkbox"]:checked:not([data-ui-only])';
   var MS_COUNTABLE = 'input[type="checkbox"]:not([data-period-all]):not([data-select-all]):not([data-ui-only]):not([data-exclusive-solo])';
+  var MULTISELECT_CHANGE_DEBOUNCE_MS = 650;
+  var multiselectChangeTimers = /* @__PURE__ */ new WeakMap();
+  var multiselectPanelToRestore = null;
   function setMultiselectTriggerLabel(root, text) {
     const trigger = root.querySelector(".cm-multiselect-trigger");
     if (!trigger) return;
@@ -3807,13 +3847,11 @@
     root.dataset.cmMsBound = "1";
     const panel = root.querySelector(".cm-multiselect-panel");
     const trigger = root.querySelector(".cm-multiselect-trigger");
-    const flushPendingAutoApply = () => {
-      if (root._cmPendingAutoApply) {
-        root._cmPendingAutoApply = false;
-        root.dispatchEvent(new CustomEvent("cm-filter-change", { bubbles: true }));
-      }
+    const filterBar = asHTMLElement(root.closest("[data-cm-filter-bar]"));
+    const restoreKey = {
+      barId: (filterBar == null ? void 0 : filterBar.id) || "",
+      filterId: root.dataset.filterId || ""
     };
-    root._cmFlushPendingAutoApply = flushPendingAutoApply;
     const regularCheckboxes = () => Array.from(root.querySelectorAll(MS_COUNTABLE));
     const selectAllCheckbox = () => root.querySelector('input[type="checkbox"][data-select-all]');
     const soloCheckboxes = () => Array.from(root.querySelectorAll("[data-select-all], [data-exclusive-solo]"));
@@ -3831,33 +3869,18 @@
       e.stopPropagation();
       const isOpen = panel == null ? void 0 : panel.classList.contains("is-open");
       const open = !isOpen;
-      if (isOpen) flushPendingAutoApply();
       document.querySelectorAll(".cm-multiselect-panel.is-open").forEach((p) => p.classList.remove("is-open"));
       if (open) panel == null ? void 0 : panel.classList.add("is-open");
     });
     panel == null ? void 0 : panel.addEventListener("click", (e) => e.stopPropagation());
-    const applyBtn = asHTMLElement(panel == null ? void 0 : panel.querySelector("[data-cm-multiselect-apply]"));
-    if (applyBtn && !applyBtn.dataset.cmBound) {
-      applyBtn.dataset.cmBound = "1";
-      applyBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        root.dispatchEvent(new CustomEvent("cm-filter-change", { bubbles: true }));
-        panel == null ? void 0 : panel.classList.remove("is-open");
-      });
-    }
     root.querySelectorAll('input[type="checkbox"]').forEach((cbEl) => {
       if (!(cbEl instanceof HTMLInputElement)) return;
       const cb = cbEl;
       cb.addEventListener("change", () => {
-        var _a;
         if (root.dataset.cmSingleselect === "1" && cb.checked && cb.dataset.selectAll !== "1") {
           root.querySelectorAll('input[type="checkbox"]').forEach((otherEl) => {
             if (otherEl instanceof HTMLInputElement && otherEl !== cb) otherEl.checked = false;
           });
-          if (panel == null ? void 0 : panel.classList.contains("is-open")) {
-            panel.classList.remove("is-open");
-          }
         }
         if ((cb.dataset.selectAll === "1" || cb.dataset.exclusiveSolo === "1") && cb.checked) {
           root.querySelectorAll('input[type="checkbox"]').forEach((oEl) => {
@@ -3878,23 +3901,31 @@
         }
         if (cb.dataset.selectAll !== "1") syncSelectAllState();
         updateLabel();
-        if (((_a = asHTMLElement(root.closest("[data-cm-filter-bar]"))) == null ? void 0 : _a.dataset.autoApply) === "1") {
-          root._cmPendingAutoApply = true;
+        if (root.dataset.cmSingleselect === "1") {
+          root.dispatchEvent(new CustomEvent("cm-filter-change", { bubbles: true }));
+          panel == null ? void 0 : panel.classList.remove("is-open");
+          return;
         }
+        const pendingTimer = multiselectChangeTimers.get(root);
+        if (pendingTimer) window.clearTimeout(pendingTimer);
+        multiselectPanelToRestore = restoreKey;
+        const timer = window.setTimeout(() => {
+          multiselectChangeTimers.delete(root);
+          root.dispatchEvent(new CustomEvent("cm-filter-change", { bubbles: true }));
+        }, MULTISELECT_CHANGE_DEBOUNCE_MS);
+        multiselectChangeTimers.set(root, timer);
       });
     });
     syncSelectAllState();
     updateLabel();
     root._cmUpdateLabel = updateLabel;
+    if (multiselectPanelToRestore && multiselectPanelToRestore.barId === restoreKey.barId && multiselectPanelToRestore.filterId === restoreKey.filterId) {
+      panel == null ? void 0 : panel.classList.add("is-open");
+      multiselectPanelToRestore = null;
+    }
     if (!window.__cmMultiSelectCloseBound) {
       window.__cmMultiSelectCloseBound = true;
       document.addEventListener("click", () => {
-        document.querySelectorAll("[data-cm-multiselect]").forEach((widgetEl) => {
-          const widget = asHTMLElement(widgetEl);
-          if (widget && typeof widget._cmFlushPendingAutoApply === "function") {
-            widget._cmFlushPendingAutoApply();
-          }
-        });
         document.querySelectorAll(".cm-multiselect-panel.is-open").forEach((p) => p.classList.remove("is-open"));
       });
     }
@@ -3910,13 +3941,29 @@
       periodFilter.bind(bar);
     }
     const onChange = () => {
+      var _a;
       const state = selectedFilterValues(bar);
       state.page = "1";
+      const clientParams = new Set(
+        Array.from(bar.querySelectorAll('[data-filter-scope="client"]')).map(
+          (filter) => filter.dataset.filterParam || filter.dataset.filterId || ""
+        )
+      );
+      const clientState = {};
+      Object.entries(state).forEach(([param, value]) => {
+        if (clientParams.has(param)) clientState[param] = value;
+      });
+      const target = (_a = asHTMLElement(bar.closest(".cm-filters, .cm-toolbar-unified"))) == null ? void 0 : _a.dataset.target;
+      if (target && clientParams.size) {
+        const escaped = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(target) : target.replace(/\\/g, "\\\\").replace(/\"/g, '\\"');
+        applyClientFilterState(document.querySelector("#cm-table-" + escaped), clientState);
+      }
       if (typeof options.onChange !== "function" && !navigateOnChange) {
         const nextUrl = withActiveTableColumns(buildFilterUrl(filterNavigateHref(), state), bar);
         window.history.replaceState({}, "", nextUrl);
       }
       document.dispatchEvent(new CustomEvent("cm-filter-change", { detail: { state, bar } }));
+      if (target && !navigateOnChange) invokeGridAction(target, "reloadData");
       if (typeof options.onChange === "function") options.onChange(state);
       else if (navigateOnChange) {
         navigateFilterState(state, bar, bar);
@@ -4380,20 +4427,27 @@
     const urlActive = url.searchParams.has("q") || url.searchParams.has("filters") || url.searchParams.has("col_q");
     document.querySelectorAll('[data-cm-grid-action="clearAllFilters"]').forEach((btn) => {
       var _a, _b, _c, _d, _e;
-      const gridId = btn.getAttribute("data-cm-grid-id") || "";
-      const handle = (_b = (_a = window.GridView) == null ? void 0 : _a.byId) == null ? void 0 : _b.get(gridId);
-      if (handle && typeof handle.hasActiveFilters === "function") {
-        btn.classList.toggle("is-hidden", !handle.hasActiveFilters());
+      if (btn.dataset.cmServerFilterState === "1") {
+        btn.classList.remove("is-hidden");
         return;
       }
+      const gridId = btn.getAttribute("data-cm-grid-id") || "";
+      const handle = (_b = (_a = window.GridView) == null ? void 0 : _a.byId) == null ? void 0 : _b.get(gridId);
       const toolbar = btn.closest(".cm-toolbar-unified");
       const searchInput = toolbar == null ? void 0 : toolbar.querySelector("[data-cm-toolbar-search]");
       const searchActive = !!(searchInput == null ? void 0 : searchInput.value.trim());
+      const toolbarFilterActive = !!(toolbar == null ? void 0 : toolbar.querySelector(
+        '[data-cm-multiselect] input[type="checkbox"]:checked'
+      ));
       const table = gridId ? document.querySelector('[data-grid-id="' + cssAttr(gridId) + '"]') : null;
       const simpleActive = !!(table == null ? void 0 : table.querySelector(".cm-col-filter-btn.is-active"));
       const model = (_e = (_d = (_c = handle == null ? void 0 : handle.gridApi) == null ? void 0 : _c.getFilterModel) == null ? void 0 : _d.call(_c)) != null ? _e : {};
       const agActive = Object.keys(model).length > 0;
-      btn.classList.toggle("is-hidden", !(urlActive || searchActive || simpleActive || agActive));
+      const handleActive = handle && typeof handle.hasActiveFilters === "function" ? handle.hasActiveFilters() : false;
+      btn.classList.toggle(
+        "is-hidden",
+        !(handleActive || urlActive || searchActive || toolbarFilterActive || simpleActive || agActive)
+      );
     });
   }
   function handleToolbarSavedSearchClick(e) {
@@ -4413,6 +4467,18 @@
     else if (action === "toggleSavedSearches") ToolbarSearch.toggle(scopeId);
     else if (action === "clearAllFilters") {
       const clearGridId = gridBtn.getAttribute("data-cm-grid-id") || scopeId;
+      const toolbar = gridBtn.closest(".cm-toolbar-unified");
+      const filterBar = toolbar == null ? void 0 : toolbar.querySelector("[data-cm-filter-bar]");
+      if (filterBar) {
+        filterBar.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+          input.checked = false;
+        });
+        filterBar.querySelectorAll("[data-cm-search]").forEach((input) => {
+          input.value = "";
+        });
+        navigateFilterState(selectedFilterValues(filterBar), gridBtn, filterBar);
+        return;
+      }
       invokeGridAction(clearGridId, "clearAllFilters");
       clearSimpleTableFiltersForGrid(clearGridId);
       window.setTimeout(syncClearAllButtons, 0);
@@ -4433,7 +4499,10 @@
     }
   }
   function bindDelegatedGridActions() {
-    if (getGlobal()._cmGridActionsBound) return;
+    if (getGlobal()._cmGridActionsBound) {
+      window.setTimeout(syncClearAllButtons, 0);
+      return;
+    }
     getGlobal()._cmGridActionsBound = true;
     document.addEventListener("click", handleToolbarSavedSearchClick, true);
     document.addEventListener("input", () => window.setTimeout(syncClearAllButtons, 0), true);
@@ -4790,22 +4859,14 @@
       select.disabled = false;
     }
   }
-  function findEditToolsSlot(shell, columnId) {
-    const th = shell.querySelector(`th[data-cm-col-key="${columnId}"]`);
-    return th ? th.querySelector("[data-cm-th-tools]") : null;
-  }
   function ensureHeaderControls(shell, config) {
     var _a;
     if (!config.confirm || config.mode !== "row") return;
-    const firstCol = (_a = config.columns) == null ? void 0 : _a[0];
-    if (!firstCol) return;
-    const slot = findEditToolsSlot(shell, firstCol.id);
-    if (!slot || slot.querySelector(".cm-table-edit-tools")) return;
-    slot.removeAttribute("aria-hidden");
-    const tools = document.createElement("span");
-    tools.className = "cm-table-edit-tools cm-dept-header-tools";
-    tools.innerHTML = '<button type="button" class="cm-table-edit-toggle cm-dept-edit-toggle" title="\u0420\u0435\u0434\u0430\u0433\u0443\u0432\u0430\u0442\u0438" aria-label="\u0420\u0435\u0434\u0430\u0433\u0443\u0432\u0430\u0442\u0438"><svg class="cm-dept-pencil-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button><button type="button" class="cm-table-edit-done cm-dept-edit-done" hidden title="\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u0438" aria-label="\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u0438"><svg class="cm-dept-done-icon" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="1.5"/><path d="M8 12.5 10.5 15 16 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
-    slot.appendChild(tools);
+    if (!((_a = config.columns) == null ? void 0 : _a.length) || shell.querySelector(".cm-table-edit-tools")) return;
+    const tools = document.createElement("div");
+    tools.className = "cm-table-edit-tools cm-table-edit-toolbar";
+    tools.innerHTML = '<button type="button" class="cm-table-edit-toggle cm-dept-edit-toggle" title="Edit" aria-label="Edit">Edit</button><button type="button" class="cm-table-edit-done cm-dept-edit-done" hidden title="Done" aria-label="Done">Done</button>';
+    shell.prepend(tools);
     const gv2 = getGlobal().GridView;
     if (gv2 && typeof gv2.initButtonEllipsisTips === "function") {
       gv2.initButtonEllipsisTips(tools);
@@ -5160,6 +5221,55 @@
       window.setTimeout(() => block.classList.add("hidden"), autoHideMs);
     }
   }
+  function resolveOverlay(overlayId) {
+    return document.getElementById(`cm-overlay-${overlayId}`);
+  }
+  function closeOverlay(overlay) {
+    var _a;
+    overlay.hidden = true;
+    const triggerId = overlay.dataset.cmOverlayTrigger;
+    if (triggerId) (_a = document.getElementById(triggerId)) == null ? void 0 : _a.focus();
+  }
+  var overlayEscapeBound = false;
+  function bindOverlayEscapeClose() {
+    if (overlayEscapeBound) return;
+    overlayEscapeBound = true;
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      document.querySelectorAll("[data-cm-overlay]:not([hidden])").forEach((overlay) => {
+        if (overlay.dataset.cmCloseOnEscape === "1") closeOverlay(overlay);
+      });
+    });
+  }
+  function initOverlayActions(scope) {
+    bindOverlayEscapeClose();
+    scope.querySelectorAll("[data-overlay-id]").forEach((trigger) => {
+      if (trigger.dataset.cmOverlayInit) return;
+      trigger.dataset.cmOverlayInit = "1";
+      trigger.addEventListener("click", () => {
+        var _a, _b;
+        const overlayId = (_a = trigger.getAttribute("data-overlay-id")) != null ? _a : "";
+        const overlay = resolveOverlay(overlayId);
+        if (!overlay) return;
+        if (!trigger.id) trigger.id = `cm-overlay-trigger-${overlayId}`;
+        overlay.dataset.cmOverlayTrigger = trigger.id;
+        overlay.hidden = false;
+        (_b = overlay.querySelector("[data-cm-overlay-close]")) == null ? void 0 : _b.focus();
+      });
+    });
+    scope.querySelectorAll("[data-cm-overlay]").forEach((overlay) => {
+      if (overlay.dataset.cmOverlayInit) return;
+      overlay.dataset.cmOverlayInit = "1";
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay && overlay.dataset.cmCloseOnBackdrop === "1") {
+          closeOverlay(overlay);
+        }
+      });
+      overlay.querySelectorAll("[data-cm-overlay-close]").forEach((button) => {
+        button.addEventListener("click", () => closeOverlay(overlay));
+      });
+    });
+  }
   function applyDismissStorage(scope) {
     scope.querySelectorAll("[data-cm-content-dismissible]").forEach((el) => {
       var _a;
@@ -5171,6 +5281,7 @@
   }
   function initContentActions(scope) {
     applyDismissStorage(scope);
+    initOverlayActions(scope);
     scope.querySelectorAll("[data-cm-content-dismiss]").forEach((btn) => {
       if (btn.dataset.cmContentDismissInit) return;
       btn.dataset.cmContentDismissInit = "1";
@@ -5353,18 +5464,18 @@
   }
   var agGridLoadPromise = null;
   function ensureAgGridAssetsLoaded() {
-    var _a;
-    const gv2 = getGlobal().GridView;
-    if ((_a = gv2 == null ? void 0 : gv2.AgGrid) == null ? void 0 : _a.Host) return Promise.resolve();
-    if (agGridLoadPromise) return agGridLoadPromise;
+    var _a, _b;
     const cfg = manifest();
+    ((_a = cfg.agGridCss) != null ? _a : []).forEach((href) => loadStylesheet(href));
+    const gv2 = getGlobal().GridView;
+    if ((_b = gv2 == null ? void 0 : gv2.AgGrid) == null ? void 0 : _b.Host) return Promise.resolve();
+    if (agGridLoadPromise) return agGridLoadPromise;
     agGridLoadPromise = (async () => {
-      var _a2, _b, _c;
-      ((_a2 = cfg.agGridCss) != null ? _a2 : []).forEach((href) => loadStylesheet(href));
-      await loadScript((_b = cfg.agGridCdn) != null ? _b : "", () => typeof getGlobal().agGrid !== "undefined");
-      await loadScript((_c = cfg.agGridPlugin) != null ? _c : "", () => {
-        var _a3, _b2;
-        return !!((_b2 = (_a3 = getGlobal().GridView) == null ? void 0 : _a3.AgGrid) == null ? void 0 : _b2.Host);
+      var _a2, _b2;
+      await loadScript((_a2 = cfg.agGridCdn) != null ? _a2 : "", () => typeof getGlobal().agGrid !== "undefined");
+      await loadScript((_b2 = cfg.agGridPlugin) != null ? _b2 : "", () => {
+        var _a3, _b3;
+        return !!((_b3 = (_a3 = getGlobal().GridView) == null ? void 0 : _a3.AgGrid) == null ? void 0 : _b3.Host);
       });
     })().catch((error) => {
       agGridLoadPromise = null;
@@ -5735,6 +5846,8 @@
               }
             }
             (_e2 = current.reloadData) == null ? void 0 : _e2.call(current);
+            const syncExportLinks2 = agModule == null ? void 0 : agModule.syncExportLinks;
+            syncExportLinks2 == null ? void 0 : syncExportLinks2(gridId, { getExtraParams: getPageState, exportColumns: true });
           })();
         });
       }
@@ -5923,6 +6036,7 @@
     safe("initButtonEllipsisTips", () => initButtonEllipsisTips(root));
     safe("initTabGroups", () => initTabGroups(root));
     safe("initContentActions", () => initContentActions(root));
+    safe("bindDelegatedGridActions", () => bindDelegatedGridActions());
     safe("initGalleryBlocks", () => initGalleryBlocks(root));
     safe("initImageRenderers", () => initImageRenderers(root));
     safe("initAllKpi", () => gridView2.initAllKpi(root));
@@ -6072,12 +6186,14 @@
   // src/column-settings/ag-grid-adapter.ts
   function createAgGridColumnAdapter(gridApi, columnMeta) {
     const meta = columnMeta || {};
+    let initialState = gridApi.getColumnState ? gridApi.getColumnState() : [];
     return {
       hasGroupedHeaders() {
         return false;
       },
       getDescriptors() {
         if (!gridApi || !gridApi.getColumns) return [];
+        if (!initialState.length && gridApi.getColumnState) initialState = gridApi.getColumnState();
         return gridApi.getColumns().map((col) => {
           const colDef = col.getColDef();
           const colId = colDef.field || col.getColId();
@@ -6113,7 +6229,9 @@
         gridApi.applyColumnState({ state, applyOrder: !!applyOrder });
       },
       resetColumnState() {
-        gridApi.resetColumnState();
+        if (initialState.length) {
+          gridApi.applyColumnState({ state: initialState, applyOrder: true });
+        }
       },
       getDisplayedColumnIds() {
         if (!gridApi.getAllDisplayedColumns) return [];
@@ -6597,8 +6715,6 @@
           };
         });
         this.adapter.applyColumnState(layoutState, true);
-      } else {
-        this.adapter.resetColumnState();
       }
     }
     getColumnState() {
@@ -6884,7 +7000,10 @@
       document.querySelectorAll('[data-cm-export-sync][data-cm-grid-id="' + gridId + '"]').forEach((link) => {
         if (!(link instanceof HTMLAnchorElement) || !link.href) return;
         if (syncFn) {
-          syncFn(link, gridId);
+          try {
+            syncFn(link, gridId);
+          } catch (e) {
+          }
           return;
         }
         const ids = adapter.getDisplayedColumnIds().join(",");

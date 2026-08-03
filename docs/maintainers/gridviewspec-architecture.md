@@ -618,7 +618,7 @@ Action rules:
 - table settings are declared on `GridViewTable.settings`, not as a separate action type;
 - `GridViewTable.settings` declares table settings capabilities;
 - the table/table-toolbar renderer shows settings UI when `GridViewTable.settings` is set;
-- if custom placement is needed, use `GridViewButtonAction(action="table_settings", target="table_id")`;
+- settings gear placement is renderer-owned; `GridViewButtonAction(action="table_settings")` is not a supported action;
 - `GridViewOverlayAction(overlay="overlay_id")` is the trigger for overlays;
 - permissions are resolved by the host before spec creation: omit, disable, or explain actions.
 

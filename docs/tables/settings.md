@@ -27,7 +27,9 @@ When `settings` is set, the table renderer shows the gear control and column set
 
 Simple table and AG-Grid share the same modal (`GridView.createColumnSettings`).
 
-Custom placement: `GridViewButtonAction(action="table_settings", target="table_id")`.
+The renderer owns gear placement. `GridViewButtonAction` has no built-in
+`action="table_settings"` handler; use `GridViewTable.settings` and the rendered
+control rather than declaring a non-functional action.
 
 ## Persistence layers
 
