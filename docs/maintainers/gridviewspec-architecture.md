@@ -824,9 +824,10 @@ Charts rules:
 - `GridViewCharts` has no toolbar block; page controls live in layout `GridViewToolbar`;
 - optional `filters` references the same `GridViewFilters` block id as the page toolbar for
   documentation/validation; host still supplies filtered `data` in `page_data`;
-- client-side chart refresh follows the same page filter/search state as tables on that page:
-  the simple-table filter pass re-renders sibling charts in the same spec root from the
-  currently-visible rows (the chart shares the table's data — no per-chart filter binding).
+- client-side chart refresh follows the same page filter/search state as the spec's first
+  simple table. That primary table re-renders sibling static charts from its currently-visible
+  rows; later summary tables in the same spec do not overwrite those charts. There is no
+  per-chart filter binding.
 - `GridViewChart.options` is not an open bag: only documented keys below are valid; bridge
   and validator reject unknown keys when `strict_unknown_config=True`.
 

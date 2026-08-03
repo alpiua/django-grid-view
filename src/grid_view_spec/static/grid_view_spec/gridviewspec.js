@@ -2552,6 +2552,7 @@
     }
     _syncGridViewCharts() {
       var _a;
+      if (!this.w.dataset.cmChartSource) return;
       if (!this.tbody.querySelector(".cm-row[data-cm-chart-row]")) return;
       const rows = [];
       this.tbody.querySelectorAll(".cm-row:not([hidden])").forEach((trEl) => {

@@ -1956,6 +1956,14 @@ Column settings UI uses the same msgids as the modal. Export column order/visibi
 
 # Changelog
 
+## 2.0.2 — 2026-08-03
+
+### Fixed
+
+- In a multi-table spec, client-side simple-table filtering refreshes static charts only from
+  the primary simple table. Later summary tables no longer overwrite a worklist chart with
+  unrelated or zero-valued data.
+
 ## 2.0.1 — 2026-08-03
 
 ### Added

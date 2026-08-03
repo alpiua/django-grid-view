@@ -21,9 +21,10 @@
 <div
   class="cm-table-surface cm-table-shell cm-layout-text-left"
   id="cm-table-{{ block.id | e }}"
-  data-grid-id="{{ block.id | e }}"
-  data-cm-table-backend="simple"
-  data-search-mode="{{ block.search_mode | e }}"
+   data-grid-id="{{ block.id | e }}"
+   data-cm-table-backend="simple"
+   {% if resolved.extra.get('chart_source') %}data-cm-chart-source="1"{% endif %}
+   data-search-mode="{{ block.search_mode | e }}"
   {% if block.pagination and block.pagination.mode == 'fragment' %}
   data-cm-fragment-endpoint="{{ block.pagination.fragment_endpoint | e }}"
   data-cm-fragment-target="{{ block.pagination.fragment_target | e }}"

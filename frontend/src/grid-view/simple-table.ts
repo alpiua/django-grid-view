@@ -854,6 +854,7 @@ export class SimpleTable {
       });
   }
   _syncGridViewCharts(): void {
+    if (!this.w.dataset.cmChartSource) return;
     if (!this.tbody.querySelector(".cm-row[data-cm-chart-row]")) return;
     const rows: RowDict[] = [];
     this.tbody.querySelectorAll(".cm-row:not([hidden])").forEach((trEl) => {
@@ -868,11 +869,9 @@ export class SimpleTable {
         /* ignore malformed row payload */
       }
     });
-    // Charts share the table's data: refresh every chart in the same spec root
-    // from the currently-visible rows. refreshChartWrap is self-guarding — with
-    // no rows it shows the empty state, and before echarts loads it no-ops without
-    // blanking — so no readiness gate here (one would stick after an empty state,
-    // since that path clears cmChartReady, and the chart would never recover).
+    // The renderer marks exactly one simple table as the spec's chart source.
+    // Its visible rows refresh sibling static charts. A summary table elsewhere
+    // in the same spec must never overwrite those chart values.
     const scope = this.w.closest("[data-cm-grid-view-spec]") ?? this.w;
     scope.querySelectorAll("[data-cm-chart-config]").forEach((node) => {
       const el = asHTMLElement(node);

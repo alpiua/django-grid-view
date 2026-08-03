@@ -87,6 +87,7 @@ def build_render_context(
     source_rows = tuple(rows)
     display_rows = display_rows_for_bind(spec, source_rows, export_ctx, index=index)
     has_charts = any(isinstance(block, GridViewCharts) for block in index.values())
+    chart_source_table_id = _simple_chart_source_table_id(spec) if has_charts else None
 
     resolved: dict[str, GridViewResolvedBlock] = {}
     for block_id, block in index.items():
@@ -117,8 +118,9 @@ def build_render_context(
                         searches=searches,
                     ),
                 }
-            if has_charts:
+            if block.id == chart_source_table_id:
                 bound_rows = tuple(enrich_table_row_chart_payload(row) for row in bound_rows)
+                extra = {**extra, "chart_source": True}
         elif isinstance(block, GridViewKpi):
             bound_rows = kpi_block_rows(block, display_rows)
             kpi_values: list[JsonValue] = [
@@ -181,9 +183,12 @@ def _chart_bind_table_rows(
     source_rows: tuple[RowDict, ...],
     export_ctx: ExportRequestContext,
 ) -> tuple[RowDict, ...]:
-    """Prefer the first simple-table block's bound rows for chart data."""
+    """Bind charts to the same primary simple table that can refresh them."""
+    source_table_id = _simple_chart_source_table_id(spec)
+    if source_table_id is None:
+        return source_rows
     for block in spec.blocks:
-        if not isinstance(block, GridViewTable):
+        if not isinstance(block, GridViewTable) or block.id != source_table_id:
             continue
         backend = search_backend_for_table(spec, block.id, index=index)
         return table_rows_for_render(
@@ -193,6 +198,14 @@ def _chart_bind_table_rows(
             search_backend=backend,
         )
     return source_rows
+
+
+def _simple_chart_source_table_id(spec: GridViewSpec) -> str | None:
+    """Return the one simple table that owns page-level chart refreshes."""
+    for block in spec.blocks:
+        if isinstance(block, GridViewTable) and block.backend == "simple":
+            return block.id
+    return None
 
 
 def jinja_action_href_helpers(

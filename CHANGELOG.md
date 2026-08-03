@@ -6,6 +6,13 @@ All notable changes to this project are documented here.
 
 No unreleased changes.
 
+## [2.0.2] — 2026-08-03
+
+### Fixed
+
+- In a multi-table spec, only the primary simple table now refreshes static charts. A later
+  summary table can no longer replace a worklist chart with unrelated or zero-valued rows.
+
 ## [2.0.1] — 2026-08-03
 
 ### Added
@@ -35,3 +42,4 @@ No unreleased changes.
 
 [2.0.0]: https://github.com/alpiua/grid-view-spec/releases/tag/v2.0.0
 [2.0.1]: https://github.com/alpiua/grid-view-spec/releases/tag/v2.0.1
+[2.0.2]: https://github.com/alpiua/grid-view-spec/releases/tag/v2.0.2

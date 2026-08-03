@@ -212,6 +212,40 @@ def test_chart_bound_table_rows_keep_the_chart_fields_used_by_the_spec() -> None
     assert json.loads(str(bound_row["__chart_row_json__"])) == {"status": "shipped", "qty": 12}
 
 
+def test_only_the_primary_simple_table_is_a_client_chart_source() -> None:
+    """A later summary table must not overwrite charts fed by the worklist."""
+    spec = GridViewSpec(
+        id="multiple_tables_chart",
+        blocks=(
+            GridViewTable(
+                id="orders",
+                columns=(GridViewColumn(id="amount", label="Amount", field="amount"),),
+            ),
+            GridViewCharts(
+                id="trend",
+                charts=(GridViewChart(id="amount_trend", type="line", x="date", y=("amount",)),),
+            ),
+            GridViewTable(
+                id="stock",
+                rows=({"category": "Accessories", "stock": 42},),
+                columns=(GridViewColumn(id="stock", label="Stock", field="stock"),),
+            ),
+        ),
+        layout=GridViewLayout(
+            root=GridViewArea(id="root", blocks=("orders", "trend", "stock")),
+        ),
+    )
+
+    ctx = build_render_context(
+        spec,
+        ({"date": "2026-06-01", "amount": 360},),
+        host=InMemoryHost(),
+    )
+
+    assert ctx.blocks["orders"].extra.get("chart_source") is True
+    assert "chart_source" not in ctx.blocks["stock"].extra
+
+
 def test_rich_spec_asset_plan_covers_block_types() -> None:
     spec = rich_spec()
     host = InMemoryHost()
