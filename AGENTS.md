@@ -16,7 +16,7 @@ must extend, not shadow, the global base skill.
 
 - Architecture: [gridviewspec-architecture.md](docs/maintainers/gridviewspec-architecture.md).
 - Docs: [.agents/skills/grid-view-spec-docs/SKILL.md](.agents/skills/grid-view-spec-docs/SKILL.md).
-- Behavior: [`tdd`](../../acdd/skills/tdd/SKILL.md).
+- Behavior: global `acdd-flow` + [`.acdd/kilo.yaml`](.acdd/kilo.yaml).
 - Quality: [code-quality.md](../../contextunity/docs/architecture/code-quality.md).
 
 ## Guards
@@ -40,8 +40,8 @@ uv run pytest -q
 
 | Trigger | Route |
 |---|---|
-| Behavior/regression | [`tdd`](../../acdd/skills/tdd/SKILL.md) |
-| Typing/payload boundary | [ContextUnity contract boundaries](../../contextunity/.agents/skills/contextunity-acdd/references/contract-boundaries.md) → named verification lane |
+| Behavior/regression | `acdd-flow` Contract proof policy; under `deferred-final-test`, global `test-contract-seam` after review convergence |
+| Typing/payload boundary | [ContextUnity contract-boundary guidance](../../contextunity/.acdd/guidance/contract-boundaries.md) → named verification lane |
 | Export/render/host | Architecture doc + export/render tests |
 | MCP migration | `grid-view-spec-mcp` + [MCP guide](docs/tools/mcp-server.md) |
 | Django/HTMX | `tests/test_gridviewspec_django_views.py` |

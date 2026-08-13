@@ -1,0 +1,47 @@
+schema: acdd/kilo-adapter/v1
+inheritance:
+  baseID: acdd/kilo-base/v1
+  extensions: [AGENTS.md, docs/maintainers/gridviewspec-architecture.md]
+repository:
+  id: grid-view-spec
+  root: .
+roles:
+  coordinator: { agent: acdd, permissions: &work-permissions [{ permission: lean-ctx_*, pattern: "*", action: allow }, { permission: codebase-memory-mcp_*, pattern: "*", action: allow }] }
+  contractVerifier: { agent: codebase-memory-auditor, permissions: &audit-permissions [{ permission: lean-ctx_ctx_read, pattern: "*", action: allow }, { permission: lean-ctx_ctx_tree, pattern: "*", action: allow }, { permission: lean-ctx_ctx_expand, pattern: "*", action: allow }, { permission: codebase-memory-mcp_*, pattern: "*", action: allow }] }
+  builder: { agent: code, permissions: &builder-permissions [{ permission: edit, pattern: "tests/**", action: deny }, { permission: write, pattern: "tests/**", action: deny }, { permission: apply_patch, pattern: "tests/**", action: deny }, { permission: lean-ctx_*, pattern: "*", action: allow }, { permission: codebase-memory-mcp_*, pattern: "*", action: allow }] }
+  testAuthor: { agent: general, permissions: *work-permissions }
+  finalReviewers:
+    - { agent: review-closure-sol, permissions: *work-permissions }
+    - { agent: review-closure-terra, permissions: *work-permissions }
+    - { agent: review-closure-luna, permissions: *work-permissions }
+  synthesizer: { agent: review-closure-synthesizer, permissions: *audit-permissions }
+proof:
+  defaultStrategy: deferred-final-test
+  sensitivityRequired: true
+paths:
+  production: [src, frontend, schema]
+  tests: [tests]
+  documentation: [AGENTS.md, README.md, docs]
+commands:
+  build:
+    - id: focused-test
+      argv: [uv, run, pytest, "{target}", -q, "--tb=line"]
+      cwd: .
+      timeoutSeconds: 900
+      maxOutputBytes: 300000
+  handoff:
+    - id: ci-gate
+      argv: [./scripts/ci-gate.sh]
+      cwd: .
+      timeoutSeconds: 1800
+      maxOutputBytes: 500000
+risk:
+  localReviewWhen: [public-schema-export-or-host-boundary-change]
+  liveChecks: []
+guidance:
+  architecture: docs/maintainers/gridviewspec-architecture.md
+  quality: AGENTS.md
+  finalTests: AGENTS.md
+capabilities:
+  structured-output: required
+  event-completion: required
