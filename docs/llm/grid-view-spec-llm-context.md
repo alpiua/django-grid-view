@@ -1956,6 +1956,13 @@ Column settings UI uses the same msgids as the modal. Export column order/visibi
 
 # Changelog
 
+## 2.0.3 — 2026-08-30
+
+### Documentation & Tooling
+
+- Updated agent skills and repository adapter configuration (`.acdd/kilo.yaml`, `.agents/skills/*`).
+- Added portfolio routing and planner documentation updates.
+
 ## 2.0.2 — 2026-08-03
 
 ### Fixed

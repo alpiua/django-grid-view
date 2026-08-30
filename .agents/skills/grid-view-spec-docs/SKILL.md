@@ -15,7 +15,7 @@ Brief for coding agents working with **grid-view-spec** (PyPI `grid-view-spec`, 
 
 Framework-agnostic **GridViewSpec** renderer with optional Django backend: declarative pages (blocks + layout), Simple Table, AG-Grid infinite datasource, KPI, ECharts, PDF/XLSX export. **Rows** come from SQL/ORM in Python; specs describe **structure only**.
 
-**Host contract (canonical):** [docs/integration/host-contract.md](../../docs/integration/host-contract.md) — `GridViewHost`, prefs, export. MCP: `gridview_catalog` → `host_backends`, `host_protocol`, `http_routes`.
+**Host contract (canonical):** [docs/integration/host-contract.md](../../../docs/integration/host-contract.md) — `GridViewHost`, prefs, export. MCP: `gridview_catalog` → `host_backends`, `host_protocol`, `http_routes`.
 
 ---
 

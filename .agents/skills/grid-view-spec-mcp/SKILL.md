@@ -7,7 +7,7 @@ description: Use GridViewSpec MCP tools when authoring dashboard pages to grid-v
 
 MCP server CLI: **`gridviewspec-mcp`** → `grid_view_spec.mcp` (no Django runtime).
 
-Install: `pip install "grid-view-spec[mcp]"` or `./scripts/install-mcp-cli.sh` — see [mcp-server.md](../../docs/tools/mcp-server.md).
+Install: `pip install "grid-view-spec[mcp]"` or `./scripts/install-mcp-cli.sh` — see [mcp-server.md](../../../docs/tools/mcp-server.md).
 
 ## When to use
 
@@ -29,10 +29,10 @@ Install: `pip install "grid-view-spec[mcp]"` or `./scripts/install-mcp-cli.sh` �
 
 | Topic | Catalog key | Human doc |
 |-------|-------------|-----------|
-| Render backends | `host_backends` | [host-contract.md](../../docs/integration/host-contract.md) |
+| Render backends | `host_backends` | [host-contract.md](../../../docs/integration/host-contract.md) |
 | `GridViewHost` methods | `host_protocol` | same |
-| Prefs / export URLs | `http_routes` | [django.md](../../docs/integration/django.md), [preferences.md](../../docs/persistence/preferences.md) |
-| Table `simple` vs `ag_grid` | `table_backends` | [tables/index.md](../../docs/tables/index.md) |
+| Prefs / export URLs | `http_routes` | [django.md](../../../docs/integration/django.md), [preferences.md](../../../docs/persistence/preferences.md) |
+| Table `simple` vs `ag_grid` | `table_backends` | [tables/index.md](../../../docs/tables/index.md) |
 
 ### Django checklist (after spec validates)
 

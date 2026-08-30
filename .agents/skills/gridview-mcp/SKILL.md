@@ -5,7 +5,7 @@ description: Use GridViewSpec MCP tools when authoring dashboard pages with Grid
 
 # gridview-mcp — GridViewSpec MCP
 
-Setup: [docs/tools/mcp-server.md](../../docs/tools/mcp-server.md)
+Setup: [docs/tools/mcp-server.md](../../../docs/tools/mcp-server.md)
 
 ## When to use
 

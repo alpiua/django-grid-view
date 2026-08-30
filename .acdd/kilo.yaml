@@ -7,14 +7,28 @@ repository:
   root: .
 roles:
   coordinator: { agent: acdd, permissions: &work-permissions [{ permission: lean-ctx_*, pattern: "*", action: allow }, { permission: codebase-memory-mcp_*, pattern: "*", action: allow }] }
-  contractVerifier: { agent: codebase-memory-auditor, permissions: &audit-permissions [{ permission: lean-ctx_ctx_read, pattern: "*", action: allow }, { permission: lean-ctx_ctx_tree, pattern: "*", action: allow }, { permission: lean-ctx_ctx_expand, pattern: "*", action: allow }, { permission: codebase-memory-mcp_*, pattern: "*", action: allow }] }
-  builder: { agent: code, permissions: &builder-permissions [{ permission: edit, pattern: "tests/**", action: deny }, { permission: write, pattern: "tests/**", action: deny }, { permission: apply_patch, pattern: "tests/**", action: deny }, { permission: lean-ctx_*, pattern: "*", action: allow }, { permission: codebase-memory-mcp_*, pattern: "*", action: allow }] }
-  testAuthor: { agent: general, permissions: *work-permissions }
+  contractVerifier: { agent: code-reviewer, model: { providerID: openai, modelID: gpt-5.6-terra, variant: xhigh }, permissions: &audit-permissions [{ permission: lean-ctx_ctx_read, pattern: "*", action: allow }, { permission: lean-ctx_ctx_tree, pattern: "*", action: allow }, { permission: lean-ctx_ctx_expand, pattern: "*", action: allow }, { permission: codebase-memory-mcp_*, pattern: "*", action: allow }] }
+  builder: { agent: code, model: { providerID: openai, modelID: gpt-5.6-luna, variant: high }, permissions: &builder-permissions [{ permission: edit, pattern: "tests/**", action: deny }, { permission: write, pattern: "tests/**", action: deny }, { permission: apply_patch, pattern: "tests/**", action: deny }, { permission: lean-ctx_*, pattern: "*", action: allow }, { permission: codebase-memory-mcp_*, pattern: "*", action: allow }] }
+  testAuthor:
+    agent: code
+    model: { providerID: openai, modelID: gpt-5.6-luna, variant: xhigh }
+    permissions: &test-author-permissions
+      - { permission: edit, pattern: "src/**", action: deny }
+      - { permission: write, pattern: "src/**", action: deny }
+      - { permission: apply_patch, pattern: "src/**", action: deny }
+      - { permission: edit, pattern: "frontend/**", action: deny }
+      - { permission: write, pattern: "frontend/**", action: deny }
+      - { permission: apply_patch, pattern: "frontend/**", action: deny }
+      - { permission: edit, pattern: "schema/**", action: deny }
+      - { permission: write, pattern: "schema/**", action: deny }
+      - { permission: apply_patch, pattern: "schema/**", action: deny }
+      - { permission: lean-ctx_*, pattern: "*", action: allow }
+      - { permission: codebase-memory-mcp_*, pattern: "*", action: allow }
   finalReviewers:
-    - { agent: review-closure-sol, permissions: *work-permissions }
-    - { agent: review-closure-terra, permissions: *work-permissions }
-    - { agent: review-closure-luna, permissions: *work-permissions }
-  synthesizer: { agent: review-closure-synthesizer, permissions: *audit-permissions }
+    - { agent: code-reviewer, model: { providerID: openai, modelID: gpt-5.6-sol, variant: low }, permissions: *work-permissions }
+    - { agent: code-reviewer, model: { providerID: openai, modelID: gpt-5.6-terra, variant: medium }, permissions: *work-permissions }
+    - { agent: code-reviewer, model: { providerID: openai, modelID: gpt-5.6-luna, variant: high }, permissions: *work-permissions }
+  synthesizer: { agent: orchestrator, model: { providerID: openai, modelID: gpt-5.6-sol, variant: medium }, permissions: *audit-permissions }
 proof:
   defaultStrategy: deferred-final-test
   sensitivityRequired: true
