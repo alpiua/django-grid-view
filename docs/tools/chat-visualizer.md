@@ -51,8 +51,12 @@ Do **not** put in planner output: `rows`, KPI values, a full grid spec, or `echa
 
 ```python
 from grid_view_spec import GridViewSpec, validate_spec
-from grid_view_spec.types.layout import GridViewArea, GridViewLayout
-from grid_view_spec.types.table_v2 import GridViewColumn, GridViewTable
+from grid_view_spec.types import (
+    GridViewArea,
+    GridViewColumn,
+    GridViewLayout,
+    GridViewTable,
+)
 
 def present_grid(format: str, purpose: str, columns: list[str], rows: list[dict]):
     spec = GridViewSpec(

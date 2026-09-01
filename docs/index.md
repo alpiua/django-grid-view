@@ -64,9 +64,12 @@ KPI and chart **numbers** always come from Python `rows` — never from untruste
 
 | Extra | Purpose |
 |-------|---------|
-| `[pdf]` | WeasyPrint PDF export |
-| `[mcp]` | `gridviewspec-mcp` CLI |
-| `[starlette]` / `[fastapi]` | ASGI routes |
+| `[django]` | Django template tags, URL routes, ORM preference model |
+| `[fastapi]` / `[starlette]` | ASGI page routes & helper middleware |
+| `[mcp]` | `gridviewspec-mcp` CLI & AI assistant tools |
+| `[pdf]` | WeasyPrint PDF export pipeline |
+| `[xlsx]` | XlsxWriter Excel export pipeline |
+| `[static-charts]` | Matplotlib static chart rendering |
 
 ## Links
 

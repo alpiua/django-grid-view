@@ -43,8 +43,12 @@ Charts: load ECharts in the host base template. AG-Grid pages load extra bundles
 ```python
 from django.shortcuts import render
 from grid_view_spec import GridViewSpec, validate_spec
-from grid_view_spec.types.layout import GridViewArea, GridViewLayout
-from grid_view_spec.types.table_v2 import GridViewColumn, GridViewTable
+from grid_view_spec.types import (
+    GridViewArea,
+    GridViewColumn,
+    GridViewLayout,
+    GridViewTable,
+)
 
 def orders_list(request):
     rows = [{"name": "Ada", "amount": 120}, {"name": "Bob", "amount": 85}]

@@ -19,6 +19,7 @@ exposes export hooks. Host applications supply **rows and business logic**; the 
 **structure only**.
 
 The PyPI distribution is **`grid-view-spec`**. The Python package imports as `grid_view_spec`.
+See the live **[Interactive Demo Showcase](https://github.com/alpiua/grid-view-spec-demo)** to explore working multi-backend dashboards.
 
 ```bash
 pip install "grid-view-spec[django]"
@@ -76,9 +77,12 @@ Backends detail (see section: concepts/backends.md)
 
 | Extra | Purpose |
 |-------|---------|
-| `[pdf]` | WeasyPrint PDF export |
-| `[mcp]` | `gridviewspec-mcp` CLI |
-| `[starlette]` / `[fastapi]` | ASGI routes |
+| `[django]` | Django template tags, URL routes, ORM preference model |
+| `[fastapi]` / `[starlette]` | ASGI page routes & helper middleware |
+| `[mcp]` | `gridviewspec-mcp` CLI & AI assistant tools |
+| `[pdf]` | WeasyPrint PDF export pipeline |
+| `[xlsx]` | XlsxWriter Excel export pipeline |
+| `[static-charts]` | Matplotlib static chart rendering |
 
 ## Links
 
@@ -138,8 +142,12 @@ Charts: load ECharts in the host base template. AG-Grid pages load extra bundles
 ```python
 from django.shortcuts import render
 from grid_view_spec import GridViewSpec, validate_spec
-from grid_view_spec.types.layout import GridViewArea, GridViewLayout
-from grid_view_spec.types.table_v2 import GridViewColumn, GridViewTable
+from grid_view_spec.types import (
+    GridViewArea,
+    GridViewColumn,
+    GridViewLayout,
+    GridViewTable,
+)
 
 def orders_list(request):
     rows = [{"name": "Ada", "amount": 120}, {"name": "Bob", "amount": 85}]
@@ -394,8 +402,12 @@ Wire format: [`schema/grid-view-spec.v2.json`](https://github.com/alpiua/grid-vi
 ```python
 from grid_view_spec import GridViewSpec, validate_spec
 from grid_view_spec.render import render_grid_view_spec
-from grid_view_spec.types.layout import GridViewArea, GridViewLayout
-from grid_view_spec.types.table_v2 import GridViewColumn, GridViewTable
+from grid_view_spec.types import (
+    GridViewArea,
+    GridViewColumn,
+    GridViewLayout,
+    GridViewTable,
+)
 
 spec = GridViewSpec(
     id="orders",
@@ -1617,11 +1629,35 @@ Import from **`grid_view_spec`** at host boundaries. Do not copy type trees loca
 
 ```python
 from grid_view_spec import GridViewSpec, validate_spec
-from grid_view_spec.types.table_v2 import GridViewTable, GridViewColumn, GridViewColumnGroup
-from grid_view_spec.types.filters_v2 import GridViewFilters, GridViewFilter
-from grid_view_spec.types.actions import GridViewExportAction, GridViewActions
-from grid_view_spec.types.layout import GridViewLayout, GridViewArea
-from grid_view_spec.types.json import JsonObject, JsonValue, RowDict
+from grid_view_spec.types import (
+    GridViewActions,
+    GridViewArea,
+    GridViewCard,
+    GridViewCards,
+    GridViewChart,
+    GridViewCharts,
+    GridViewColumn,
+    GridViewColumnGroup,
+    GridViewContent,
+    GridViewCounter,
+    GridViewExportAction,
+    GridViewField,
+    GridViewFilter,
+    GridViewFilters,
+    GridViewForm,
+    GridViewHeader,
+    GridViewKpi,
+    GridViewLayout,
+    GridViewNav,
+    GridViewOverlay,
+    GridViewSearch,
+    GridViewTable,
+    GridViewTabs,
+    GridViewToolbar,
+    JsonScalar,
+    JsonValue,
+    RowDict,
+)
 ```
 
 ## Export

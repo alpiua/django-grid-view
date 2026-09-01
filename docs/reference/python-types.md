@@ -6,11 +6,35 @@ Import from **`grid_view_spec`** at host boundaries. Do not copy type trees loca
 
 ```python
 from grid_view_spec import GridViewSpec, validate_spec
-from grid_view_spec.types.table_v2 import GridViewTable, GridViewColumn, GridViewColumnGroup
-from grid_view_spec.types.filters_v2 import GridViewFilters, GridViewFilter
-from grid_view_spec.types.actions import GridViewExportAction, GridViewActions
-from grid_view_spec.types.layout import GridViewLayout, GridViewArea
-from grid_view_spec.types.json import JsonObject, JsonValue, RowDict
+from grid_view_spec.types import (
+    GridViewActions,
+    GridViewArea,
+    GridViewCard,
+    GridViewCards,
+    GridViewChart,
+    GridViewCharts,
+    GridViewColumn,
+    GridViewColumnGroup,
+    GridViewContent,
+    GridViewCounter,
+    GridViewExportAction,
+    GridViewField,
+    GridViewFilter,
+    GridViewFilters,
+    GridViewForm,
+    GridViewHeader,
+    GridViewKpi,
+    GridViewLayout,
+    GridViewNav,
+    GridViewOverlay,
+    GridViewSearch,
+    GridViewTable,
+    GridViewTabs,
+    GridViewToolbar,
+    JsonScalar,
+    JsonValue,
+    RowDict,
+)
 ```
 
 ## Export

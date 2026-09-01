@@ -29,8 +29,12 @@ Wire format: [`schema/grid-view-spec.v2.json`](https://github.com/alpiua/grid-vi
 ```python
 from grid_view_spec import GridViewSpec, validate_spec
 from grid_view_spec.render import render_grid_view_spec
-from grid_view_spec.types.layout import GridViewArea, GridViewLayout
-from grid_view_spec.types.table_v2 import GridViewColumn, GridViewTable
+from grid_view_spec.types import (
+    GridViewArea,
+    GridViewColumn,
+    GridViewLayout,
+    GridViewTable,
+)
 
 spec = GridViewSpec(
     id="orders",
