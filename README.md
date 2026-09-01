@@ -3,11 +3,16 @@
 [![PyPI](https://img.shields.io/pypi/v/grid-view-spec.svg?label=PyPI)](https://pypi.org/project/grid-view-spec/)
 [![Python](https://img.shields.io/pypi/pyversions/grid-view-spec.svg)](https://pypi.org/project/grid-view-spec/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-2563eb)](https://alpiua.github.io/grid-view-spec/)
+[![Demo](https://img.shields.io/badge/demo-Live%20Showcase-059669)](https://github.com/alpiua/grid-view-spec-demo)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 **Declarative dashboard pages for Django and other hosts** — tables, filters, KPI strips, charts, and export from one typed **`GridViewSpec`** contract. You own SQL/ORM rows; the package owns layout, templates, browser runtime, and PDF/XLSX pipelines.
 
-**[Documentation](https://alpiua.github.io/grid-view-spec/)** · **[MCP server](docs/tools/mcp-server.md)** · **[PyPI](https://pypi.org/project/grid-view-spec/)**
+**[Documentation](https://alpiua.github.io/grid-view-spec/)** · **[Interactive Demo App](https://github.com/alpiua/grid-view-spec-demo)** · **[MCP server](docs/tools/mcp-server.md)** · **[PyPI](https://pypi.org/project/grid-view-spec/)**
+
+---
+
+![GridViewSpec Dashboard Showcase](docs/assets/dashboard-preview.png)
 
 ---
 

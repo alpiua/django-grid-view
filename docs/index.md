@@ -6,6 +6,7 @@ exposes export hooks. Host applications supply **rows and business logic**; the 
 **structure only**.
 
 The PyPI distribution is **`grid-view-spec`**. The Python package imports as `grid_view_spec`.
+See the live **[Interactive Demo Showcase](https://github.com/alpiua/grid-view-spec-demo)** to explore working multi-backend dashboards.
 
 ```bash
 pip install "grid-view-spec[django]"
