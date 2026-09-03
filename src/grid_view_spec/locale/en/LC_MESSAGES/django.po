@@ -59,11 +59,23 @@ msgstr "Reset to default"
 msgid "column_settings.presets"
 msgstr "Column presets"
 
+msgid "column_settings.presets_hint"
+msgstr "Saved column layouts"
+
 msgid "column_settings.preset_placeholder"
 msgstr "Enter name…"
 
+msgid "column_settings.preset_default"
+msgstr "Default"
+
+msgid "column_settings.no_presets_hint"
+msgstr "No saved presets yet. Configure columns above, enter a name, and click Save."
+
 msgid "column_settings.save_preset"
 msgstr "Save current preset"
+
+msgid "column_settings.save"
+msgstr "Save"
 
 msgid "column_settings.select"
 msgstr "Select:"
@@ -82,6 +94,9 @@ msgstr "Main"
 
 msgid "column_settings.apply"
 msgstr "Apply"
+
+msgid "column_settings.load"
+msgstr "Load"
 
 msgid "export.pdf"
 msgstr "PDF"
@@ -236,6 +251,12 @@ msgstr "Clear search"
 msgid "toolbar.clear_all_filters"
 msgstr "Clear all filters and search"
 
+msgid "toolbar.filters"
+msgstr "Filters"
+
+msgid "toolbar.reset"
+msgstr "Reset"
+
 msgid "toolbar.reload"
 msgstr "Reload"
 
@@ -322,3 +343,6 @@ msgstr "Filters: %(filters)s"
 
 msgid "export.meta.filter_part"
 msgstr "%(label)s: %(values)s"
+
+msgid "toolbar.more_actions"
+msgstr "More actions"

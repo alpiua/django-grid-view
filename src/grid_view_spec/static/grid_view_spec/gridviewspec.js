@@ -4511,7 +4511,7 @@
     document.addEventListener("cm-grid-state-change", () => window.setTimeout(syncClearAllButtons, 0));
     window.setTimeout(syncClearAllButtons, 0);
     document.addEventListener("click", (e) => {
-      var _a;
+      var _a, _b;
       const target = eventTargetElement(e.target);
       if (!target) return;
       const cellBtn = target.closest("[data-cm-cell-action]");
@@ -4533,9 +4533,44 @@
         const colAction = colBtn.getAttribute("data-cm-col-action");
         const colGridId = colBtn.getAttribute("data-cm-grid-id");
         if (colAction === "toggle") invokeGridAction(colGridId, "toggleColSelector");
+        else if (colAction === "toggle-modal") invokeGridAction(colGridId, "openColSelectorModal");
+        else if (colAction === "close") invokeGridAction(colGridId, "closeColSelectorModal");
         else if (colAction === "reset") invokeGridAction(colGridId, "resetColumnsToDefault");
         else if (colAction === "savePreset") invokeGridAction(colGridId, "saveCurrentPreset");
         return;
+      }
+      const openMoreMenus = document.querySelectorAll("details.cm-toolbar-more-menu[open]");
+      if (openMoreMenus.length > 0) {
+        openMoreMenus.forEach((menu) => {
+          if (!menu.contains(target) || target.closest(".cm-toolbar-more-item")) {
+            menu.removeAttribute("open");
+          }
+        });
+      }
+      const filtersToggle = target.closest("[data-cm-filters-toggle]");
+      if (filtersToggle) {
+        const targetId = filtersToggle.dataset.cmTarget;
+        const center = targetId ? document.getElementById(targetId) : (_b = filtersToggle.closest(".cm-toolbar-unified")) == null ? void 0 : _b.querySelector(".cm-toolbar-center");
+        if (center) {
+          const isOpen = center.classList.contains("is-open");
+          document.querySelectorAll(".cm-toolbar-center.is-open").forEach((el) => el.classList.remove("is-open"));
+          document.querySelectorAll("[data-cm-filters-toggle].is-active-open").forEach((el) => el.classList.remove("is-active-open"));
+          if (!isOpen) {
+            center.classList.add("is-open");
+            filtersToggle.classList.add("is-active-open");
+          }
+        }
+        return;
+      }
+      const filtersClose = target.closest("[data-cm-filters-close]");
+      if (filtersClose) {
+        document.querySelectorAll(".cm-toolbar-center.is-open").forEach((el) => el.classList.remove("is-open"));
+        document.querySelectorAll("[data-cm-filters-toggle].is-active-open").forEach((el) => el.classList.remove("is-active-open"));
+        return;
+      }
+      if (!target.closest(".cm-toolbar-center") && !target.closest("[data-cm-filters-toggle]")) {
+        document.querySelectorAll(".cm-toolbar-center.is-open").forEach((el) => el.classList.remove("is-open"));
+        document.querySelectorAll("[data-cm-filters-toggle].is-active-open").forEach((el) => el.classList.remove("is-active-open"));
       }
     });
     document.addEventListener("input", (e) => {
@@ -4547,6 +4582,10 @@
     });
     document.addEventListener("keydown", (e) => {
       var _a, _b;
+      if (e.key === "Escape") {
+        document.querySelectorAll(".cm-toolbar-center.is-open").forEach((el) => el.classList.remove("is-open"));
+        document.querySelectorAll("[data-cm-filters-toggle].is-active-open").forEach((el) => el.classList.remove("is-active-open"));
+      }
       if (e.key !== "Enter") return;
       const inp = asHtmlInput(
         (_b = (_a = eventTargetElement(e.target)) == null ? void 0 : _a.closest(
@@ -4556,6 +4595,55 @@
       if (!inp) return;
       e.preventDefault();
       invokeGridAction(inp.getAttribute("data-cm-grid-id"), "reloadData");
+    });
+    initResponsiveToolbars();
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initResponsiveToolbars);
+    }
+  }
+  function initResponsiveToolbars() {
+    const toolbars = document.querySelectorAll(".cm-toolbar-unified");
+    toolbars.forEach((toolbar) => {
+      if (toolbar.dataset.cmResponsiveInit) return;
+      toolbar.dataset.cmResponsiveInit = "1";
+      const left = toolbar.querySelector(".cm-toolbar-left");
+      const center = toolbar.querySelector(".cm-toolbar-center");
+      const desktopActions = toolbar.querySelector(".cm-toolbar-desktop-actions");
+      const moreMenu = toolbar.querySelector(".cm-toolbar-more-menu");
+      const filtersToggle = toolbar.querySelector(".cm-toolbar-filters-toggle");
+      const update = () => {
+        const width = toolbar.clientWidth;
+        if (width === 0) return;
+        const searchField = left == null ? void 0 : left.querySelector(".cm-toolbar-search-field");
+        const hasSearch = !!searchField;
+        toolbar.classList.toggle("cm-toolbar--no-search", !hasSearch);
+        const isMobile = hasSearch && window.innerWidth <= 640;
+        if (isMobile) {
+          toolbar.classList.add("cm-toolbar--mobile");
+          toolbar.classList.remove("cm-toolbar--actions-collapsed");
+          if (filtersToggle) filtersToggle.style.display = "";
+          if (desktopActions) desktopActions.style.display = "";
+          if (moreMenu) moreMenu.style.display = "";
+          return;
+        }
+        toolbar.classList.remove("cm-toolbar--mobile");
+        if (filtersToggle) filtersToggle.style.display = "none";
+        const searchActions = left == null ? void 0 : left.querySelector(".cm-toolbar-search-actions");
+        const leftW = (searchField ? 220 : (left == null ? void 0 : left.scrollWidth) || 0) + ((searchActions == null ? void 0 : searchActions.scrollWidth) || 0);
+        const centerW = (center == null ? void 0 : center.scrollWidth) || 0;
+        const actionsW = desktopActions && desktopActions.offsetWidth > 0 ? desktopActions.offsetWidth : 160;
+        const requiredW = leftW + centerW + actionsW + 36;
+        const shouldCollapse = width < requiredW;
+        toolbar.classList.toggle("cm-toolbar--actions-collapsed", shouldCollapse);
+        if (desktopActions) desktopActions.style.display = shouldCollapse ? "none" : "";
+        if (moreMenu) moreMenu.style.display = shouldCollapse ? "block" : "";
+      };
+      update();
+      if (typeof ResizeObserver !== "undefined") {
+        new ResizeObserver(update).observe(toolbar);
+      } else {
+        window.addEventListener("resize", update);
+      }
     });
   }
   function initSimpleTableColumnSettings(wrapper) {
@@ -5017,9 +5105,6 @@
   function isAgGridSortState(col) {
     return typeof col === "object" && col !== null && Boolean(Reflect.get(col, "sort"));
   }
-  function isColumnStateGetter(fn) {
-    return typeof fn === "function";
-  }
   function getQuickSearchText(gridIdOrHandle) {
     var _a, _b;
     const handle = typeof gridIdOrHandle === "string" ? byId.get(gridIdOrHandle) : gridIdOrHandle != null ? gridIdOrHandle : null;
@@ -5161,8 +5246,8 @@
       } else {
         target.searchParams.delete("filters");
       }
-      var getColumnState = handle.gridApi.getColumnState;
-      var sortState = isColumnStateGetter(getColumnState) ? getColumnState().filter(isAgGridSortState) : [];
+      var colState = handle.gridApi.getColumnState();
+      var sortState = Array.isArray(colState) ? colState.filter(isAgGridSortState) : [];
       if (sortState.length) {
         target.searchParams.set(
           "sort",
@@ -6654,19 +6739,53 @@
   // src/column-settings/host.ts
   var ColumnSettingsHost = class {
     constructor(gridId, adapter, options) {
+      this.activePresetName = null;
       const opts = options || {};
       this.gridId = gridId;
       this.adapter = adapter;
       this.groupsOrder = opts.groupsOrder || [];
       this.savedColPresets = opts.initialPresets || {};
+      try {
+        const stored = localStorage.getItem("agGridPresets_" + this.gridId) || localStorage.getItem("cmColPresets_" + this.gridId);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            this.savedColPresets = {
+              ...parsed,
+              ...this.savedColPresets
+            };
+          }
+        }
+      } catch (e) {
+      }
       this.preferencesUrl = opts.preferencesUrl || "";
       this.storageScope = opts.storageScope || "";
       this.onStateChange = opts.onStateChange || null;
       this.colOrderSortable = null;
+      try {
+        const active = localStorage.getItem("cmActivePreset_" + this.gridId);
+        if (active && this.savedColPresets[active]) {
+          this.activePresetName = active;
+        }
+      } catch (e) {
+      }
       this._bindModalDismiss();
       this._applyInitialState(opts.initialState);
       this.renderSavedPresets();
       this.syncExportLinks();
+    }
+    applyPreset(name) {
+      if (!this.savedColPresets[name]) return;
+      this.adapter.applyColumnState(this.savedColPresets[name], true);
+      this.activePresetName = name;
+      try {
+        localStorage.setItem("cmActivePreset_" + this.gridId, name);
+      } catch (e) {
+      }
+      this.saveState();
+      this.syncExportLinks();
+      this.buildColCheckboxes();
+      this.renderSavedPresets();
     }
     _storageKey() {
       if (this.storageScope) return "cmColState_" + this.gridId + "__" + this.storageScope;
@@ -6677,6 +6796,9 @@
       window._cmColSettingsEscBound = true;
       document.addEventListener("keydown", (e) => {
         if (e.key !== "Escape") return;
+        document.querySelectorAll(".cm-col-presets-dropdown:not(.is-hidden)").forEach((dd) => {
+          dd.classList.add("is-hidden");
+        });
         document.querySelectorAll('[id^="col-selector-panel-"]').forEach((panel) => {
           if (panel instanceof HTMLElement && !colPanelIsHidden(panel)) {
             setColPanelHidden(panel, true);
@@ -6685,9 +6807,15 @@
       });
       document.addEventListener("click", (e) => {
         const target = e.target;
+        document.querySelectorAll(".cm-col-presets-dropdown:not(.is-hidden)").forEach((dd) => {
+          const gridId = dd.id.replace("col-presets-dropdown-", "");
+          const btn = document.getElementById("col-selector-btn-" + gridId) || document.querySelector(`[data-cm-col-action="toggle"][data-cm-grid-id="${gridId}"]`);
+          if (target instanceof Element && (dd.contains(target) || btn && btn.contains(target))) return;
+          dd.classList.add("is-hidden");
+        });
         document.querySelectorAll('[id^="col-selector-panel-"]').forEach((panel) => {
           if (!(panel instanceof HTMLElement) || colPanelIsHidden(panel)) return;
-          if (target === panel || target instanceof Element && target.classList.contains("cm-col-selector-backdrop")) {
+          if (target === panel || target instanceof Element && target.classList.contains("cm-col-selector-backdrop") || target instanceof Element && target.closest(".cm-col-selector-close")) {
             setColPanelHidden(panel, true);
           }
         });
@@ -6730,17 +6858,133 @@
       this.syncExportLinks();
       if (typeof this.onStateChange === "function") this.onStateChange(state);
     }
-    toggleColSelector() {
+    openColSelectorModal() {
+      this.closePresetsDropdown();
       const panel = getColSelectorPanel(this.gridId);
       if (!panel) return;
-      const isHidden = colPanelIsHidden(panel);
-      setColPanelHidden(panel, !isHidden);
-      if (isHidden) this.buildColCheckboxes();
+      setColPanelHidden(panel, false);
+      this.buildColCheckboxes();
+    }
+    closeColSelectorModal() {
+      this.closePresetsDropdown();
+      const panel = getColSelectorPanel(this.gridId);
+      if (!panel) return;
+      setColPanelHidden(panel, true);
+    }
+    closePresetsDropdown() {
+      const dd = document.getElementById("col-presets-dropdown-" + this.gridId);
+      if (dd) dd.classList.add("is-hidden");
+    }
+    toggleColSelector(forceModal = false) {
+      const panel = getColSelectorPanel(this.gridId);
+      if (panel && !colPanelIsHidden(panel)) {
+        setColPanelHidden(panel, true);
+        return;
+      }
+      const presetNames = Object.keys(this.savedColPresets || {});
+      if (presetNames.length === 0 || forceModal) {
+        this.closePresetsDropdown();
+        if (!panel) return;
+        setColPanelHidden(panel, false);
+        this.buildColCheckboxes();
+        return;
+      }
+      this.togglePresetsDropdown();
+    }
+    togglePresetsDropdown() {
+      let dd = document.getElementById("col-presets-dropdown-" + this.gridId);
+      if (dd && !dd.classList.contains("is-hidden")) {
+        dd.classList.add("is-hidden");
+        return;
+      }
+      const btn = document.getElementById("col-selector-btn-" + this.gridId) || document.querySelector(`[data-cm-col-action="toggle"][data-cm-grid-id="${this.gridId}"]`);
+      if (!btn) {
+        this.openColSelectorModal();
+        return;
+      }
+      if (!dd) {
+        dd = document.createElement("div");
+        dd.id = "col-presets-dropdown-" + this.gridId;
+        dd.className = "cm-col-presets-dropdown";
+        if (btn.parentElement) {
+          btn.parentElement.appendChild(dd);
+        } else {
+          btn.insertAdjacentElement("afterend", dd);
+        }
+      }
+      this.renderPresetsDropdownContent(dd);
+      dd.classList.remove("is-hidden");
+    }
+    renderPresetsDropdownContent(dd) {
+      dd.innerHTML = "";
+      const header = document.createElement("div");
+      header.className = "cm-col-presets-dropdown-header";
+      header.textContent = colT("column_settings.presets", "Presets");
+      dd.appendChild(header);
+      const list = document.createElement("div");
+      list.className = "cm-col-presets-dropdown-list";
+      if (this.activePresetName) {
+        const defaultItem = document.createElement("div");
+        defaultItem.className = "cm-col-preset-dropdown-item cm-col-preset-dropdown-item--default";
+        defaultItem.innerHTML = `
+        <svg class="cm-col-preset-dropdown-item-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        <span class="cm-col-preset-dropdown-item-name">${colT("column_settings.preset_default", "Default")}</span>
+      `;
+        defaultItem.onclick = (e) => {
+          e.stopPropagation();
+          this.resetColumnsToDefault();
+          this.closePresetsDropdown();
+        };
+        list.appendChild(defaultItem);
+      }
+      const presetNames = Object.keys(this.savedColPresets || {});
+      presetNames.forEach((name) => {
+        const item = document.createElement("div");
+        item.className = "cm-col-preset-dropdown-item";
+        const isActive = this.activePresetName === name;
+        if (isActive) {
+          item.classList.add("is-active");
+        }
+        item.innerHTML = `
+        <svg class="cm-col-preset-dropdown-item-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        <span class="cm-col-preset-dropdown-item-name" style="flex: 1;">${name}</span>
+        ${isActive ? '<svg class="cm-col-preset-active-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' : ""}
+      `;
+        item.onclick = (e) => {
+          e.stopPropagation();
+          this.applyPreset(name);
+          this.closePresetsDropdown();
+        };
+        list.appendChild(item);
+      });
+      dd.appendChild(list);
+      const divider = document.createElement("div");
+      divider.className = "cm-col-preset-dropdown-divider";
+      dd.appendChild(divider);
+      const settingsBtn = document.createElement("button");
+      settingsBtn.type = "button";
+      settingsBtn.className = "cm-col-preset-dropdown-action";
+      settingsBtn.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      <span>${colT("column_settings.title", "Column Settings")}...</span>
+    `;
+      settingsBtn.onclick = (e) => {
+        e.stopPropagation();
+        this.openColSelectorModal();
+      };
+      dd.appendChild(settingsBtn);
     }
     resetColumnsToDefault() {
       this.adapter.resetColumnState();
+      this.activePresetName = null;
+      try {
+        localStorage.removeItem("cmActivePreset_" + this.gridId);
+      } catch (e) {
+      }
       this.buildColCheckboxes();
       this.saveState();
+      this.syncExportLinks();
+      this.renderSavedPresets();
     }
     buildColCheckboxes() {
       const container = document.getElementById("col-checkboxes-" + this.gridId);
@@ -6865,6 +7109,7 @@
       this.buildColOrderList();
     }
     buildColOrderList() {
+      var _a;
       const listContainer = document.getElementById("col-order-list-" + this.gridId);
       if (!listContainer) return;
       listContainer.innerHTML = "";
@@ -6896,11 +7141,17 @@
         listContainer.appendChild(pill);
       });
       if (this.colOrderSortable) this.colOrderSortable.destroy();
-      const SortableCtor = window.Sortable;
+      const SortableCtor = typeof window !== "undefined" ? ((_a = window.Sortable) == null ? void 0 : _a.default) || window.Sortable : void 0;
       if (typeof SortableCtor !== "undefined") {
         const host = this;
         this.colOrderSortable = new SortableCtor(listContainer, {
           animation: 150,
+          delay: 50,
+          delayOnTouchOnly: true,
+          touchStartThreshold: 3,
+          fallbackTolerance: 3,
+          ghostClass: "sortable-ghost",
+          chosenClass: "sortable-chosen",
           onEnd() {
             const newState = [];
             for (let i = 0; i < listContainer.children.length; i++) {
@@ -6928,41 +7179,123 @@
       const container = document.getElementById("presets-container-" + this.gridId);
       if (!container) return;
       container.innerHTML = "";
-      Object.keys(this.savedColPresets).forEach((name) => {
-        const chip = document.createElement("div");
-        chip.className = "cm-col-preset-chip";
-        chip.onclick = () => {
-          const input = document.getElementById("preset-name-" + this.gridId);
-          if (input instanceof HTMLInputElement) input.value = name;
-        };
-        const text = document.createElement("span");
-        text.className = "cm-col-preset-chip-label";
-        text.textContent = name;
-        const applyBtn = document.createElement("button");
-        applyBtn.type = "button";
-        applyBtn.className = "cm-col-preset-apply-btn";
-        applyBtn.textContent = colT("column_settings.apply", "Apply");
-        applyBtn.onclick = (e) => {
-          e.stopPropagation();
-          this.adapter.applyColumnState(this.savedColPresets[name], true);
-          this.buildColCheckboxes();
-          this.saveState();
-        };
-        const delBtn = document.createElement("button");
-        delBtn.type = "button";
-        delBtn.className = "cm-col-preset-delete-btn";
-        delBtn.innerHTML = "&times;";
-        delBtn.onclick = (e) => {
-          e.stopPropagation();
-          delete this.savedColPresets[name];
-          this.saveColPresetsToServer();
-          this.renderSavedPresets();
-        };
-        chip.appendChild(text);
-        chip.appendChild(applyBtn);
-        chip.appendChild(delBtn);
-        container.appendChild(chip);
-      });
+      const presetNames = Object.keys(this.savedColPresets);
+      if (presetNames.length === 0) {
+        const emptyMsg = document.createElement("div");
+        emptyMsg.className = "cm-col-presets-empty";
+        emptyMsg.textContent = colT(
+          "column_settings.no_presets_hint",
+          "No saved presets yet. Configure columns above, enter a name, and click Save."
+        );
+        container.appendChild(emptyMsg);
+      } else {
+        presetNames.forEach((name) => {
+          const chip = document.createElement("div");
+          chip.className = "cm-col-preset-chip";
+          chip.onclick = () => {
+            const input = document.getElementById("preset-name-" + this.gridId);
+            if (input instanceof HTMLInputElement) input.value = name;
+          };
+          const text = document.createElement("span");
+          text.className = "cm-col-preset-chip-label";
+          text.textContent = name;
+          const applyBtn = document.createElement("button");
+          applyBtn.type = "button";
+          applyBtn.className = "cm-col-preset-apply-btn";
+          applyBtn.textContent = colT("column_settings.load", colT("column_settings.apply", "\u0417\u0430\u0432\u0430\u043D\u0442\u0430\u0436\u0438\u0442\u0438"));
+          applyBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.applyPreset(name);
+          };
+          const delBtn = document.createElement("button");
+          delBtn.type = "button";
+          delBtn.className = "cm-col-preset-delete-btn";
+          delBtn.innerHTML = "&times;";
+          delBtn.onclick = (e) => {
+            e.stopPropagation();
+            delete this.savedColPresets[name];
+            if (this.activePresetName === name) {
+              this.activePresetName = null;
+              try {
+                localStorage.removeItem("cmActivePreset_" + this.gridId);
+              } catch (e2) {
+              }
+            }
+            this.saveColPresetsToServer();
+            this.renderSavedPresets();
+          };
+          chip.appendChild(text);
+          chip.appendChild(applyBtn);
+          chip.appendChild(delBtn);
+          container.appendChild(chip);
+        });
+      }
+      const dd = document.getElementById("col-presets-dropdown-" + this.gridId);
+      if (dd) {
+        if (Object.keys(this.savedColPresets).length === 0) {
+          dd.classList.add("is-hidden");
+        } else if (!dd.classList.contains("is-hidden")) {
+          this.renderPresetsDropdownContent(dd);
+        }
+      }
+      const moreContainer = document.querySelector(
+        `[data-cm-more-presets="${this.gridId}"]`
+      );
+      if (moreContainer) {
+        moreContainer.innerHTML = "";
+        const presetNames2 = Object.keys(this.savedColPresets || {});
+        if (presetNames2.length > 0) {
+          const divider = document.createElement("div");
+          divider.className = "cm-toolbar-more-divider";
+          moreContainer.appendChild(divider);
+          const header = document.createElement("div");
+          header.className = "cm-toolbar-more-header";
+          header.textContent = colT("column_settings.presets", "Presets");
+          moreContainer.appendChild(header);
+          if (this.activePresetName) {
+            const defaultItem = document.createElement("button");
+            defaultItem.type = "button";
+            defaultItem.className = "cm-toolbar-more-item cm-toolbar-more-item--preset cm-toolbar-more-item--default";
+            defaultItem.role = "menuitem";
+            defaultItem.innerHTML = `
+            <svg class="cm-toolbar-more-icon cm-toolbar-more-icon--preset" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            <span>${colT("column_settings.preset_default", "Default")}</span>
+          `;
+            defaultItem.onclick = (e) => {
+              e.stopPropagation();
+              this.resetColumnsToDefault();
+              const details = defaultItem.closest("details");
+              if (details) details.removeAttribute("open");
+            };
+            moreContainer.appendChild(defaultItem);
+          }
+          presetNames2.forEach((name) => {
+            const item = document.createElement("button");
+            item.type = "button";
+            item.className = "cm-toolbar-more-item cm-toolbar-more-item--preset";
+            const isActive = this.activePresetName === name;
+            if (isActive) {
+              item.classList.add("is-active");
+            }
+            item.role = "menuitem";
+            item.innerHTML = `
+            <svg class="cm-toolbar-more-icon cm-toolbar-more-icon--preset" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+            <span style="flex: 1; text-align: left;">${name}</span>
+            ${isActive ? '<svg class="cm-col-preset-active-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' : ""}
+          `;
+            item.onclick = (e) => {
+              e.stopPropagation();
+              this.applyPreset(name);
+              const details = item.closest("details");
+              if (details) details.removeAttribute("open");
+            };
+            moreContainer.appendChild(item);
+          });
+          const divider2 = document.createElement("div");
+          divider2.className = "cm-toolbar-more-divider";
+          moreContainer.appendChild(divider2);
+        }
+      }
     }
     saveCurrentPreset() {
       const nameInput = document.getElementById("preset-name-" + this.gridId);

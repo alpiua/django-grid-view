@@ -269,9 +269,9 @@ export function syncExportHref(
     } else {
       target.searchParams.delete("filters");
     }
-    var getColumnState = handle.gridApi.getColumnState;
-    var sortState = isColumnStateGetter(getColumnState)
-      ? getColumnState().filter(isAgGridSortState)
+    var colState = handle.gridApi.getColumnState();
+    var sortState = Array.isArray(colState)
+      ? colState.filter(isAgGridSortState)
       : [];
     if (sortState.length) {
       target.searchParams.set(

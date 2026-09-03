@@ -70,6 +70,8 @@ export type { ColumnSettingsHandle, ColumnStateItem } from "../column-settings/t
 
 export type ColSettingsMethod =
   | "toggleColSelector"
+  | "openColSelectorModal"
+  | "closeColSelectorModal"
   | "resetColumnsToDefault"
   | "buildColCheckboxes"
   | "buildColOrderList"

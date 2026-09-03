@@ -67,6 +67,8 @@ export interface ColumnSettingsOptions {
 export interface ColumnSettingsHandle {
   savedColPresets: Record<string, ColumnStateItem[]>;
   toggleColSelector: () => void;
+  openColSelectorModal: () => void;
+  closeColSelectorModal: () => void;
   resetColumnsToDefault: () => void;
   buildColCheckboxes: () => void;
   buildColOrderList: () => void;
@@ -103,4 +105,8 @@ export interface AgGridColumnAdapterApi {
 
 export interface SortableInstance {
   destroy: () => void;
+}
+
+export interface SortableStatic {
+  new (el: HTMLElement, options?: Record<string, unknown>): SortableInstance;
 }

@@ -71,5 +71,5 @@
     --cm-table-filter-input-height: 28px;
 
     --cm-table-settings-dialog-width: min(1500px, 95vw);
-    --cm-table-settings-dialog-height: 95vh;
+    --cm-table-settings-dialog-height: min(90vh, 760px);
 }

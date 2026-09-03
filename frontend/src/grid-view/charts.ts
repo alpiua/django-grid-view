@@ -173,8 +173,8 @@ function buildPieOption(
     };
   } = {
     type: "pie",
-    radius: chartType === "donut" ? ["55%", "80%"] : "70%",
-    center: ["50%", "45%"],
+    radius: chartType === "donut" ? ["48%", "70%"] : "65%",
+    center: ["50%", "48%"],
     avoidLabelOverlap: false,
     itemStyle: { borderRadius: 4, borderColor: "#1e293b", borderWidth: 2 },
     labelLine: { show: false },
@@ -421,6 +421,12 @@ export function initAllCharts(scope?: Document | Element) {
     if (!instance) return;
     node.dataset.cmChartReady = "1";
     node._cmChartInstance = instance;
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver(() => {
+        instance.resize();
+      });
+      ro.observe(chartRoot);
+    }
     if (!window.__cmChartResizeAttached) {
       window.__cmChartResizeAttached = true;
       window.addEventListener("resize", () => {

@@ -532,3 +532,25 @@
     cursor: pointer;
     font-weight: 650;
 }
+
+/* ── Mobile Responsive Table ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .cm-table th:first-child,
+    .cm-table td:first-child {
+        position: sticky;
+        left: 0;
+        background: var(--cm-table-surface-bg, var(--cm-surface));
+        z-index: 2;
+        box-shadow: 2px 0 6px -2px rgba(0, 0, 0, 0.12);
+    }
+    .cm-table thead th:first-child {
+        background: var(--cm-table-header-bg, var(--cm-bg));
+        z-index: 12;
+    }
+    .cm-table th,
+    .cm-table td {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+}
+

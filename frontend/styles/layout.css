@@ -102,12 +102,34 @@
     border-top: none;
 }
 
+.cm-area {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+.cm-area-split {
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+.cm-area-split > .cm-area {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 100%;
+}
+
 /* GridViewSpec table-card: fused toolbar + table in one shell */
 .cm-area-table-card {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    max-width: 100%;
     width: 100%;
+    box-sizing: border-box;
     background: var(--cm-table-shell-bg, var(--cm-surface));
     border: 1px solid var(--cm-table-shell-border, var(--cm-border));
     border-radius: 12px;
@@ -161,7 +183,7 @@
     box-shadow: none;
 }
 .cm-area-stack > .cm-area-table-card {
-    flex: 1 1 0;
+    flex: 1 1 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -252,6 +274,40 @@
     overflow-x: auto;
     overflow-y: visible;
     width: 100%;
+    max-width: 100%;
     min-width: 0;
+    box-sizing: border-box;
     -webkit-overflow-scrolling: touch;
 }
+
+/* ── Mobile Responsive Layout ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    :root {
+        --cm-page-layout-width: 100%;
+        --cm-page-padding-y: 4px;
+        --cm-page-gap: 4px;
+    }
+    .cm-dashboard-page {
+        padding-inline: 4px;
+    }
+    .cm-page-table-layout {
+        width: 100% !important;
+        min-width: 100% !important;
+        margin-inline: 0 !important;
+    }
+    .cm-area-split {
+        flex-direction: column !important;
+        width: 100% !important;
+        gap: 8px !important;
+    }
+    .cm-area-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .cm-area-table-card {
+        border-radius: 8px;
+    }
+    .cm-area-table-card > .cm-block-toolbar > .cm-toolbar-unified {
+        padding: 6px 8px;
+    }
+}
+

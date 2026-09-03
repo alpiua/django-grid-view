@@ -409,3 +409,23 @@
     border-color: color-mix(in srgb, var(--cm-text) 32%, var(--cm-border));
     box-shadow: none;
 }
+
+/* ── Mobile Responsive Overlays ───────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .cm-overlay {
+        padding: 0;
+        align-items: flex-end;
+    }
+    .cm-overlay-dialog,
+    .cm-overlay-sm .cm-overlay-dialog,
+    .cm-overlay-lg .cm-overlay-dialog,
+    .cm-overlay-xl .cm-overlay-dialog {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        max-height: 90vh !important;
+        border-radius: 16px 16px 0 0 !important;
+        border-bottom: none !important;
+        padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+}
+

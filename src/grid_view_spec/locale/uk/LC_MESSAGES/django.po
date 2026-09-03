@@ -64,11 +64,23 @@ msgstr "Скинути до типових"
 msgid "column_settings.presets"
 msgstr "Пресети колонок"
 
+msgid "column_settings.presets_hint"
+msgstr "Збережені набори колонок"
+
 msgid "column_settings.preset_placeholder"
 msgstr "Введіть назву..."
 
+msgid "column_settings.preset_default"
+msgstr "За замовчуванням"
+
+msgid "column_settings.no_presets_hint"
+msgstr "Немає збережених пресетів. Налаштуйте колонки вище, введіть назву та натисніть «Зберегти»."
+
 msgid "column_settings.save_preset"
-msgstr "Зберегти поточний пресет"
+msgstr "Зберегти"
+
+msgid "column_settings.save"
+msgstr "Зберегти"
 
 msgid "column_settings.select"
 msgstr "Вибрати:"
@@ -86,7 +98,10 @@ msgid "column_settings.main_group"
 msgstr "Основні"
 
 msgid "column_settings.apply"
-msgstr "Застосувати"
+msgstr "Завантажити"
+
+msgid "column_settings.load"
+msgstr "Завантажити"
 
 msgid "export.pdf"
 msgstr "PDF"
@@ -260,6 +275,12 @@ msgstr "Збережені пошуки"
 msgid "toolbar.clear_all_filters"
 msgstr "Очистити всі фільтри і пошук"
 
+msgid "toolbar.filters"
+msgstr "Фільтри"
+
+msgid "toolbar.reset"
+msgstr "Скинути"
+
 msgid "toolbar.reload"
 msgstr "Оновити"
 
@@ -328,3 +349,6 @@ msgstr "Фільтри: %(filters)s"
 
 msgid "export.meta.filter_part"
 msgstr "%(label)s: %(values)s"
+
+msgid "toolbar.more_actions"
+msgstr "Дії"

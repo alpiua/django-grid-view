@@ -493,6 +493,12 @@ export class AgGridHost implements GridHandle {
   toggleColSelector(): void {
     this._colOp("toggleColSelector");
   }
+  openColSelectorModal(): void {
+    this._colOp("openColSelectorModal");
+  }
+  closeColSelectorModal(): void {
+    this._colOp("closeColSelectorModal");
+  }
   resetColumnsToDefault(): void {
     this._colOp("resetColumnsToDefault");
   }

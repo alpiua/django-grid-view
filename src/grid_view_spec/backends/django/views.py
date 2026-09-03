@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 
-from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 from grid_view_spec.backends.django.export import DjangoExportContext
@@ -92,7 +91,6 @@ def _prefs_from_payload(data: GridSettingsPayload) -> GridPrefs:
 
 
 @require_POST
-@login_required
 def save_grid_prefs(request: HttpRequest) -> JsonResponse:
     data = _parse_prefs_payload(request.body)
     if data is None:
@@ -106,7 +104,13 @@ def save_grid_prefs(request: HttpRequest) -> JsonResponse:
     host = django_host(request)
     subject_id = host.current_subject_id()
     if subject_id is None:
-        return JsonResponse({"status": "error", "message": "Unauthorized"}, status=401)
+        return JsonResponse(
+            {
+                "status": "ok",
+                "local_only": True,
+                "message": "Anonymous user: preferences saved in browser localStorage",
+            }
+        )
     host.save_grid_prefs(subject_id, grid_id, _prefs_from_payload(data))
     return JsonResponse({"status": "ok"})
 

@@ -12,6 +12,7 @@ import type {
   ColumnSettingsOptions,
   ColumnStateItem,
   SortableInstance,
+  SortableStatic,
 } from "./types";
 
 export class ColumnSettingsHost implements ColumnSettingsHandle {
@@ -23,6 +24,7 @@ export class ColumnSettingsHost implements ColumnSettingsHandle {
   storageScope: string;
   onStateChange: ((state: ColumnStateItem[]) => void) | null;
   colOrderSortable: SortableInstance | null;
+  activePresetName: string | null = null;
 
   constructor(gridId: string, adapter: ColumnAdapter, options?: ColumnSettingsOptions) {
     const opts = options || {};
@@ -30,14 +32,53 @@ export class ColumnSettingsHost implements ColumnSettingsHandle {
     this.adapter = adapter;
     this.groupsOrder = opts.groupsOrder || [];
     this.savedColPresets = opts.initialPresets || {};
+    try {
+      const stored =
+        localStorage.getItem("agGridPresets_" + this.gridId) ||
+        localStorage.getItem("cmColPresets_" + this.gridId);
+      if (stored) {
+        const parsed: unknown = JSON.parse(stored);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          this.savedColPresets = {
+            ...(parsed as Record<string, ColumnStateItem[]>),
+            ...this.savedColPresets,
+          };
+        }
+      }
+    } catch {
+      /* ignore */
+    }
     this.preferencesUrl = opts.preferencesUrl || "";
     this.storageScope = opts.storageScope || "";
     this.onStateChange = opts.onStateChange || null;
     this.colOrderSortable = null;
+    try {
+      const active = localStorage.getItem("cmActivePreset_" + this.gridId);
+      if (active && this.savedColPresets[active]) {
+        this.activePresetName = active;
+      }
+    } catch {
+      /* ignore */
+    }
     this._bindModalDismiss();
     this._applyInitialState(opts.initialState);
     this.renderSavedPresets();
     this.syncExportLinks();
+  }
+
+  applyPreset(name: string): void {
+    if (!this.savedColPresets[name]) return;
+    this.adapter.applyColumnState(this.savedColPresets[name], true);
+    this.activePresetName = name;
+    try {
+      localStorage.setItem("cmActivePreset_" + this.gridId, name);
+    } catch {
+      /* quota exceeded */
+    }
+    this.saveState();
+    this.syncExportLinks();
+    this.buildColCheckboxes();
+    this.renderSavedPresets();
   }
 
   _storageKey(): string {
@@ -50,6 +91,9 @@ export class ColumnSettingsHost implements ColumnSettingsHandle {
     window._cmColSettingsEscBound = true;
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
+      document.querySelectorAll(".cm-col-presets-dropdown:not(.is-hidden)").forEach((dd) => {
+        dd.classList.add("is-hidden");
+      });
       document.querySelectorAll('[id^="col-selector-panel-"]').forEach((panel) => {
         if (panel instanceof HTMLElement && !colPanelIsHidden(panel)) {
           setColPanelHidden(panel, true);
@@ -58,11 +102,20 @@ export class ColumnSettingsHost implements ColumnSettingsHandle {
     });
     document.addEventListener("click", (e) => {
       const target = e.target;
+      document.querySelectorAll<HTMLElement>(".cm-col-presets-dropdown:not(.is-hidden)").forEach((dd) => {
+        const gridId = dd.id.replace("col-presets-dropdown-", "");
+        const btn =
+          document.getElementById("col-selector-btn-" + gridId) ||
+          document.querySelector(`[data-cm-col-action="toggle"][data-cm-grid-id="${gridId}"]`);
+        if (target instanceof Element && (dd.contains(target) || (btn && btn.contains(target)))) return;
+        dd.classList.add("is-hidden");
+      });
       document.querySelectorAll('[id^="col-selector-panel-"]').forEach((panel) => {
         if (!(panel instanceof HTMLElement) || colPanelIsHidden(panel)) return;
         if (
           target === panel ||
-          (target instanceof Element && target.classList.contains("cm-col-selector-backdrop"))
+          (target instanceof Element && target.classList.contains("cm-col-selector-backdrop")) ||
+          (target instanceof Element && target.closest(".cm-col-selector-close"))
         ) {
           setColPanelHidden(panel, true);
         }
@@ -112,18 +165,147 @@ export class ColumnSettingsHost implements ColumnSettingsHandle {
     if (typeof this.onStateChange === "function") this.onStateChange(state);
   }
 
-  toggleColSelector(): void {
+  openColSelectorModal(): void {
+    this.closePresetsDropdown();
     const panel = getColSelectorPanel(this.gridId);
     if (!panel) return;
-    const isHidden = colPanelIsHidden(panel);
-    setColPanelHidden(panel, !isHidden);
-    if (isHidden) this.buildColCheckboxes();
+    setColPanelHidden(panel, false);
+    this.buildColCheckboxes();
+  }
+
+  closeColSelectorModal(): void {
+    this.closePresetsDropdown();
+    const panel = getColSelectorPanel(this.gridId);
+    if (!panel) return;
+    setColPanelHidden(panel, true);
+  }
+
+  closePresetsDropdown(): void {
+    const dd = document.getElementById("col-presets-dropdown-" + this.gridId);
+    if (dd) dd.classList.add("is-hidden");
+  }
+
+  toggleColSelector(forceModal = false): void {
+    const panel = getColSelectorPanel(this.gridId);
+    if (panel && !colPanelIsHidden(panel)) {
+      setColPanelHidden(panel, true);
+      return;
+    }
+    const presetNames = Object.keys(this.savedColPresets || {});
+    if (presetNames.length === 0 || forceModal) {
+      this.closePresetsDropdown();
+      if (!panel) return;
+      setColPanelHidden(panel, false);
+      this.buildColCheckboxes();
+      return;
+    }
+    this.togglePresetsDropdown();
+  }
+
+  togglePresetsDropdown(): void {
+    let dd = document.getElementById("col-presets-dropdown-" + this.gridId);
+    if (dd && !dd.classList.contains("is-hidden")) {
+      dd.classList.add("is-hidden");
+      return;
+    }
+    const btn =
+      document.getElementById("col-selector-btn-" + this.gridId) ||
+      document.querySelector(`[data-cm-col-action="toggle"][data-cm-grid-id="${this.gridId}"]`);
+    if (!btn) {
+      this.openColSelectorModal();
+      return;
+    }
+    if (!dd) {
+      dd = document.createElement("div");
+      dd.id = "col-presets-dropdown-" + this.gridId;
+      dd.className = "cm-col-presets-dropdown";
+      if (btn.parentElement) {
+        btn.parentElement.appendChild(dd);
+      } else {
+        btn.insertAdjacentElement("afterend", dd);
+      }
+    }
+    this.renderPresetsDropdownContent(dd);
+    dd.classList.remove("is-hidden");
+  }
+
+  renderPresetsDropdownContent(dd: HTMLElement): void {
+    dd.innerHTML = "";
+    const header = document.createElement("div");
+    header.className = "cm-col-presets-dropdown-header";
+    header.textContent = colT("column_settings.presets", "Presets");
+    dd.appendChild(header);
+
+    const list = document.createElement("div");
+    list.className = "cm-col-presets-dropdown-list";
+
+    if (this.activePresetName) {
+      const defaultItem = document.createElement("div");
+      defaultItem.className = "cm-col-preset-dropdown-item cm-col-preset-dropdown-item--default";
+      defaultItem.innerHTML = `
+        <svg class="cm-col-preset-dropdown-item-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        <span class="cm-col-preset-dropdown-item-name">${colT("column_settings.preset_default", "Default")}</span>
+      `;
+      defaultItem.onclick = (e) => {
+        e.stopPropagation();
+        this.resetColumnsToDefault();
+        this.closePresetsDropdown();
+      };
+      list.appendChild(defaultItem);
+    }
+
+    const presetNames = Object.keys(this.savedColPresets || {});
+    presetNames.forEach((name) => {
+      const item = document.createElement("div");
+      item.className = "cm-col-preset-dropdown-item";
+      const isActive = this.activePresetName === name;
+      if (isActive) {
+        item.classList.add("is-active");
+      }
+      item.innerHTML = `
+        <svg class="cm-col-preset-dropdown-item-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        <span class="cm-col-preset-dropdown-item-name" style="flex: 1;">${name}</span>
+        ${isActive ? '<svg class="cm-col-preset-active-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' : ""}
+      `;
+      item.onclick = (e) => {
+        e.stopPropagation();
+        this.applyPreset(name);
+        this.closePresetsDropdown();
+      };
+      list.appendChild(item);
+    });
+    dd.appendChild(list);
+
+    const divider = document.createElement("div");
+    divider.className = "cm-col-preset-dropdown-divider";
+    dd.appendChild(divider);
+
+    const settingsBtn = document.createElement("button");
+    settingsBtn.type = "button";
+    settingsBtn.className = "cm-col-preset-dropdown-action";
+    settingsBtn.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      <span>${colT("column_settings.title", "Column Settings")}...</span>
+    `;
+    settingsBtn.onclick = (e) => {
+      e.stopPropagation();
+      this.openColSelectorModal();
+    };
+    dd.appendChild(settingsBtn);
   }
 
   resetColumnsToDefault(): void {
     this.adapter.resetColumnState();
+    this.activePresetName = null;
+    try {
+      localStorage.removeItem("cmActivePreset_" + this.gridId);
+    } catch {
+      /* quota exceeded */
+    }
     this.buildColCheckboxes();
     this.saveState();
+    this.syncExportLinks();
+    this.renderSavedPresets();
   }
 
   buildColCheckboxes(): void {
@@ -293,11 +475,21 @@ export class ColumnSettingsHost implements ColumnSettingsHandle {
       listContainer.appendChild(pill);
     });
     if (this.colOrderSortable) this.colOrderSortable.destroy();
-    const SortableCtor = window.Sortable;
+    const SortableCtor =
+      typeof window !== "undefined"
+        ? (((window as unknown as { Sortable?: { default?: SortableStatic } }).Sortable?.default ||
+            (window as unknown as { Sortable?: SortableStatic }).Sortable) as SortableStatic | undefined)
+        : undefined;
     if (typeof SortableCtor !== "undefined") {
       const host = this;
       this.colOrderSortable = new SortableCtor(listContainer, {
         animation: 150,
+        delay: 50,
+        delayOnTouchOnly: true,
+        touchStartThreshold: 3,
+        fallbackTolerance: 3,
+        ghostClass: "sortable-ghost",
+        chosenClass: "sortable-chosen",
         onEnd() {
           const newState: ColumnStateItem[] = [];
           for (let i = 0; i < listContainer.children.length; i++) {
@@ -331,8 +523,18 @@ export class ColumnSettingsHost implements ColumnSettingsHandle {
     const container = document.getElementById("presets-container-" + this.gridId);
     if (!container) return;
     container.innerHTML = "";
-    Object.keys(this.savedColPresets).forEach((name) => {
-      const chip = document.createElement("div");
+    const presetNames = Object.keys(this.savedColPresets);
+    if (presetNames.length === 0) {
+      const emptyMsg = document.createElement("div");
+      emptyMsg.className = "cm-col-presets-empty";
+      emptyMsg.textContent = colT(
+        "column_settings.no_presets_hint",
+        "No saved presets yet. Configure columns above, enter a name, and click Save."
+      );
+      container.appendChild(emptyMsg);
+    } else {
+      presetNames.forEach((name) => {
+        const chip = document.createElement("div");
       chip.className = "cm-col-preset-chip";
       chip.onclick = () => {
         const input = document.getElementById("preset-name-" + this.gridId);
@@ -344,12 +546,10 @@ export class ColumnSettingsHost implements ColumnSettingsHandle {
       const applyBtn = document.createElement("button");
       applyBtn.type = "button";
       applyBtn.className = "cm-col-preset-apply-btn";
-      applyBtn.textContent = colT("column_settings.apply", "Apply");
+      applyBtn.textContent = colT("column_settings.load", colT("column_settings.apply", "Завантажити"));
       applyBtn.onclick = (e) => {
         e.stopPropagation();
-        this.adapter.applyColumnState(this.savedColPresets[name], true);
-        this.buildColCheckboxes();
-        this.saveState();
+        this.applyPreset(name);
       };
       const delBtn = document.createElement("button");
       delBtn.type = "button";
@@ -358,6 +558,14 @@ export class ColumnSettingsHost implements ColumnSettingsHandle {
       delBtn.onclick = (e) => {
         e.stopPropagation();
         delete this.savedColPresets[name];
+        if (this.activePresetName === name) {
+          this.activePresetName = null;
+          try {
+            localStorage.removeItem("cmActivePreset_" + this.gridId);
+          } catch {
+            /* ignore */
+          }
+        }
         this.saveColPresetsToServer();
         this.renderSavedPresets();
       };
@@ -365,7 +573,80 @@ export class ColumnSettingsHost implements ColumnSettingsHandle {
       chip.appendChild(applyBtn);
       chip.appendChild(delBtn);
       container.appendChild(chip);
-    });
+      });
+    }
+
+    const dd = document.getElementById("col-presets-dropdown-" + this.gridId);
+    if (dd) {
+      if (Object.keys(this.savedColPresets).length === 0) {
+        dd.classList.add("is-hidden");
+      } else if (!dd.classList.contains("is-hidden")) {
+        this.renderPresetsDropdownContent(dd);
+      }
+    }
+
+    const moreContainer = document.querySelector<HTMLElement>(
+      `[data-cm-more-presets="${this.gridId}"]`
+    );
+    if (moreContainer) {
+      moreContainer.innerHTML = "";
+      const presetNames = Object.keys(this.savedColPresets || {});
+      if (presetNames.length > 0) {
+        const divider = document.createElement("div");
+        divider.className = "cm-toolbar-more-divider";
+        moreContainer.appendChild(divider);
+
+        const header = document.createElement("div");
+        header.className = "cm-toolbar-more-header";
+        header.textContent = colT("column_settings.presets", "Presets");
+        moreContainer.appendChild(header);
+
+        if (this.activePresetName) {
+          const defaultItem = document.createElement("button");
+          defaultItem.type = "button";
+          defaultItem.className = "cm-toolbar-more-item cm-toolbar-more-item--preset cm-toolbar-more-item--default";
+          defaultItem.role = "menuitem";
+          defaultItem.innerHTML = `
+            <svg class="cm-toolbar-more-icon cm-toolbar-more-icon--preset" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            <span>${colT("column_settings.preset_default", "Default")}</span>
+          `;
+          defaultItem.onclick = (e) => {
+            e.stopPropagation();
+            this.resetColumnsToDefault();
+            const details = defaultItem.closest("details");
+            if (details) details.removeAttribute("open");
+          };
+          moreContainer.appendChild(defaultItem);
+        }
+
+        presetNames.forEach((name) => {
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = "cm-toolbar-more-item cm-toolbar-more-item--preset";
+          const isActive = this.activePresetName === name;
+          if (isActive) {
+            item.classList.add("is-active");
+          }
+          item.role = "menuitem";
+          item.innerHTML = `
+            <svg class="cm-toolbar-more-icon cm-toolbar-more-icon--preset" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+            <span style="flex: 1; text-align: left;">${name}</span>
+            ${isActive ? '<svg class="cm-col-preset-active-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' : ""}
+          `;
+          item.onclick = (e) => {
+            e.stopPropagation();
+            this.applyPreset(name);
+            const details = item.closest("details");
+            if (details) details.removeAttribute("open");
+          };
+          moreContainer.appendChild(item);
+        });
+
+        const divider2 = document.createElement("div");
+        divider2.className = "cm-toolbar-more-divider";
+        moreContainer.appendChild(divider2);
+      }
+    }
   }
 
   saveCurrentPreset(): void {

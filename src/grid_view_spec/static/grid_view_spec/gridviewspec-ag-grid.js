@@ -435,6 +435,12 @@
     toggleColSelector() {
       this._colOp("toggleColSelector");
     }
+    openColSelectorModal() {
+      this._colOp("openColSelectorModal");
+    }
+    closeColSelectorModal() {
+      this._colOp("closeColSelectorModal");
+    }
     resetColumnsToDefault() {
       this._colOp("resetColumnsToDefault");
     }

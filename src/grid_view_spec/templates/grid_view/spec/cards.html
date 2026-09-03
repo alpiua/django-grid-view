@@ -1,6 +1,6 @@
 <div
   class="cm-card-grid cm-cards cm-cards-{{ block.presentation | e }}{% if block.presentation == 'grid' %} cm-card-grid--grid{% elif block.presentation == 'list' %} cm-card-grid--list{% endif %}"
-  {% if block.presentation == 'grid' %}style="--cm-card-cols: 4"{% endif %}
+  {% if block.presentation == 'grid' %}style="--cm-card-cols: {% if block.cards and block.cards|length <= 4 and block.cards|length > 0 %}{{ block.cards|length }}{% else %}4{% endif %}"{% endif %}
 >
   {% for card in block.cards %}
   {% if card.href %}

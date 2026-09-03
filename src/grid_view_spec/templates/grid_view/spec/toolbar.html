@@ -85,21 +85,36 @@
     </div>
     {% endif %}
   </div>
-  <div class="cm-toolbar-center">
+  <div class="cm-toolbar-center" id="cm-toolbar-center-{{ block.id | e }}">
+    <div class="cm-toolbar-filters-mobile-header">
+      <span class="cm-toolbar-filters-mobile-title">{{ host.translate('toolbar.filters') | default('Фільтри') | e }}</span>
+      <button type="button" class="cm-toolbar-filters-mobile-close" data-cm-filters-close aria-label="{{ host.translate('common.close') | default('Закрити') | e }}">&times;</button>
+    </div>
     {% if filters_block %}
     <div class="cm-toolbar-filters-block">
       <span class="cm-toolbar-filters-label">{{ host.translate('filter_bar.filters_label') | e }}</span>
       {% set fb = filters_block %}
       {% set fb_search = {'param': block.search.param, 'value': search_value} if block.search else none %}
       {% include '_filter_bar.html' %}
+      {% if block.clear_all and block.target %}
+      {% set has_server_filter_state = filters_block and filters_block.state and filters_block.state.values %}
+      <button
+        type="button"
+        class="cm-toolbar-btn cm-toolbar-clear-all{% if not has_server_filter_state %} is-hidden{% endif %}"
+        {% if has_server_filter_state %}data-cm-server-filter-state="1"{% endif %}
+        data-cm-grid-action="clearAllFilters"
+        data-cm-grid-id="{{ block.target | e }}"
+        title="{{ host.translate('toolbar.clear_all_filters') | default('Очистити всі фільтри і пошук') | e }}"
+        aria-label="{{ host.translate('toolbar.clear_all_filters') | default('Очистити всі фільтри і пошук') | e }}"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/><path d="m19 5-4 4"/><path d="m15 5 4 4"/></svg>
+      </button>
+      {% endif %}
     </div>
-    {% endif %}
-    {% if block.clear_all and block.target %}
-    {% set has_server_filter_state = filters_block and filters_block.state and filters_block.state.values %}
+    {% elif block.clear_all and block.target %}
     <button
       type="button"
-      class="cm-toolbar-btn cm-toolbar-clear-all{% if not has_server_filter_state %} is-hidden{% endif %}"
-      {% if has_server_filter_state %}data-cm-server-filter-state="1"{% endif %}
+      class="cm-toolbar-btn cm-toolbar-clear-all is-hidden"
       data-cm-grid-action="clearAllFilters"
       data-cm-grid-id="{{ block.target | e }}"
       title="{{ host.translate('toolbar.clear_all_filters') | default('Очистити всі фільтри і пошук') | e }}"
@@ -110,66 +125,154 @@
     {% endif %}
   </div>
   <div class="cm-toolbar-right">
-    {% for counter in block.counters %}
-    <div class="cm-toolbar-stat-inline">
-      {% set _tone_cls = {'success': 'cm-val-green', 'danger': 'cm-val-red', 'warning': 'cm-val-yellow', 'muted': 'cm-muted'} %}
-      {{ counter.label | e }}: <span class="cm-toolbar-counter-value{% if counter.tone %} {{ _tone_cls.get(counter.tone, '') | e }}{% endif %}"{% if not counter.server_only %}data-cm-count data-cm-count-for="{{ block.target or '' | e }}"{% if counter.field %} data-cm-count-field="{{ counter.field | e }}"{% endif %}{% if counter.total is not none %} data-cm-count-total="{{ counter.total | e }}"{% endif %}{% endif %}>{% if counter.total is not none %}{{ counter.value | e }}/{{ counter.total | e }}{% else %}{{ counter.value | e }}{% endif %}</span>
-    </div>
-    {% endfor %}
-    {% if actions_block or has_settings %}
-    <div class="cm-toolbar-actions">
-      {% if actions_block %}
-      {% set export_items = actions_block.items | selectattr('type', 'equalto', 'export') | list %}
-      {% set link_items = actions_block.items | selectattr('type', 'equalto', 'link') | list %}
-      {% if export_items %}
-      <div class="cm-export-group cm-export-group--paired">
-        {% for action in export_items %}
-        {% set href = export_action_href(action) %}
-        <a
-          href="{{ href | e }}"
-          class="cm-export-btn cm-export-btn--{{ action.format | e }}"
-          {% if action.format == 'pdf' %}target="_blank"{% endif %}
-          title="{{ host.translate('export.' ~ action.format) | e }}"
-          data-cm-export-sync="1"
-          data-cm-grid-id="{{ block.target or '' | e }}"
-        >
-          {% if action.format == 'xlsx' %}
-          <svg class="cm-export-btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-          {% elif action.format == 'pdf' %}
-          <svg class="cm-export-btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9h4m-4 4h6m-6 4h4"/></svg>
-          {% endif %}
-          <span class="cm-export-btn-label">{{ host.translate('export.' ~ action.format) | e }}</span>
-        </a>
-        {% endfor %}
+    {% if block.counters %}
+    <div class="cm-toolbar-counters">
+      {% for counter in block.counters %}
+      <div class="cm-toolbar-stat-inline">
+        {% set _tone_cls = {'success': 'cm-val-green', 'danger': 'cm-val-red', 'warning': 'cm-val-yellow', 'muted': 'cm-muted'} %}
+        {{ counter.label | e }}: <span class="cm-toolbar-counter-value{% if counter.tone %} {{ _tone_cls.get(counter.tone, '') | e }}{% endif %}"{% if not counter.server_only %}data-cm-count data-cm-count-for="{{ block.target or '' | e }}"{% if counter.field %} data-cm-count-field="{{ counter.field | e }}"{% endif %}{% if counter.total is not none %} data-cm-count-total="{{ counter.total | e }}"{% endif %}{% endif %}>{% if counter.total is not none %}{{ counter.value | e }}/{{ counter.total | e }}{% else %}{{ counter.value | e }}{% endif %}</span>
       </div>
-      {% endif %}
-      {% for action in link_items %}
-      {% include '_action_link.html' %}
       {% endfor %}
-      {% endif %}
-      {% if has_settings %}
-      <button
-        id="col-selector-btn-{{ block.target | e }}"
-        type="button"
-        data-cm-col-action="toggle"
-        data-cm-grid-id="{{ block.target | e }}"
-        title="{{ host.translate('column_settings.title') | e }}"
-        class="cm-toolbar-btn"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-      </button>
-      {% endif %}
-      {% if block.reload and block.target %}
+    </div>
+    {% endif %}
+    {% if actions_block or has_settings or (block.reload and block.target) or filters_block %}
+    <div class="cm-toolbar-actions">
+      {% if filters_block %}
+      {% set has_active_filters = filters_block and filters_block.state and filters_block.state.values %}
       <button
         type="button"
-        class="cm-toolbar-btn"
-        data-cm-grid-action="reloadData"
-        data-cm-grid-id="{{ block.target | e }}"
-        title="{{ host.translate('toolbar.reload') | e }}"
-        aria-label="{{ host.translate('toolbar.reload') | e }}"
+        class="cm-toolbar-btn cm-toolbar-filters-toggle{% if has_active_filters %} has-active-filters{% endif %}"
+        data-cm-filters-toggle
+        data-cm-target="cm-toolbar-center-{{ block.id | e }}"
+        title="{{ host.translate('toolbar.filters') | default('Фільтри') | e }}"
+        aria-label="{{ host.translate('toolbar.filters') | default('Фільтри') | e }}"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
       </button>
+      {% endif %}
+      <div class="cm-toolbar-desktop-actions">
+        {% if actions_block %}
+        {% set export_items = actions_block.items | selectattr('type', 'equalto', 'export') | list %}
+        {% set link_items = actions_block.items | selectattr('type', 'equalto', 'link') | list %}
+        {% if export_items %}
+        <div class="cm-export-group cm-export-group--paired">
+          {% for action in export_items %}
+          {% set href = export_action_href(action) %}
+          <a
+            href="{{ href | e }}"
+            class="cm-export-btn cm-export-btn--{{ action.format | e }}"
+            {% if action.format == 'pdf' %}target="_blank"{% endif %}
+            title="{{ host.translate('export.' ~ action.format) | e }}"
+            data-cm-export-sync="1"
+            data-cm-grid-id="{{ block.target or '' | e }}"
+          >
+            {% if action.format == 'xlsx' %}
+            <svg class="cm-export-btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            {% elif action.format == 'pdf' %}
+            <svg class="cm-export-btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9h4m-4 4h6m-6 4h4"/></svg>
+            {% endif %}
+            <span class="cm-export-btn-label">{{ host.translate('export.' ~ action.format) | e }}</span>
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% for action in link_items %}
+        {% include '_action_link.html' %}
+        {% endfor %}
+        {% endif %}
+        {% if has_settings %}
+        <div class="cm-col-btn-wrap">
+          <button
+            id="col-selector-btn-{{ block.target | e }}"
+            type="button"
+            data-cm-col-action="toggle"
+            data-cm-grid-id="{{ block.target | e }}"
+            title="{{ host.translate('column_settings.title') | e }}"
+            class="cm-toolbar-btn"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          </button>
+        </div>
+        {% endif %}
+        {% if block.reload and block.target %}
+        <button
+          type="button"
+          class="cm-toolbar-btn"
+          data-cm-grid-action="reloadData"
+          data-cm-grid-id="{{ block.target | e }}"
+          title="{{ host.translate('toolbar.reload') | e }}"
+          aria-label="{{ host.translate('toolbar.reload') | e }}"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        </button>
+        {% endif %}
+      </div>
+
+      {% set export_items = actions_block.items | selectattr('type', 'equalto', 'export') | list if actions_block else [] %}
+      {% set link_items = actions_block.items | selectattr('type', 'equalto', 'link') | list if actions_block else [] %}
+      {% set has_more_items = export_items or link_items or has_settings or (block.reload and block.target) %}
+      {% if has_more_items %}
+      <details class="cm-toolbar-more-menu" data-cm-toolbar-more>
+        <summary class="cm-toolbar-btn cm-toolbar-more-trigger" title="{{ host.translate('toolbar.more_actions') | default('Дії') | e }}" aria-label="{{ host.translate('toolbar.more_actions') | default('Дії') | e }}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="12" cy="19" r="2.2"/></svg>
+        </summary>
+        <div class="cm-toolbar-more-panel" role="menu">
+          {% if actions_block %}
+          {% for action in export_items %}
+          {% set href = export_action_href(action) %}
+          <a
+            href="{{ href | e }}"
+            class="cm-toolbar-more-item cm-toolbar-more-item--{{ action.format | e }}"
+            role="menuitem"
+            {% if action.format == 'pdf' %}target="_blank"{% endif %}
+            data-cm-export-sync="1"
+            data-cm-grid-id="{{ block.target or '' | e }}"
+          >
+            {% if action.format == 'xlsx' %}
+            <svg class="cm-toolbar-more-icon cm-toolbar-more-icon--xlsx" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            {% elif action.format == 'pdf' %}
+            <svg class="cm-toolbar-more-icon cm-toolbar-more-icon--pdf" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9h4m-4 4h6m-6 4h4"/></svg>
+            {% endif %}
+            <span>{{ host.translate('export.' ~ action.format) | e }}</span>
+          </a>
+          {% endfor %}
+          {% for action in link_items %}
+          {% set href = action.url or '' %}
+          <a href="{{ href | e }}" class="cm-toolbar-more-item" role="menuitem" {% if action.target %}target="{{ action.target | e }}"{% endif %}>
+            {% if action.icon %}
+            <span class="cm-toolbar-more-icon">{{ action.icon }}</span>
+            {% endif %}
+            <span>{{ action.label | e }}</span>
+          </a>
+          {% endfor %}
+          {% endif %}
+          <div class="cm-toolbar-more-presets" data-cm-more-presets="{{ block.target or '' | e }}"></div>
+          {% if has_settings %}
+          <button
+            type="button"
+            data-cm-col-action="toggle-modal"
+            data-cm-grid-id="{{ block.target | e }}"
+            class="cm-toolbar-more-item cm-toolbar-more-item--settings"
+            role="menuitem"
+          >
+            <svg class="cm-toolbar-more-icon cm-toolbar-more-icon--settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            <span>{{ host.translate('column_settings.title') | e }}</span>
+          </button>
+          {% endif %}
+          {% if block.reload and block.target %}
+          <button
+            type="button"
+            class="cm-toolbar-more-item"
+            role="menuitem"
+            data-cm-grid-action="reloadData"
+            data-cm-grid-id="{{ block.target | e }}"
+          >
+            <svg class="cm-toolbar-more-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            <span>{{ host.translate('toolbar.reload') | default('Оновити') | e }}</span>
+          </button>
+          {% endif %}
+        </div>
+      </details>
       {% endif %}
     </div>
     {% endif %}

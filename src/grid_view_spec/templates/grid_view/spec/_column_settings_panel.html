@@ -6,7 +6,7 @@
       <span class="cm-col-selector-hint">{{ host.translate('column_settings.hint') | e }}</span>
       <div class="cm-col-selector-header-actions">
         <button type="button" data-cm-col-action="reset" data-cm-grid-id="{{ block_id | e }}" class="cm-col-selector-reset">{{ host.translate('column_settings.reset') | e }}</button>
-        <button type="button" data-cm-col-action="toggle" data-cm-grid-id="{{ block_id | e }}" class="cm-col-selector-close">&times;</button>
+        <button type="button" data-cm-col-action="close" data-cm-grid-id="{{ block_id | e }}" class="cm-col-selector-close" aria-label="Close">&times;</button>
       </div>
     </div>
     <div class="cm-col-selector-order">
@@ -15,10 +15,25 @@
     <div class="cm-col-selector-body">
       <div id="col-checkboxes-{{ block_id | e }}" class="cm-col-checkboxes"></div>
       <div class="cm-col-selector-presets">
-        <div class="cm-col-selector-presets-header">{{ host.translate('column_settings.presets') | e }}</div>
-        <input type="text" id="preset-name-{{ block_id | e }}" placeholder="{{ host.translate('column_settings.preset_placeholder') | e }}" class="cm-col-preset-name-input">
-        <button type="button" data-cm-col-action="savePreset" data-cm-grid-id="{{ block_id | e }}" class="cm-col-preset-save">{{ host.translate('column_settings.save_preset') | e }}</button>
-        <div id="presets-container-{{ block_id | e }}" class="cm-col-presets-list"></div>
+        {% set presets_title = host.translate('column_settings.presets') %}
+        {% if presets_title == 'column_settings.presets' %}{% set presets_title = 'Пресети колонок' %}{% endif %}
+        {% set presets_hint = host.translate('column_settings.presets_hint') %}
+        {% if presets_hint == 'column_settings.presets_hint' %}{% set presets_hint = 'Збережені набори колонок' %}{% endif %}
+        {% set save_btn_text = host.translate('column_settings.save') %}
+        {% if save_btn_text == 'column_settings.save' %}{% set save_btn_text = 'Зберегти' %}{% endif %}
+        {% set placeholder_text = host.translate('column_settings.preset_placeholder') %}
+        {% if placeholder_text == 'column_settings.preset_placeholder' %}{% set placeholder_text = 'Введіть назву...' %}{% endif %}
+        <div class="cm-col-selector-presets-header">
+          <span class="cm-col-selector-presets-title">{{ presets_title | e }}</span>
+          <span class="cm-col-selector-presets-hint">{{ presets_hint | e }}</span>
+        </div>
+        <div class="cm-col-preset-input-row">
+          <input type="text" id="preset-name-{{ block_id | e }}" placeholder="{{ placeholder_text | e }}" class="cm-col-preset-name-input">
+          <button type="button" data-cm-col-action="savePreset" data-cm-grid-id="{{ block_id | e }}" class="cm-col-preset-save">{{ save_btn_text | e }}</button>
+        </div>
+        <div id="presets-container-{{ block_id | e }}" class="cm-col-presets-list">
+          <div class="cm-col-presets-empty">{{ host.translate('column_settings.no_presets_hint') | e }}</div>
+        </div>
       </div>
     </div>
   </div>

@@ -47,6 +47,25 @@ def test_save_grid_prefs_uses_host_protocol() -> None:
     assert prefs.searches == ("alpha",)
 
 
+def test_save_grid_prefs_anonymous_user() -> None:
+    factory = RequestFactory()
+    body = json.dumps(
+        {
+            "grid_id": "records",
+            "colPresets": {"name": {"visible": True}},
+        }
+    )
+    request = factory.post("/grid/prefs/", data=body, content_type="application/json")
+    from django.contrib.auth.models import AnonymousUser
+
+    request.user = AnonymousUser()
+    response = save_grid_prefs(request)
+    assert response.status_code == 200
+    data = json.loads(response.content.decode())
+    assert data.get("status") == "ok"
+    assert data.get("local_only") is True
+
+
 def test_grid_prefs_rejects_mismatched_subject_id() -> None:
     user = User.objects.create_user(username="other_user", password="pass")
     factory = RequestFactory()

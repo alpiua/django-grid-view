@@ -906,7 +906,7 @@ wheels = [
 
 [[package]]
 name = "grid-view-spec"
-version = "2.0.3"
+version = "2.0.4"
 source = { editable = "." }
 dependencies = [
     { name = "jinja2" },

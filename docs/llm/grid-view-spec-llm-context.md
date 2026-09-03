@@ -1992,6 +1992,16 @@ Column settings UI uses the same msgids as the modal. Export column order/visibi
 
 # Changelog
 
+## 2.0.4 — 2026-09-03
+
+### Added & Improved
+
+- **Column Presets:** active preset checkmark indicator in dropdown and more menu; instructional empty state when no presets saved (`column_settings.no_presets_hint`).
+- **Toolbar & Responsive Layout:** unified mobile breakpoint at 640px; scoped mobile filter header and vertical layout strictly to popover; preserved inline filter triggers when toolbar has no search field.
+- **KPI Cards & Filters Alignment:** dynamic KPI card grid sizing (`repeat(auto-fit)`) across viewport widths; aligned filter controls to content start (`justify-content: flex-start`) on toolbars without search.
+- **Filter Dropdown Widths:** flexible multiselect dropdown panel width on mobile (`min-width: max(100%, 180px)`) preventing label text truncation.
+- **Backend Views:** handle optional request in `api_column_filter_dictionary`.
+
 ## 2.0.3 — 2026-08-30
 
 ### Documentation & Tooling

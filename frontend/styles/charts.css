@@ -24,10 +24,20 @@
     visibility: hidden;
 }
 /* ── Charts ───────────────────────────────────────────────────────────────── */
-.cm-chart-wrap {
+.cm-block-charts,
+.cm-charts,
+.cm-chart-wrap,
+.cm-chart-root {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+.cm-chart-wrap {
     margin-bottom: var(--cm-page-gap);
+    overflow: hidden;
 }
 .cm-chart-root {
     min-height: 120px;
+    overflow: hidden;
 }

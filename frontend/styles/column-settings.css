@@ -27,8 +27,9 @@
     flex-direction: column;
     width: var(--cm-table-settings-dialog-width);
     max-width: 95vw;
-    height: var(--cm-table-settings-dialog-height);
+    height: auto;
     max-height: var(--cm-table-settings-dialog-height);
+    min-height: min-content;
     padding: 24px;
     background: var(--cm-table-surface-bg);
     border: 1px solid var(--cm-table-border-color);
@@ -113,8 +114,8 @@
 .cm-col-selector-body {
     display: flex;
     flex-direction: column;
-    gap: 24px;
-    flex: 1;
+    gap: 20px;
+    flex: 0 1 auto;
     min-height: 0;
     overflow: hidden;
 }
@@ -124,8 +125,9 @@
     }
 }
 .cm-col-checkboxes {
-    flex: 1;
+    flex: 0 1 auto;
     min-height: 0;
+    max-height: 52vh;
     overflow-y: auto;
     overflow-x: hidden;
     padding-right: 16px;
@@ -149,40 +151,62 @@
     }
 }
 .cm-col-selector-presets-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid color-mix(in srgb, var(--cm-border) 50%, transparent);
+    margin-bottom: 8px;
+}
+.cm-col-selector-presets-title {
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: color-mix(in srgb, var(--cm-primary, #6366f1) 85%, var(--cm-text));
-    padding-bottom: 8px;
-    border-bottom: 1px solid color-mix(in srgb, var(--cm-border) 50%, transparent);
-    margin-bottom: 8px;
+    flex-shrink: 0;
+}
+.cm-col-selector-presets-hint {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--cm-muted);
+    text-align: right;
+}
+.cm-col-preset-input-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
 }
 .cm-col-preset-name-input {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     box-sizing: border-box;
-    padding: 6px 8px;
+    padding: 7px 10px;
     font-size: 12px;
     color: var(--cm-text);
     background: var(--cm-bg);
     border: 1px solid var(--cm-border);
-    border-radius: 4px;
+    border-radius: 6px;
 }
 .cm-col-preset-name-input:focus {
     outline: none;
     border-color: color-mix(in srgb, var(--cm-primary, #6366f1) 60%, var(--cm-border));
 }
 .cm-col-preset-save {
-    width: 100%;
-    padding: 6px 10px;
+    flex: 0 0 auto;
+    width: auto;
+    padding: 7px 14px;
     font-size: 12px;
     font-weight: 600;
     color: #fff;
     background: color-mix(in srgb, var(--cm-primary, #6366f1) 90%, #4338ca);
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, background 0.15s;
+    white-space: nowrap;
 }
 .cm-col-preset-save:hover {
     opacity: 0.9;
@@ -198,6 +222,14 @@
     border: 1px solid color-mix(in srgb, var(--cm-border) 50%, transparent);
     border-radius: 8px;
     background: color-mix(in srgb, var(--cm-bg) 30%, transparent);
+}
+.cm-col-presets-empty {
+    color: var(--cm-muted);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    text-align: center;
+    padding: 10px 8px;
+    margin: auto 0;
 }
 
 /* JS-built column settings controls */
@@ -303,8 +335,10 @@
     cursor: pointer;
 }
 .cm-col-order-pill {
-    cursor: move;
+    cursor: grab;
     user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
     padding: 4px 8px;
     border-radius: 6px;
     font-size: 10px;
@@ -315,6 +349,18 @@
     background: var(--cm-surface);
     color: var(--cm-muted);
     transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.cm-col-order-pill:active {
+    cursor: grabbing;
+}
+.cm-col-order-pill.sortable-ghost {
+    opacity: 0.35;
+    background: var(--cm-hover);
+    border-style: dashed;
+}
+.cm-col-order-pill.sortable-chosen {
+    border-color: var(--cm-primary);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--cm-primary) 30%, transparent);
 }
 .cm-col-order-pill.is-pinned {
     color: color-mix(in srgb, var(--cm-primary, #6366f1) 75%, #fff);
@@ -369,3 +415,144 @@
 .cm-col-preset-delete-btn:hover {
     color: var(--cm-text);
 }
+
+/* ── Column Presets Popover Dropdown ──────────────────────────────────────── */
+.cm-col-btn-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+.cm-col-presets-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 210px;
+    background: var(--cm-surface);
+    border: 1px solid var(--cm-border);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+    z-index: 1200;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    box-sizing: border-box;
+}
+.cm-col-presets-dropdown.is-hidden {
+    display: none !important;
+}
+.cm-col-presets-dropdown-header {
+    padding: 6px 10px 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cm-muted);
+}
+.cm-col-presets-dropdown-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+.cm-col-preset-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--cm-text);
+    cursor: pointer;
+    transition: background 0.12s ease;
+    user-select: none;
+}
+.cm-col-preset-dropdown-item:hover {
+    background: var(--cm-hover);
+    color: var(--cm-primary);
+}
+.cm-col-preset-dropdown-item.is-active {
+    background: color-mix(in srgb, var(--cm-primary) 12%, var(--cm-surface));
+    color: var(--cm-primary);
+    font-weight: 650;
+}
+.cm-col-preset-dropdown-item.is-active .cm-col-preset-dropdown-item-icon {
+    color: var(--cm-primary);
+}
+.cm-col-preset-active-check {
+    color: var(--cm-primary);
+    flex-shrink: 0;
+}
+.cm-col-preset-dropdown-item-icon {
+    width: 14px;
+    height: 14px;
+    color: var(--cm-muted);
+    flex-shrink: 0;
+}
+.cm-col-preset-dropdown-item--default {
+    font-weight: 600;
+}
+.cm-col-preset-dropdown-item--default .cm-col-preset-dropdown-item-icon {
+    color: var(--cm-primary);
+}
+.cm-col-preset-dropdown-divider {
+    height: 1px;
+    background: var(--cm-border);
+    margin: 4px 0;
+}
+.cm-col-preset-dropdown-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--cm-primary);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    transition: background 0.12s ease;
+    box-sizing: border-box;
+}
+.cm-col-preset-dropdown-action:hover {
+    background: var(--cm-hover);
+}
+
+/* ── Mobile Responsive Column Settings Modal ─────────────────────────────── */
+@media (max-width: 768px) {
+    .cm-col-selector-panel {
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 1rem !important;
+    }
+    .cm-col-selector-dialog {
+        width: min(640px, 94vw) !important;
+        max-width: 94vw !important;
+        height: auto !important;
+        max-height: 88vh !important;
+        border-radius: 14px !important;
+        border: 1px solid var(--cm-table-border-color) !important;
+        padding: 18px !important;
+    }
+    .cm-col-checkboxes {
+        max-height: 38vh !important;
+    }
+    .cm-col-selector-header {
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+    }
+    .cm-col-selector-hint {
+        display: none !important;
+    }
+    .cm-col-selector-presets {
+        width: 100% !important;
+    }
+}
+
